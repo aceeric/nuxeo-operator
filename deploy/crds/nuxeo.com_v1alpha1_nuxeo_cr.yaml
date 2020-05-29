@@ -8,12 +8,8 @@ spec:
   nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/poc-images/nuxeo:10.10
   revProxy:
     nginx:
-      configMap: foo
-      secret: bar
-  service:
-    type: ClusterIP
-    port: 80
-    targetPort: 80
+      configMap: tls-cfgmap
+      secret: tls-secret
   access:
     hostname: nuxeo.fictionalcompany.io
   nodeSets:

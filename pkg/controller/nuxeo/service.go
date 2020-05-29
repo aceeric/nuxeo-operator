@@ -67,14 +67,18 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 //    ports:
 //      - name: web
 //        port: 80
-//        targetPort: 8080
+//        targetPort: 80
 func (r *ReconcileNuxeo) defaultService(nux *v1alpha1.Nuxeo, svc v1alpha1.ServiceSpec, svcName string) (*corev1.Service, error) {
 	var svcType = corev1.ServiceTypeClusterIP
-	var port int32 = 80
+	var port int32 = 8080
 	var targetPort int32 = 8080
+	if nux.Spec.RevProxy != (v1alpha1.RevProxySpec{}) {
+		port = 8443
+		targetPort = 0443
+	}
 	if svc != (v1alpha1.ServiceSpec{}) {
-		port = int32(svc.Port)
-		targetPort = int32(svc.TargetPort)
+		port = svc.Port
+		targetPort = svc.TargetPort
 		svcType = svc.Type
 	}
 	switch svcType {

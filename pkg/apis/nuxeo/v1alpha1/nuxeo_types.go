@@ -1,10 +1,13 @@
 package v1alpha1
 
 import (
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	routev1 "github.com/openshift/api/route/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 // NodeSet defines the structure of the Nuxeo cluster. Each NodeSet results in a Deployment. This supports the
@@ -156,4 +159,25 @@ type NuxeoList struct {
 
 func init() {
 	SchemeBuilder.Register(&Nuxeo{}, &NuxeoList{})
+	registerOpenShiftRoute()
 }
+
+// registerOpenShiftRoute registers the OpenShift Route objects with the Scheme Builder so they are visible to
+// the Nuxeo Operator as defined types
+func registerOpenShiftRoute() {
+	const GroupName = "route.openshift.io"
+	const GroupVersion = "v1"
+	SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	addKnownTypes := func(scheme *runtime.Scheme) error {
+		scheme.AddKnownTypes(SchemeGroupVersion,
+			&routev1.Route{},
+			&routev1.RouteList{},
+		)
+		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+		return nil
+	}
+	SchemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme := SchemeBuilder.AddToScheme
+	AddToScheme(scheme.Scheme) // TODO HANDLE ERROR
+}
+

@@ -57,7 +57,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Services and requeue the owner Nuxeo
-	// TODO if Kubernetes - does this err if attempting to watch an undefined resource?
 	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &nuxeov1alpha1.Nuxeo{},

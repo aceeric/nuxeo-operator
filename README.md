@@ -121,19 +121,6 @@ $ docker push $HOST/poc-images/nuxeo:10.10
 
 
 
-Route
-  selector + targetport >
-    Service
-      selector + port + targetpod >
-        Pod
-          container
-            port
-
-if revproxy specified:
-  route listens on 443 and selects 
-
-
-
 ### Steps to test the operator (running out of cluster in the IDE)
 
 1. Create project poc-rco

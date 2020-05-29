@@ -39,14 +39,18 @@ spec:
                 hostname:
                   description: Hostname specifies the host name
                   type: string
-                port:
-                  description: Port selects a target port in the Service backed by
-                    this NuxeoAccess spec
-                  format: int32
-                  type: integer
+                targetPort:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  description: TargetPort selects a target port in the Service backed
+                    by this NuxeoAccess spec. By default, 'web' is populated by the
+                    Operator - which finds the default 'web' port in the Service generated
+                    by the Operator
+                  x-kubernetes-int-or-string: true
                 termination:
-                  description: Termination specifies the termination type. E.g. 'edge',
-                    'passthrough', etc.
+                  description: Termination specifies the TLS termination type. E.g.
+                    'edge', 'passthrough', etc. Ignored unless 'TLSSecret' is specified.
                   type: string
                 tlsSecret:
                   description: TLSSecret specifies the name of a secret with fields

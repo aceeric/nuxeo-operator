@@ -1,0 +1,9 @@
+*
+.idea/
+logs
+bin
+pki/*
+!*.*
+!*/
+!Makefile
+!LICENSE

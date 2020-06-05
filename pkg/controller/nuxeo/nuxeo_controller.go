@@ -74,7 +74,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO Watch for changes top Kubernetes Ingress and requeue the owner Nuxeo
+	// Future: watch for changes top Kubernetes Ingress and requeue the owner Nuxeo
 
 	return nil
 }
@@ -103,7 +103,7 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
+			// Nuxeo CR not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			reqLogger.Info("Nuxeo resource not found. Ignoring since object must be deleted")
@@ -117,14 +117,14 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Nuxeo CR might define one NodeSet for a set of interactive Nuxeo pods, and a second NodeSet for a
 	// set of worker Nuxeo pods. This results in two Deployments: one controlling interactive Pods,
 	// and one controlling worker Pods. The interactive pods will be made accessible by the Operator via a
-	// Service. The non-interactive pods will not be externally accessible.
+	// Service. The non-interactive pods will not be externally accessible outside of the cluster.
 	var interactiveNodeSet *nuxeov1alpha1.NodeSet = nil
 
 	for _, nodeSet := range instance.Spec.NodeSets {
 		if result, err := reconcileNodeSet(r, nodeSet, instance, instance.Spec.RevProxy, reqLogger); err != nil {
 			return result, err
 		}
-		// TODO IF REQUEUE - RETURN SO DEPLOYMENT STATUS CAN BE UPDATED
+		// TODO-ME IF REQUEUE - RETURN SO DEPLOYMENT STATUS CAN BE UPDATED
 		if nodeSet.Interactive {
 			if interactiveNodeSet != nil {
 				err = goerrors.New("nuxeo validation error")

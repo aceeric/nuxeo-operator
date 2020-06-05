@@ -29,67 +29,185 @@ spec:
         metadata:
           type: object
         spec:
-          description: NuxeoSpec Defines the desired state of a Nuxeo cluster
+          description: Defines the desired state of a Nuxeo cluster
           properties:
             access:
-              description: Access defines how Nuxeo will be accessed externally to
-                the cluster. It results in the creation of an OpenShift Route object
-                or TODO a Kubernetes Ingress object
+              description: Defines how Nuxeo will be accessed externally to the cluster.
+                It results in the creation of an OpenShift Route object. In the future,
+                it will also support generation of a Kubernetes Ingress object
               properties:
                 hostname:
-                  description: Hostname specifies the host name
+                  description: Specifies the host name. This is incorporated by the
+                    Operator into the operator-generated OpenShift Route and should
+                    be accessible from outside the cluster via DNS or some other suitable
+                    routing mechanism
                   type: string
                 targetPort:
                   anyOf:
                   - type: integer
                   - type: string
-                  description: TargetPort selects a target port in the Service backed
-                    by this NuxeoAccess spec. By default, 'web' is populated by the
-                    Operator - which finds the default 'web' port in the Service generated
+                  description: Selects a target port in the Service backed by this
+                    NuxeoAccess spec. By default, 'web' is populated by the Operator
+                    - which finds the default 'web' port in the Service generated
                     by the Operator
                   x-kubernetes-int-or-string: true
                 termination:
-                  description: Termination specifies the TLS termination type. E.g.
-                    'edge', 'passthrough', etc. Ignored unless 'TLSSecret' is specified.
+                  description: Specifies the TLS termination type. E.g. 'edge', 'passthrough',
+                    etc.
                   type: string
                 tlsSecret:
-                  description: TLSSecret specifies the name of a secret with fields
-                    required to configure ingress for TLS, as determined by the 'Termination'
+                  description: Specifies the name of a secret with fields required
+                    to configure ingress for TLS, as determined by the termination
                     field. Example fields expected in such a secret are - 'key', 'certificate',
-                    and 'caCertificate'. If this element is specified, then TLS is
-                    enabled. Otherwise, TLS is not enabled and the 'Termination' property
-                    is ignored.
+                    and 'caCertificate'.
                   type: string
               type: object
+            imagePullPolicy:
+              description: Image pull policy. If not specified, then if 'nuxeoImage'
+                is specified with the :latest tag, then this is 'Always', otherwise
+                it is 'IfNotPresent'. Note that this flows through to a Pod ultimately,
+                and pull policy is immutable in a Pod spec. Therefore if any changes
+                are made to this value in a Nuxeo CR once the Operator has generated
+                a Deployment from the CR, subsequent Deployment reconciliations will
+                fail.
+              type: string
             nodeSets:
-              description: Each Node Set causes a Deployment to be created with the
-                specified number of replicas, and other characteristics
+              description: Each nodeSet causes a Deployment to be created with the
+                specified number of replicas, and other characteristics specified
+                within the nodeSet spec.
               items:
                 description: NodeSet defines the structure of the Nuxeo cluster. Each
                   NodeSet results in a Deployment. This supports the capability to
-                  defined different configurations for a deployment of interactive
-                  Nuxeo nodes vs a deployment of worker Nuxeo nodes.
+                  defined different configurations for a Deployment of interactive
+                  Nuxeo nodes vs a Deployment of worker Nuxeo nodes.
                 properties:
+                  env:
+                    description: Supports adding environment variables into the Nuxeo
+                      container created by the Operator for this NodeSet. If the PodTemplate
+                      is specified, these environment variables are ignored and the
+                      environment variables from the PodTemplate - whether they are
+                      explicitly defined or not - are used.
+                    items:
+                      description: EnvVar represents an environment variable present
+                        in a Container.
+                      properties:
+                        name:
+                          description: Name of the environment variable. Must be a
+                            C_IDENTIFIER.
+                          type: string
+                        value:
+                          description: 'Variable references $(VAR_NAME) are expanded
+                            using the previous defined environment variables in the
+                            container and any service environment variables. If a
+                            variable cannot be resolved, the reference in the input
+                            string will be unchanged. The $(VAR_NAME) syntax can be
+                            escaped with a double $$, ie: $$(VAR_NAME). Escaped references
+                            will never be expanded, regardless of whether the variable
+                            exists or not. Defaults to "".'
+                          type: string
+                        valueFrom:
+                          description: Source for the environment variable's value.
+                            Cannot be used if value is not empty.
+                          properties:
+                            configMapKeyRef:
+                              description: Selects a key of a ConfigMap.
+                              properties:
+                                key:
+                                  description: The key to select.
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind,
+                                    uid?'
+                                  type: string
+                                optional:
+                                  description: Specify whether the ConfigMap or its
+                                    key must be defined
+                                  type: boolean
+                              required:
+                              - key
+                              type: object
+                            fieldRef:
+                              description: 'Selects a field of the pod: supports metadata.name,
+                                metadata.namespace, metadata.labels, metadata.annotations,
+                                spec.nodeName, spec.serviceAccountName, status.hostIP,
+                                status.podIP, status.podIPs.'
+                              properties:
+                                apiVersion:
+                                  description: Version of the schema the FieldPath
+                                    is written in terms of, defaults to "v1".
+                                  type: string
+                                fieldPath:
+                                  description: Path of the field to select in the
+                                    specified API version.
+                                  type: string
+                              required:
+                              - fieldPath
+                              type: object
+                            resourceFieldRef:
+                              description: 'Selects a resource of the container: only
+                                resources limits and requests (limits.cpu, limits.memory,
+                                limits.ephemeral-storage, requests.cpu, requests.memory
+                                and requests.ephemeral-storage) are currently supported.'
+                              properties:
+                                containerName:
+                                  description: 'Container name: required for volumes,
+                                    optional for env vars'
+                                  type: string
+                                divisor:
+                                  description: Specifies the output format of the
+                                    exposed resources, defaults to "1"
+                                  type: string
+                                resource:
+                                  description: 'Required: resource to select'
+                                  type: string
+                              required:
+                              - resource
+                              type: object
+                            secretKeyRef:
+                              description: Selects a key of a secret in the pod's
+                                namespace
+                              properties:
+                                key:
+                                  description: The key of the secret to select from.  Must
+                                    be a valid secret key.
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind,
+                                    uid?'
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret or its key
+                                    must be defined
+                                  type: boolean
+                              required:
+                              - key
+                              type: object
+                          type: object
+                      required:
+                      - name
+                      type: object
+                    type: array
                   interactive:
                     description: Indicates whether this NodeSet will be accessible
                       outside the cluster. Default is 'false'. If 'true', then the
                       Service created by the operator will be have its selectors defined
-                      such that it finds the Pods created by this NodeSet. Exactly
-                      one NodeSet must be configured for external access. TODO does
-                      this make sense? Might someone want to stand up a non-interactive
-                      cluster for testing?
+                      such that it selects the Pods created by this NodeSet. Exactly
+                      one NodeSet must be configured for external access.
                     type: boolean
                   name:
                     description: The name of this node set. In cases where only one
                       node set is needed, a recommended naming strategy is to name
-                      this node set 'cluster'. For example, say you generate a Nuxeo
+                      this node set 'cluster'. For example, if you generate a Nuxeo
                       CR named 'my-nuxeo' into the namespace being watched by the
                       Nuxeo Operator, and you name this node set 'cluster'. Then the
                       operator will create a deployment from the node set named 'my-nuxeo-cluster'
                     type: string
                   podTemplate:
-                    description: PodTemplate provides the ability to override hard-coded
-                      pod defaults
+                    description: Provides the ability to override hard-coded pod defaults,
+                      enabling fine-grained control over the configuration of the
+                      Pods in the Deployment.
                     properties:
                       metadata:
                         description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
@@ -6218,28 +6336,27 @@ spec:
                         type: object
                     type: object
                   replicas:
-                    description: Populates the 'spec.replicas' property of the 'Deployment'
-                      generated by this node set
+                    description: Populates the 'spec.replicas' property of the Deployment
+                      generated by this node set.
                     minimum: 1
                     type: integer
                 type: object
               type: array
             nuxeoImage:
-              description: NuxeoImage overrides the default Nuxeo container image
-                selection. By default, the Operator uses 'nuxeo:latest' as the container
-                image. To override that, include the image spec here. Any allowable
-                form is supported. For example, to reference an imagestream in a 'custom-images'
-                OpenShift namespace, the following would be valid - 'image-registry.openshift-image-registry.svc.cluster.local:5000/custom-images/nuxeo:custom'
+              description: Overrides the default Nuxeo container image selected by
+                the Operator. By default, the Operator uses 'nuxeo:latest' as the
+                container image. To override that, include the image spec here. Any
+                allowable form is supported. E.g. 'image-registry.openshift-image-registry.svc.cluster.local:5000/custom-images/nuxeo:custom'
               type: string
             revProxy:
-              description: RevProxy causes a reverse proxy to be included in the Nuxeo
-                interactive deployment. The reverse proxy will receive traffic from
-                the Route/Ingress object created by the Operator, and forward that
-                traffic to the Nuxeo Service created by the operator, which in turn
-                will forward traffic to the Nuxeo interactive Pods. Presently, Nginx
-                is the only supported option but the structure is intended to allow
-                other implementations in the future. If omitted, then no reverse proxy
-                is created and traffic goes directly to the Nuxeo Pods.
+              description: Causes a reverse proxy to be included in the Nuxeo interactive
+                deployment. The reverse proxy will receive traffic from the Route/Ingress
+                object created by the Operator, and forward that traffic to the Nuxeo
+                Service created by the operator, which in turn will forward traffic
+                to the Nuxeo interactive Pods. Presently, Nginx is the only supported
+                option but the structure is intended to allow other implementations
+                in the future. If omitted, then no reverse proxy is created and traffic
+                goes directly to the Nuxeo Pods.
               properties:
                 dummy:
                   description: dummy supports testing
@@ -6249,27 +6366,44 @@ spec:
                     proxy
                   properties:
                     configMap:
+                      description: Defines a ConfigMap that contains an 'nginx.conf'
+                        key, and a 'proxy.conf' key, each of which provide required
+                        configuration to the Nginx container
+                      type: string
+                    image:
+                      description: Specifies the image
+                      type: string
+                    imagePullPolicy:
+                      description: Image pull policy for the Nuxeo image. If not specified,
+                        then if 'image' is specified with the :latest tag, then this
+                        is 'Always', otherwise it is 'IfNotPresent'. Note that this
+                        flows through to a Pod ultimately, and pull policy is immutable
+                        in a Pod spec. Therefore if any changes are made to this value
+                        in a Nuxeo CR once the Operator has generated a Deployment
+                        from the CR, subsequent Deployment reconciliations will fail.
                       type: string
                     secret:
+                      description: References a secret containing keys 'tls.key',
+                        'tls.cert', and 'dhparam' which are used to terminate the
+                        Nginx TLS connection.
                       type: string
                   type: object
               type: object
             serviceSpec:
-              description: ServiceSpec provides the ability to minimally customize
-                the type of Service generated by the Operator. To fully override the
-                service, populate the TODO attribute in the Nuxeo spec
+              description: Provides the ability to minimally customize the type of
+                Service generated by the Operator.
               properties:
                 port:
-                  description: Port specifies the port exposed by the service
+                  description: Specifies the port exposed by the service
                   format: int32
                   type: integer
                 targetPort:
-                  description: TargetPort specifies the port that the servuce will
-                    use internally to communicate with the Nuxeo cluster
+                  description: Specifies the port that the service will use internally
+                    to communicate with the Nuxeo cluster
                   format: int32
                   type: integer
                 type:
-                  description: Type specifies the Service type to create
+                  description: Specifies the Service type to create
                   enum:
                   - ClusterIP
                   - NodePort
@@ -6278,8 +6412,7 @@ spec:
               type: object
           type: object
         status:
-          description: Defines the observed state of a Nuxeo cluster TODO IMPLEMENT
-            THIS
+          description: Defines the observed state of a Nuxeo cluster
           properties:
             nodes:
               description: Nodes are the names of the nuxeo pods

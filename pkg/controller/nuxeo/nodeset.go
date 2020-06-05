@@ -2,6 +2,7 @@ package nuxeo
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"k8s.io/api/apps/v1"
@@ -48,15 +49,15 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 			return reconcile.Result{}, err
 		}
 		// Deployment created successfully - return and requeue
-		return reconcile.Result{Requeue: true}, nil // TODO UPDATE STATUS BELOW AS MEMCACHED
+		return reconcile.Result{Requeue: true}, nil // TODO-ME UPDATE STATUS BELOW AS MEMCACHED
 	} else if err != nil {
 		reqLogger.Error(err, "Error attempting to get Deployment for NodeSet: "+nodeSet.Name)
 		return reconcile.Result{}, err
 	}
 	if !equality.Semantic.DeepDerivative(expected.Spec, actual.Spec) {
+		reqLogger.Info("Updating Deployment", "Namespace", expected.Namespace, "Name", expected.Name)
 		expected.Spec.DeepCopyInto(&actual.Spec)
-		err = r.client.Update(context.TODO(), actual)
-		if err != nil {
+		if err = r.client.Update(context.TODO(), actual); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -82,6 +83,7 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 //           app: nuxeo
 //           nuxeoCr: <from your Nuxeo CR metadata.name field>
 //       spec:
+//         serviceAccountName: nuxeo
 //         containers:
 //         - name: nuxeo
 //           imagePullPolicy: Always
@@ -90,14 +92,21 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 //           - containerPort: 8080
 //
 // If the revProxy arg indicates that a reverse proxy is to be included in the deployment, then that results in
-// another container being added to the deployment
+// another (TLS sidecar) container being added to the deployment
 func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, nodeSet v1alpha1.NodeSet, revProxy v1alpha1.RevProxySpec) *v1.Deployment {
 	replicas32 := int32(nodeSet.Replicas)
-	nuxeoImage := "busybox" // TODO this is a stub for now - replace w/ nuxeo:latest
+	nuxeoImage := "nuxeo:latest"
 	if nux.Spec.NuxeoImage != "" {
 		nuxeoImage = nux.Spec.NuxeoImage
 	}
-
+	var pullPolicy = corev1.PullIfNotPresent
+	if nux.Spec.ImagePullPolicy == "" {
+		if strings.HasSuffix(nuxeoImage, ":latest") {
+			pullPolicy = corev1.PullAlways
+		}
+	} else {
+		pullPolicy = nux.Spec.ImagePullPolicy
+	}
 	dep := &v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      depName,
@@ -113,15 +122,16 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 					Labels: labelsForNuxeo(nux, nodeSet.Interactive),
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: "nuxeo",
 					Containers: []corev1.Container{{
 						Image:           nuxeoImage,
-						ImagePullPolicy: "Always",  // TODO configurable?
+						ImagePullPolicy: pullPolicy,
 						Name:            "nuxeo",
-						Command:         []string{"sleep", "3600"},
 						Ports: []corev1.ContainerPort{{
 							ContainerPort: 8080,
 						}},
-						VolumeMounts: []corev1.VolumeMount{}, // TODO
+						VolumeMounts: []corev1.VolumeMount{},
+						Env: nodeSet.Env,
 					}},
 					Volumes: []corev1.Volume{},
 				},
@@ -136,7 +146,7 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 	if revProxy.Nginx != (v1alpha1.NginxRevProxySpec{}) {
 		// if a Nginx is specified as the reverse proxy, then configure an additional Container and supporting
 		// Volumes in the Deployment
-		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, nginxContainer())
+		dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, nginxContainer(revProxy.Nginx))
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, nginxVolumes(revProxy.Nginx)...)
 	}
 	// Set Nuxeo as the owner and controller
@@ -147,10 +157,23 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 // nginxContainer creates and returns a Container struct defining the Nginx reverse proxy. It defines various
 // volume mounts which - therefore - must also be defined in the deployment that ultimately holds this container
 // struct.
-func nginxContainer() corev1.Container {
+func nginxContainer(nginx v1alpha1.NginxRevProxySpec) corev1.Container {
+	nginxImage := "nginx:latest"
+	if nginx.Image != "" {
+		nginxImage = nginx.Image
+	}
+	var pullPolicy = corev1.PullIfNotPresent
+	if nginx.ImagePullPolicy == "" {
+		if strings.HasSuffix(nginxImage, ":latest") {
+			pullPolicy = corev1.PullAlways
+		}
+	} else {
+		pullPolicy = nginx.ImagePullPolicy
+	}
 	c := corev1.Container{
 		Name:  "nginx",
-		Image: "openshift/nginx:latest", // TODO this is OpenShift-specific
+		Image: nginxImage,
+		ImagePullPolicy: pullPolicy,
 		Ports: []corev1.ContainerPort{{
 			Name:          "nginx-port",
 			ContainerPort: 8443,
@@ -178,7 +201,7 @@ func nginxContainer() corev1.Container {
 }
 
 // nginxVolumes creates and returns a slice of Volume specs that support the VolumeMounts generated by the
-// 'nginxContainer' function.
+// 'nginxContainer' function. Expectation is that these items will be added by the caller into a Deployment
 func nginxVolumes(nginx v1alpha1.NginxRevProxySpec) []corev1.Volume {
 	vols := []corev1.Volume{{
 		Name: "nginx-conf",

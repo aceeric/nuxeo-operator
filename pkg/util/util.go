@@ -2,8 +2,9 @@ package util
 
 import (
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"hash/fnv"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func HashObject(object interface{}) string {
@@ -26,4 +27,9 @@ func SpewObject(object interface{}) string {
 		SpewKeys:       true,
 	}
 	return printer.Sdump(object)
+}
+
+// future: detect Kubernetes vs OpenShift
+func IsOpenShift() bool {
+	return true
 }

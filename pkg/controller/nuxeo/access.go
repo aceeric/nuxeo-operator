@@ -14,15 +14,16 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// reconcileAccess configures external access to the Nuxeo cluster either through an OpenShift Route object, or
-// TODO a Kubernetes Ingress object
+// reconcileAccess configures external access to the Nuxeo cluster either through an OpenShift Route object
+// or - in a subsequent version - a Kubernetes Ingress object
 func reconcileAccess(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
-	if isOpenShift {
+	if util.IsOpenShift() {
 		return reconcileOpenshiftRoute(r, access, nodeSet, instance, reqLogger)
 	} else {
 		err := goerrors.New("nuxeo validation error")
@@ -55,8 +56,11 @@ func reconcileOpenshiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nod
 		return reconcile.Result{}, err
 	}
 	if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) {
+		reqLogger.Info("Updating Route", "Namespace", expected.Namespace, "Name", expected.Name)
 		expected.Spec.DeepCopyInto(&found.Spec)
-		r.client.Update(context.TODO(), found) // TODO HANDLE ERROR
+		if err = r.client.Update(context.TODO(), found); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 	return reconcile.Result{}, nil
 }
@@ -97,16 +101,21 @@ func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.Nuxeo
 		},
 		Spec: routev1.RouteSpec{
 			Host: access.Hostname,
-			To:   routev1.RouteTargetReference{
+			To: routev1.RouteTargetReference{
 				Kind:   "Service",
 				Name:   serviceName(nux, nodeSet),
 				Weight: nil,
 			},
 			Port: &routev1.RoutePort{TargetPort: targetPort},
-			TLS: nil,
+			TLS:  nil,
 		},
 	}
-	if access.TLSSecret != "" {
+	if access.Termination != "" {
+		route.Spec.TLS = &routev1.TLSConfig{
+			Termination: access.Termination,
+		}
+	}
+	if access.TLSSecret != "" && access.Termination != "" {
 		s := &corev1.Secret{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: access.TLSSecret, Namespace: nux.Namespace}, s)
 		if err != nil {
@@ -122,14 +131,11 @@ func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.Nuxeo
 		destCaCert, _ = s.Data["destinationCACertificate"]
 		var insecterm []byte
 		insecterm, _ = s.Data["insecureEdgeTerminationPolicy"]
-		route.Spec.TLS = &routev1.TLSConfig{
-			Termination:                   access.Termination,
-			Certificate:                   string(cert),
-			Key:                           string(key),
-			CACertificate:                 string(caCert),
-			DestinationCACertificate:      string(destCaCert),
-			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyType(insecterm),
-		}
+		route.Spec.TLS.Certificate = string(cert)
+		route.Spec.TLS.Key = string(key)
+		route.Spec.TLS.CACertificate = string(caCert)
+		route.Spec.TLS.DestinationCACertificate = string(destCaCert)
+		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(insecterm)
 	}
 	_ = controllerutil.SetControllerReference(nux, &route, r.scheme)
 	return &route, nil

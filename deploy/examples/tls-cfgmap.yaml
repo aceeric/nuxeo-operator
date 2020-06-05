@@ -1,9 +1,11 @@
-# oc apply -f /home/eace/go/nuxeo-operator/deploy/crds/tls_cfgmap.yaml
+#
+# This file is a copy of:
+# https://github.com/nuxeo/nuxeo-apb-catalog/blob/master/nuxeo-apb/files/nginx.conf
+#
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: tls-cfgmap
-  namespace: poc-rco
 data:
   nginx.conf: |
     worker_processes  1;

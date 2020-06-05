@@ -45,8 +45,14 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 		return reconcile.Result{}, err
 	}
 	if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) {
+		reqLogger.Info("Updating Service", "Namespace", expected.Namespace, "Name", expected.Name)
+		if expected.Spec.Type == corev1.ServiceTypeClusterIP && expected.Spec.Type == found.Spec.Type {
+			expected.Spec.ClusterIP = found.Spec.ClusterIP
+		}
 		expected.Spec.DeepCopyInto(&found.Spec)
-		r.client.Update(context.TODO(), found) // TODO HANDLE ERROR
+		if err = r.client.Update(context.TODO(), found); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 	return reconcile.Result{}, nil
 }
@@ -67,14 +73,14 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 //    ports:
 //      - name: web
 //        port: 80
-//        targetPort: 80
+//        targetPort: 8080
 func (r *ReconcileNuxeo) defaultService(nux *v1alpha1.Nuxeo, svc v1alpha1.ServiceSpec, svcName string) (*corev1.Service, error) {
 	var svcType = corev1.ServiceTypeClusterIP
-	var port int32 = 8080
+	var port int32 = 80
 	var targetPort int32 = 8080
 	if nux.Spec.RevProxy != (v1alpha1.RevProxySpec{}) {
-		port = 8443
-		targetPort = 0443
+		port = 443
+		targetPort = 8443
 	}
 	if svc != (v1alpha1.ServiceSpec{}) {
 		port = svc.Port

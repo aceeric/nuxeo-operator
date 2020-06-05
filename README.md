@@ -32,7 +32,7 @@ This version creates/reconciles a Deployment, a Service, and an OpenShift Route.
 
 #### Version 0.2.0
 
-Version 0.2.0 will focus on supporting the Operator Lifecycle Manager (OLM) framework, and running the Operator in-cluster.
+Version 0.2.0 will focus on supporting the Operator Lifecycle Manager (OLM) framework, and running the Operator in-cluster via an OLM subscription.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -61,7 +61,7 @@ Version 0.4.0 will focus on Kubernetes support. My belief at present is that the
 | ------------------------------------------------------------ | ------ |
 | Implement the ability to detect whether the Operator is running in a Kubernetes cluster vs. an OpenShift cluster |        |
 | Create an *Ingress* resource for access outside of the Kubernetes cluster |        |
-| Kubernetes testing using MicroK8s (https://microk8s.io/)     |        |
+| Document Kubernetes testing using MicroK8s (https://microk8s.io/) |        |
 
 
 
@@ -72,7 +72,7 @@ Version 0.5.0 will focus on adding additional functionality to the Operator that
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Support a Secret with payload for TLS termination in the Route. Previously, TLS passthrough was the only tested Route/Ingress functionality |        |
-| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use a private corporate CA |        |
+| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA |        |
 | Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster |        |
 | Support readiness and liveness probes for the Nuxeo pods     |        |
 | Support explicit definition of nuxeo.conf properties in the Nuxeo CR |        |
@@ -82,7 +82,7 @@ Version 0.5.0 will focus on adding additional functionality to the Operator that
 
 #### Version 0.6.0
 
-Version 0.6.0 will focus on supporting the Service Binding Operator to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
+Version 0.6.0 will focus on supporting the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -91,7 +91,7 @@ Version 0.6.0 will focus on supporting the Service Binding Operator to facilitat
 | Test with Crunchy PostgreSQL (https://www.crunchydata.com/products/crunchy-postgresql-for-kubernetes/) for database support |        |
 | Test with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support |        |
 | Support password changes in backing services that trigger rolling updates of the Nuxeo cluster |        |
-| Support certificate expiration and replacement for the JVM, and also for backing services that trigger rolling updates of the Nuxeo cluster. An example would be where the Kafka backing service is accessed via TLS, and the Kafka CA and cert expire and are renewed. |        |
+| Support certificate expiration and replacement for the JVM, and also for backing services that trigger rolling updates of the Nuxeo cluster. An example would be where the Kafka backing service is accessed via TLS, and the Kafka CA and cert expire and are renewed |        |
 
 
 
@@ -101,13 +101,27 @@ Version 0.7.0 will focus on making the Operator available as a Community Operato
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Gain free access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster |        |
+| Gain free access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with those production environments |        |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |        |
+| Provide `kustomize` examples to illustrate bringing up an exemplar Nuxeo Cluster using kustomize) https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |        |
 | Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |        |
 
 
 
-#### Testing version 0.1.0 (current) of the Operator
+#### Long Term
+
+| Feature                                                      | Status |
+| ------------------------------------------------------------ | ------ |
+| OperatorHub availability? |        |
+| Other?... |        |
+
+
+
+
+
+------
+
+### Testing version 0.1.0 (current) of the Operator
 
 These are the steps I follow to test version 0.1.0 of the Operator.
 
@@ -115,9 +129,9 @@ These are the steps I follow to test version 0.1.0 of the Operator.
 
 The documentation that follows assumes that you have access to an OpenShift cluster as `kubeadmin`. As stated earlier, I am using Code Ready Containers (CRC) on Ubuntu 18.04 desktop.
 
-The default CRC install assumes a different Linux lineage then Ubuntu and so getting CRC to run successfully on Ubuntu requires manual intervention in the networking configuration as part of the CRC installation process. Presently, for me, I work around this by configuring my etc/hosts with certain entries - shown below - to support this testing.
+The default CRC install assumes a different Linux lineage then Ubuntu and so getting CRC to run successfully on Ubuntu requires manual intervention in the networking configuration as part of the CRC installation process. Presently, for me, I work around this by configuring my etc/hosts with certain entries - shown below - to support testing.
 
-Specifically, note the `nuxeo-server.apps-crc.testing` host name - which maps to the Route generated by the Operator. (This will be made clear further on down in the README.)
+Specifically, note the `nuxeo-server.apps-crc.testing` host name - which maps to the Route generated by the Operator in this testing scenario. (This will be made clear further on down in the README.)
 
 ```shell
 192.168.130.1   crc.testing
@@ -165,9 +179,11 @@ Create a Nuxeo project in the cluster
 $ oc new-project nuxeo
 ```
 
-Build the Operator binary. This step assumes you git cloned this project to `$HOME/go/nuxeo-operator` and that is the current working directory.
+Build the Operator binary. This step assumes the current working directory is the directory into which you git cloned this project. Note - this project is Go 1.14:
 
 ```shell
+$ go version
+go version go1.14.2 linux/amd64
 $ go build -o bin/nuxeo-operator cmd/manager/main.go
 ```
 
@@ -205,7 +221,7 @@ $ oc apply -f deploy/examples/nuxeo-cr.yaml
 nuxeo.nuxeo.com/my-nuxeo created
 ```
 
-The operator generates a Nuxeo Deployment that runs under a Service Account "nuxeo". In the future, this Service Account will be created by OLM, but for now, create it manually:
+The operator generates a Nuxeo Deployment that specifies a Service Account `nuxeo`. In the future, this Service Account will be created by OLM, but for now, create it manually:
 
 ```shell
 $ oc apply -f deploy/examples/nuxeo-service-account.yaml
@@ -214,10 +230,10 @@ $ oc apply -f deploy/examples/nuxeo-service-account.yaml
 Run the Operator outside of the cluster from the command line. To run the operator this way, you provide the  watch namespace as an environment variable, and a command-line option specifying the path of a kube config with credentials for the cluster:
 
 ```shell
-$ WATCH_NAMESPACE=nuxeo ./bin/nuxeo-operator --kubeconfig=$HOME/.kube/config
+$ WATCH_NAMESPACE=nuxeo bin/nuxeo-operator --kubeconfig=$HOME/.kube/config
 ```
 
-You should get output like the following:
+You should get output like the following displayed to the console:
 
 ```shell
 {"level":"info","ts":1591372655.1064653,"logger":"cmd","msg":"Operator Version: 0.0.1"}
@@ -248,7 +264,7 @@ NAME                                    READY   STATUS    RESTARTS   AGE
 pod/my-nuxeo-cluster-6c4b7466dc-crw2q   1/1     Running   0          37s
 ```
 
-Test access via a browser. Of key importance here is that you have to be sure that the host name in the route - `nuxeo-server.apps-crc.testing` - is addressable from your local host:
+Test access via a browser. Of key importance here is that the host name in the route - `nuxeo-server.apps-crc.testing` - is addressable from your local host:
 
 ```shell
 $ ping nuxeo-server.apps-crc.testing
@@ -277,7 +293,7 @@ To review what happened so far:
 
 **Next, test TLS access using an Nginx sidecar**
 
-Create an Ningx ImageStream in the Nuxeo project (uses the `$HOST` environment variable defined above)
+Create an Ningx ImageStream in the Nuxeo project. This step uses the `$HOST` environment variable defined above
 
 ```shell
 $ docker pull nginx:latest
@@ -403,7 +419,7 @@ $ oc logs my-nuxeo-cluster-84b7bc487b-h2rdz -c nginx -f
 
 Go back to the console that was running the Nuxeo Operator from the command line and press CTRL-C to stop the Operator. You should be returned to the command prompt.
 
-Delete the nuxeo CR and observe that owned resources got cleaned up:
+Review the resources created by the Nuxeo Operator. Then, delete the Nuxeo CR and observe that all of those resources are cleaned up automatically by OpenShift via cascading delete, because of the `ownerReferences` on the resources.
 
 ```shell
 $ oc get nuxeo,deployment,replicaset,pod,route,service

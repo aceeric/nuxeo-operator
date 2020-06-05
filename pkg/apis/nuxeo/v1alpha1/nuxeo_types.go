@@ -93,7 +93,7 @@ type NginxRevProxySpec struct {
 	Image     string `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// Image pull policy for the Nuxeo image. If not specified, then if 'image' is specified with the :latest tag,
+	// Image pull policy. If not specified, then if 'image' is specified with the :latest tag,
 	// then this is 'Always', otherwise it is 'IfNotPresent'. Note that this flows through to a Pod ultimately,
 	// and pull policy is immutable in a Pod spec. Therefore if any changes are made to this value in a Nuxeo
 	// CR once the Operator has generated a Deployment from the CR, subsequent Deployment reconciliations will fail.

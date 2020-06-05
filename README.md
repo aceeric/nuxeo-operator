@@ -165,7 +165,7 @@ Create a Nuxeo project in the cluster
 $ oc new-project nuxeo
 ```
 
-Build the Operator binary. This step assumes you git cloned this project to `$HOME/go/nuxeo-operator`
+Build the Operator binary. This step assumes you git cloned this project to `$HOME/go/nuxeo-operator` and that is the current working directory.
 
 ```shell
 $ go build -o bin/nuxeo-operator cmd/manager/main.go
@@ -270,7 +270,7 @@ To review what happened so far:
 3. The Operator saw the Nuxeo CR you had generated, and created a Route, a Service, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
 4. OpenShift reconciled the Deployment into a ReplicaSet and a Pod. The Pod also got the `NUXEO_PACKAGES` environment variable
 5. The Pod started the Nuxeo Container
-6. The Nuxeo Container saw the environment variable `NUXEO_PACKAGES=nuxeo-web-ui` and so Nuxeo reached out to a hard-coded Marketplace URL, got the package, and installed it into the Nuxeo Container
+6. The Nuxeo Container saw the environment variable `NUXEO_PACKAGES=nuxeo-web-ui` and so Nuxeo reached out over the Internet to a hard-coded Marketplace URL, got the package, and installed it into the Nuxeo Container
 7. You should now be able to log into this unlicensed development version of Nuxeo as `Administrator/Administrator` (make sure cookies are enabled)
 
 
@@ -291,7 +291,7 @@ nuxeo   default-route-openshift-image-registry.apps-crc.testing/nuxeo/nuxeo   10
 ```
 
 
-Generate a TLS certificate and key, and a `dhparams` file to use in terminating the TLS connection in the Nginx sidecar
+Generate a self-signed TLS certificate and key, and a `dhparams` file to use in terminating the TLS connection in the Nginx sidecar
 ```shell
 $ mkdir tmp
 $ cd tmp

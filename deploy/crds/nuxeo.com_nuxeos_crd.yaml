@@ -59,7 +59,8 @@ spec:
                   description: Specifies the name of a secret with fields required
                     to configure ingress for TLS, as determined by the termination
                     field. Example fields expected in such a secret are - 'key', 'certificate',
-                    and 'caCertificate'.
+                    and 'caCertificate'. This is ignored, unless 'termination' is
+                    specified
                   type: string
               type: object
             imagePullPolicy:

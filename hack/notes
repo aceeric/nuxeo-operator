@@ -1,0 +1,4 @@
+DELETE THIS WHEN MAKE IS DONE
+export GOROOT=$(go env GOROOT)
+operator-sdk generate k8s
+operator-sdk generate crds

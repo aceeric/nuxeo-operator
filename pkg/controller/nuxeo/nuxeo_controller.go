@@ -145,6 +145,9 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	if _, err = reconcileAccess(r, instance.Spec.Access, *interactiveNodeSet, instance, reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
+	if _, err = reconcileServiceAccount(r, instance, reqLogger); err != nil {
+		return reconcile.Result{}, err
+	}
 	updateNuxeoStatus(r, instance, reqLogger)
 	if err = r.client.Status().Update(context.TODO(), instance); err != nil {
 		reqLogger.Error(err, "Failed to update Nuxeo status", "Namespace", instance.Namespace, "Name", instance.Name)

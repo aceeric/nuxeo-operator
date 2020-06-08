@@ -122,7 +122,7 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 					Labels: labelsForNuxeo(nux, nodeSet.Interactive),
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "nuxeo",
+					ServiceAccountName: util.NuxeoServiceAccountName,
 					Containers: []corev1.Container{{
 						Image:           nuxeoImage,
 						ImagePullPolicy: pullPolicy,

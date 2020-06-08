@@ -5,9 +5,9 @@ ENV OPERATOR=/usr/local/bin/nuxeo-operator \
     USER_NAME=nuxeo-operator
 
 # install operator binary
-COPY build/_output/bin/nuxeo-operator ${OPERATOR}
+COPY _output/bin/nuxeo-operator ${OPERATOR}
 
-COPY build/bin /usr/local/bin
+COPY bin /usr/local/bin
 RUN  /usr/local/bin/user_setup
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

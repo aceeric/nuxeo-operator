@@ -62,7 +62,9 @@ Version 0.4.0 will focus on Kubernetes support. My belief at present is that the
 | ------------------------------------------------------------ | ------ |
 | Implement the ability to detect whether the Operator is running in a Kubernetes cluster vs. an OpenShift cluster |        |
 | Create an *Ingress* resource for access outside of the Kubernetes cluster |        |
+| Support a Kubernetes-suitable Dockerfile for the Operator (Operator SDK generates a Dockerfile based on ubi) |        |
 | Document Kubernetes testing using MicroK8s (https://microk8s.io/) |        |
+| Will need to run a private registry in microk8s for equivalency with OpenShift imagestream? |        |
 
 
 
@@ -105,6 +107,7 @@ Version 0.7.0 will focus on making the Operator available as a Community Operato
 | Gain free access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with those production environments |        |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |        |
 | Provide `kustomize` examples to illustrate bringing up an exemplar Nuxeo Cluster using kustomize) https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |        |
+| Support multi-architecture build. Incorporate lint, gofmt, etc. into the build process |        |
 | Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |        |
 
 
@@ -222,12 +225,6 @@ $ oc apply -f deploy/examples/nuxeo-cr.yaml
 nuxeo.nuxeo.com/my-nuxeo created
 ```
 
-The operator generates a Nuxeo Deployment that specifies a Service Account `nuxeo`. In the future, this Service Account will be created by OLM, but for now, create it manually:
-
-```shell
-$ oc apply -f deploy/examples/nuxeo-service-account.yaml
-```
-
 Run the Operator outside of the cluster from the command line. To run the operator this way, you provide the  watch namespace as an environment variable, and a command-line option specifying the path of a kube config with credentials for the cluster:
 
 ```shell
@@ -248,21 +245,26 @@ You should get output like the following displayed to the console:
 The operator will run until you press CTRL-C to stop it, so leave it running in this console window for the remainder of this test and open a new console window to work with. Verify that the Nuxeo Operator created the expected resources:
 
 ```shell
-$ oc get service,deployment,replicaset,route,pod
-NAME                               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S) ...
-service/my-nuxeo-cluster-service   ClusterIP   172.30.80.128   <none>        80/TCP  ...
+$ oc get service,sa,deployment,replicaset,route,pod
+NAME                               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service/my-nuxeo-cluster-service   ClusterIP   172.30.40.129   <none>        80/TCP    32s
+
+NAME                      SECRETS   AGE
+...
+serviceaccount/nuxeo      2         32s
 
 NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.extensions/my-nuxeo-cluster   1/1     1            1           4m43s
+deployment.extensions/my-nuxeo-cluster   1/1     1            1           32s
 
 NAME                                                DESIRED   CURRENT   READY   AGE
-replicaset.extensions/my-nuxeo-cluster-6c4b7466dc   1         1         1       4m43s
+replicaset.extensions/my-nuxeo-cluster-6c4b7466dc   1         1         1       32s
 
-NAME                                              HOST/PORT                       ...
-route.route.openshift.io/my-nuxeo-cluster-route   nuxeo-server.apps-crc.testing   ...
+NAME                                              HOST/PORT                     ...
+route.route.openshift.io/my-nuxeo-cluster-route   nuxeo-server.apps-crc.testing ...
 
 NAME                                    READY   STATUS    RESTARTS   AGE
-pod/my-nuxeo-cluster-6c4b7466dc-crw2q   1/1     Running   0          37s
+pod/my-nuxeo-cluster-6c4b7466dc-zc4wh   1/1     Running   0          32s
+
 ```
 
 Test access via a browser. Of key importance here is that the host name in the route - `nuxeo-server.apps-crc.testing` - is addressable from your local host:
@@ -284,7 +286,7 @@ To review what happened so far:
 
 1. You deployed a Nuxeo CR that specified the `nuxeo-web-ui` Marketplace package
 2. You ran the operator from your desktop
-3. The Operator saw the Nuxeo CR you had generated, and created a Route, a Service, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
+3. The Operator saw the Nuxeo CR you had generated, and created a Route, a Service, a ServiceAccount, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
 4. OpenShift reconciled the Deployment into a ReplicaSet and a Pod. The Pod also got the `NUXEO_PACKAGES` environment variable
 5. The Pod started the Nuxeo Container
 6. The Nuxeo Container saw the environment variable `NUXEO_PACKAGES=nuxeo-web-ui` and so Nuxeo reached out over the Internet to a hard-coded Marketplace URL, got the package, and installed it into the Nuxeo Container
@@ -423,7 +425,7 @@ Go back to the console that was running the Nuxeo Operator from the command line
 Review the resources created by the Nuxeo Operator. Then, delete the Nuxeo CR and observe that all of those resources are cleaned up automatically by OpenShift via cascading delete, because of the `ownerReferences` on the resources.
 
 ```shell
-$ oc get nuxeo,deployment,replicaset,pod,route,service
+$ oc get nuxeo,deployment,replicaset,pod,route,service,sa
 NAME                       AGE
 nuxeo.nuxeo.com/my-nuxeo   106m
 
@@ -431,7 +433,6 @@ NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.extensions/my-nuxeo-cluster   1/1     1            1           103m
 
 NAME                                                DESIRED   CURRENT   READY   AGE
-replicaset.extensions/my-nuxeo-cluster-6c4b7466dc   0         0         0       103m
 replicaset.extensions/my-nuxeo-cluster-84b7bc487b   1         1         1       40m
 
 NAME                                    READY   STATUS    RESTARTS   AGE
@@ -443,6 +444,10 @@ route.route.openshift.io/my-nuxeo-cluster-route   nuxeo-server.apps-crc.testing 
 NAME                               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S) ...
 service/my-nuxeo-cluster-service   ClusterIP   172.30.80.128   <none>        443/TCP ...
 
+NAME                      SECRETS   AGE
+...
+serviceaccount/nuxeo      2         103m
+
 $ oc delete nuxeo my-nuxeo
 ```
 
@@ -451,6 +456,8 @@ Allow a moment or two for OpenShift to remove the resources. Then:
 ```shell
 $ oc get nuxeo,deployment,replicaset,pod,route,service
 No resources found in nuxeo namespace.
+$ oc get sa/nuxeo
+Error from server (NotFound): serviceaccounts "nuxeo" not found
 ```
 
 

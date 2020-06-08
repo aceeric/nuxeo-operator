@@ -69,7 +69,9 @@ rules:
 - apiGroups:
   - nuxeo.com
   resources:
-  - '*'
+  - nuxeos
+  - nuxeos/status
+  - nuxeos/finalizers
   verbs:
   - create
   - delete
@@ -78,3 +80,28 @@ rules:
   - patch
   - update
   - watch
+
+- apiGroups:
+    - route.openshift.io
+  resources:
+    - routes
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+- apiGroups:
+    - extensions
+  resources:
+    - ingresses
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch

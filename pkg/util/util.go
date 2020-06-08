@@ -33,3 +33,5 @@ func SpewObject(object interface{}) string {
 func IsOpenShift() bool {
 	return true
 }
+
+var NuxeoServiceAccountName = "nuxeo"

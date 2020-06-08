@@ -49,7 +49,7 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 			return reconcile.Result{}, err
 		}
 		// Deployment created successfully - return and requeue
-		return reconcile.Result{Requeue: true}, nil // TODO-ME UPDATE STATUS BELOW AS MEMCACHED
+		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
 		reqLogger.Error(err, "Error attempting to get Deployment for NodeSet: "+nodeSet.Name)
 		return reconcile.Result{}, err

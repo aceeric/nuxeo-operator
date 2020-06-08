@@ -6375,13 +6375,13 @@ spec:
                       description: Specifies the image
                       type: string
                     imagePullPolicy:
-                      description: Image pull policy for the Nuxeo image. If not specified,
-                        then if 'image' is specified with the :latest tag, then this
-                        is 'Always', otherwise it is 'IfNotPresent'. Note that this
-                        flows through to a Pod ultimately, and pull policy is immutable
-                        in a Pod spec. Therefore if any changes are made to this value
-                        in a Nuxeo CR once the Operator has generated a Deployment
-                        from the CR, subsequent Deployment reconciliations will fail.
+                      description: Image pull policy. If not specified, then if 'image'
+                        is specified with the :latest tag, then this is 'Always',
+                        otherwise it is 'IfNotPresent'. Note that this flows through
+                        to a Pod ultimately, and pull policy is immutable in a Pod
+                        spec. Therefore if any changes are made to this value in a
+                        Nuxeo CR once the Operator has generated a Deployment from
+                        the CR, subsequent Deployment reconciliations will fail.
                       type: string
                     secret:
                       description: References a secret containing keys 'tls.key',
@@ -6413,13 +6413,12 @@ spec:
               type: object
           type: object
         status:
-          description: Defines the observed state of a Nuxeo cluster
+          description: NuxeoStatus defines the observed state of a Nuxeo cluster.
+            This is preliminary and will be expanded in later versions
           properties:
-            nodes:
-              description: Nodes are the names of the nuxeo pods
-              items:
-                type: string
-              type: array
+            availableNodes:
+              format: int32
+              type: integer
           type: object
       type: object
   version: v1alpha1

@@ -74,7 +74,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Future: watch for changes top Kubernetes Ingress and requeue the owner Nuxeo
+	// Future: watch for changes to Kubernetes Ingress
 
 	return nil
 }
@@ -117,14 +117,14 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Nuxeo CR might define one NodeSet for a set of interactive Nuxeo pods, and a second NodeSet for a
 	// set of worker Nuxeo pods. This results in two Deployments: one controlling interactive Pods,
 	// and one controlling worker Pods. The interactive pods will be made accessible by the Operator via a
-	// Service. The non-interactive pods will not be externally accessible outside of the cluster.
+	// Route/Ingress. The non-interactive pods will not be accessible outside of the cluster.
 	var interactiveNodeSet *nuxeov1alpha1.NodeSet = nil
-
 	for _, nodeSet := range instance.Spec.NodeSets {
 		if result, err := reconcileNodeSet(r, nodeSet, instance, instance.Spec.RevProxy, reqLogger); err != nil {
 			return result, err
+		} else if result == (reconcile.Result{Requeue: true}) {
+			return result, nil
 		}
-		// TODO-ME IF REQUEUE - RETURN SO DEPLOYMENT STATUS CAN BE UPDATED
 		if nodeSet.Interactive {
 			if interactiveNodeSet != nil {
 				err = goerrors.New("nuxeo validation error")
@@ -143,6 +143,11 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 	if _, err = reconcileAccess(r, instance.Spec.Access, *interactiveNodeSet, instance, reqLogger); err != nil {
+		return reconcile.Result{}, err
+	}
+	updateNuxeoStatus(r, instance, reqLogger)
+	if err = r.client.Status().Update(context.TODO(), instance); err != nil {
+		reqLogger.Error(err, "Failed to update Nuxeo status", "Namespace", instance.Namespace, "Name", instance.Name)
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil

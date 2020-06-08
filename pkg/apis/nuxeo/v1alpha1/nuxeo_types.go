@@ -87,10 +87,10 @@ type NginxRevProxySpec struct {
 
 	// References a secret containing keys 'tls.key', 'tls.cert', and 'dhparam' which are used to terminate
 	// the Nginx TLS connection.
-	Secret    string `json:"secret,omitempty"`
+	Secret string `json:"secret,omitempty"`
 
 	// Specifies the image
-	Image     string `json:"image,omitempty"`
+	Image string `json:"image,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Image pull policy. If not specified, then if 'image' is specified with the :latest tag,
@@ -152,10 +152,10 @@ type NuxeoSpec struct {
 	NodeSets []NodeSet `json:"nodeSets,omitempty"`
 }
 
-// Defines the observed state of a Nuxeo cluster
+// NuxeoStatus defines the observed state of a Nuxeo cluster. This is preliminary and will be expanded in later
+// versions
 type NuxeoStatus struct {
-	// Nodes are the names of the nuxeo pods
-	Nodes []string `json:"nodes,omitempty"`
+	AvailableNodes int32 `json:"availableNodes,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

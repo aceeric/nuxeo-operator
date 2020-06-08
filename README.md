@@ -8,7 +8,7 @@ Presently, I'm doing this development on a Ubuntu 18.04 desktop and OpenShift Co
 
 Below is the sequence of capabilities that are planned for this Operator. These are all preliminary and will be tuned as I get further into the project.
 
-#### Version 0.1.0 *(current)*
+#### Version 0.1.0 *(complete)*
 
 This version is really just a POC of the Operator with basic functionality. The goal is to be able to bring up - and reconcile the state of - a basic Nuxeo cluster that optionally supports TLS via an Nginx reverse proxy.
 
@@ -16,28 +16,29 @@ This version creates/reconciles a Deployment, a Service, and an OpenShift Route.
 
 | Feature                                                      | Status      |
 | ------------------------------------------------------------ | ----------- |
-| Define an initial Nuxeo Custom Resource Definition (CRD) that supports the feature set for this increment of functionality | In progress |
-| Generate and reconcile a Deployment from a Nuxeo Custom Resource (CR) to represent the desired state of a Nuxeo cluster | In progress |
-| Run Nuxeo only in development mode with only embedded services | In progress |
-| Support *Pod Templates* in the Nuxeo CR for fine-grained configuration of Pods. Use a default Template if no Pod Template is provided | In progress |
-| Support an optional Nginx TLS reverse proxy sidecar container in each Nuxeo Pod to support TLS. Test using 443 outside the cluster, Nginx listening on 8443, and forwarding to Nuxeo on 8080. Model the sidecar configuration from the Nuxeo APB catalog (https://github.com/nuxeo/nuxeo-apb-catalog/blob/master/nuxeo-apb/files/nginx.conf) | In progress |
-| Create and reconcile a Route resource for access outside of the OpenShift cluster. Support only TLS passthrough at this time | In progress |
-| Create and reconcile a Service resource for the Route to use, and for potential use within the cluster. The service will communicate with Nuxeo on 8080, or Nginx on 8443 | In progress |
-| Create all resources that originate from a Nuxeo CR with `ownerReferences` that reference the Nuxeo CR - so that deletion of the Nuxeo CR will result in recursive removal of all generated resources for proper clean up | In progress |
-| Support custom Nuxeo images, with a default of `nuxeo:latest` if no custom image is provided in the Nuxeo CR | In progress |
-| Support running the Operator binary only externally to the cluster to verify the basic Operator functionality | In progress |
-| Perform basic testing whereby cluster resources are modified and expected resource reconciliation is performed by the Nuxeo Operator | In progress |
+| Define an initial Nuxeo Custom Resource Definition (CRD) that supports the feature set for this increment of functionality | complete |
+| Generate and reconcile a Deployment from a Nuxeo Custom Resource (CR) to represent the desired state of a Nuxeo cluster | complete |
+| Run Nuxeo only in development mode with only embedded services | complete |
+| Support *Pod Templates* in the Nuxeo CR for fine-grained configuration of Pods. Use a default Template if no Pod Template is provided | complete |
+| Support an optional Nginx TLS reverse proxy sidecar container in each Nuxeo Pod to support TLS. Test using 443 outside the cluster, Nginx listening on 8443, and forwarding to Nuxeo on 8080. Model the sidecar configuration from the Nuxeo APB catalog (https://github.com/nuxeo/nuxeo-apb-catalog/blob/master/nuxeo-apb/files/nginx.conf) | complete |
+| Create and reconcile a Route resource for access outside of the OpenShift cluster. Support only TLS passthrough at this time | complete |
+| Create and reconcile a Service resource for the Route to use, and for potential use within the cluster. The service will communicate with Nuxeo on 8080, or Nginx on 8443 | complete |
+| Create all resources that originate from a Nuxeo CR with `ownerReferences` that reference the Nuxeo CR - so that deletion of the Nuxeo CR will result in recursive removal of all generated resources for proper clean up | complete |
+| Support custom Nuxeo images, with a default of `nuxeo:latest` if no custom image is provided in the Nuxeo CR | complete |
+| Support running the Operator binary only externally to the cluster to verify the basic Operator functionality | complete |
+| Implement a minimal Status field of the Nuxeo CR consisting of the number of active pods  | complete |
+| Perform basic testing whereby cluster resources are modified and expected resource reconciliation is performed by the Nuxeo Operator | complete |
 
 
 
-#### Version 0.2.0
+#### Version 0.2.0 *(In Progress)*
 
 Version 0.2.0 will focus on supporting the Operator Lifecycle Manager (OLM) framework, and running the Operator in-cluster via an OLM subscription.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Add the necessary elements (CSV, RBACs, bundling, etc.) to support packaging the Operator as a community Operator |        |
-| Deploy and test the Operator from a private internal Operator registry in the cluster via OLM subscription |        |
+| Add the basic elements (CSV, RBACs, bundling, etc.) to support packaging the Operator as a community Operator | in progress |
+| Deploy and test the Operator from a private internal Operator registry in the cluster via OLM subscription | in progress |
 
 
 
@@ -121,7 +122,7 @@ Version 0.7.0 will focus on making the Operator available as a Community Operato
 
 ------
 
-### Testing version 0.1.0 (current) of the Operator
+### Testing version 0.1.0 of the Operator
 
 These are the steps I follow to test version 0.1.0 of the Operator.
 

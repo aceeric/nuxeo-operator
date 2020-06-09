@@ -6,7 +6,7 @@ DOCKER_ORG       := images
 DOCKER_IMAGE     := nuxeo-operator
 
 .PHONY : all
-all: build-operator gen-csv docker-build docker-push-imagestream
+all: build-operator olm-generate build-operator-image push-operator-image
 
 .PHONY : build-operator
 build-operator:
@@ -14,32 +14,18 @@ build-operator:
 	operator-sdk generate crds
 	go build -o $(ROOT)/build/_output/bin/nuxeo-operator $(ROOT)/cmd/manager
 
-.PHONY : gen-csv
-gen-csv:
+.PHONY : olm-generate
+olm-generate:
 	operator-sdk generate csv --csv-version $(OPERATOR_VERSION) --update-crds
 
-.PHONY : docker-build
-docker-build:
+.PHONY : build-operator-image
+build-operator-image:
 	docker build --tag $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(DOCKER_IMAGE):$(OPERATOR_VERSION)\
  		--file $(ROOT)/build/Dockerfile $(ROOT)/build
 
-# This recipe pushes the docker image from the local docker cache to an imagestream in a project called $(DOCKER_ORG).
-# This is to support local CRC development/testing. The Operator CSV references the image just as 'nuxeo-operator:0.1.0'
-# This recipe assumes the current user/shell is logged in to the cluster and also docker logged in to the cluster.
-# The .ONESHELL directive is used to enable setting and then evaluating the RESULT variable. In addition, POSIX
-# redirection is used to test whether the expected namespace/project exists.
-.PHONY : docker-push-imagestream
-.ONESHELL:
-docker-push-imagestream:
-	RESULT=$(shell kubectl get namespace ${DOCKER_ORG} >/dev/null 2>&1 && echo "PASS" || echo "FAIL")
-	if [ "$$RESULT" = "FAIL" ]; then echo "Missing ${DOCKER_ORG} namespace/project to push the image to"; exit 1; fi
+.PHONY : push-operator-image
+push-operator-image:
 	docker push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(DOCKER_IMAGE):$(OPERATOR_VERSION)
-
-# This recipe will support pushing the docker image to a named registry in a subsequent version
-.PHONY : docker-push-registry
-.ONESHELL:
-docker-push-registry:
-	echo NOT IMPLEMENTED YET
 
 .PHONY : help
 help:
@@ -63,16 +49,20 @@ installed. The Make file doesn't do any dependency checking, it just runs the fu
 
 Targets:
 
-all                      In order, runs: build-operator gen-csv docker-build docker-push-imagestream
-build-operator           Builds the operator binary
-gen-csv                  Generates files under deploy/olm-catalog/nuxeo-operator to support installing
-                         the Operator into OLM
-docker-build             Builds a Docker image containing the Operator binary
-docker-push-imagestream  Pushes the Docker image to an imagesream in the OpenShift cluster to support local
-                         testing
-help                     Prints this help
-print-%                  Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to
-                         print the value of 'OPERATOR_VERSION'
+all                  In order, runs: build-operator olm-generate build-operator-image push-operator-image
+build-operator       Builds the operator binary from Go sources.
+olm-generate         Generates files under deploy/olm-catalog/nuxeo-operator to support creating an installable
+                     Operator that integrates with OLM.
+build-operator-image Builds a container image containing the Operator Go binary that was built by the
+                     'build-operator' target.
+push-operator-image  Pushes the Operator container image to a registry identified by the DOCKER_REGISTRY and
+                     DOCKER_ORG varaibles. This supports pushing to a public/private registry, as well as an
+                     OpenShift imagesream in the OpenShift cluster. The current version of the Makefile defaults
+                     to $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(DOCKER_IMAGE):$(OPERATOR_VERSION) since this
+                     version of the project is targeted at local CRC testing. A future version will improve this.
+help                 Prints this help.
+print-%              Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to
+                     print the value of 'OPERATOR_VERSION'.
 
 The Make file runs silently unless you provide a VERBOSE arg or variable. E.g.: make VERBOSE=
 

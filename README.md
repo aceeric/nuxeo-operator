@@ -14,6 +14,8 @@ This version is really just a POC of the Operator with basic functionality. The 
 
 This version creates/reconciles a Deployment, a Service, and an OpenShift Route. (I'm starting with OpenShift but will support Kubernetes in a later version.) It also includes the ability to install Nuxeo Marketplace packages (https://connect.nuxeo.com/nuxeo/site/marketplace) assuming Internet access to the Marketplace by the Operator.
 
+This version of the Operator is pre-Level 1 capability. (https://sdk.operatorframework.io/docs/operator-capabilities/)
+
 | Feature                                                      | Status      |
 | ------------------------------------------------------------ | ----------- |
 | Define an initial Nuxeo Custom Resource Definition (CRD) that supports the feature set for this increment of functionality | complete |
@@ -286,8 +288,8 @@ To review what happened so far:
 
 1. You deployed a Nuxeo CR that specified the `nuxeo-web-ui` Marketplace package
 2. You ran the operator from your desktop
-3. The Operator saw the Nuxeo CR you had generated, and created a Route, a Service, a ServiceAccount, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
-4. OpenShift reconciled the Deployment into a ReplicaSet and a Pod. The Pod also got the `NUXEO_PACKAGES` environment variable
+3. The Operator saw the Nuxeo CR you had generated, and created a Route, a Service, a Service Account, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
+4. OpenShift reconciled the Deployment into a ReplicaSet and a Pod. The Pod also got the `NUXEO_PACKAGES` environment variable. The Pod runs under the generated Service Account
 5. The Pod started the Nuxeo Container
 6. The Nuxeo Container saw the environment variable `NUXEO_PACKAGES=nuxeo-web-ui` and so Nuxeo reached out over the Internet to a hard-coded Marketplace URL, got the package, and installed it into the Nuxeo Container
 7. You should now be able to log into this unlicensed development version of Nuxeo as `Administrator/Administrator` (make sure cookies are enabled)

@@ -18,7 +18,7 @@ func updateNuxeoStatus(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, reqLogger logr.Lo
 	availableNodes := int32(0)
 	if err := r.client.List(context.TODO(), &deployments, opts...); err == nil {
 		for _, dep := range deployments.Items {
-			if ownedBy(nux, dep) {
+			if nux.IsOwner(dep.ObjectMeta) {
 				availableNodes += dep.Status.AvailableReplicas
 			}
 		}
@@ -27,14 +27,4 @@ func updateNuxeoStatus(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, reqLogger logr.Lo
 		reqLogger.Error(err, "Failed to list deployments for Nuxeo", "Namespace",
 			nux.Namespace, "Name", nux.Name)
 	}
-}
-
-// ownedBy returns true if the passed deployment is owned by the passed Nuxeo CR, otherwise returns false
-func ownedBy(nux *v1alpha1.Nuxeo, dep appsv1.Deployment) bool {
-	for _, ref := range dep.OwnerReferences {
-		if ref.UID == nux.UID {
-			return true
-		}
-	}
-	return false
 }

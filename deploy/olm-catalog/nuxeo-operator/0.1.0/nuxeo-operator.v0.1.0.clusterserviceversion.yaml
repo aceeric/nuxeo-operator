@@ -166,13 +166,12 @@ spec:
   keywords:
   - nuxeo
   links:
-  - name: Website
+  - name: Nuxeo product
     url: https://www.nuxeo.com/
-  - name: GitHub
+  - name: Operator source code
     url: https://github.com/aceeric/nuxeo-operator
   maintainers:
-  - email: ericace@protonmail.com
-    name: Eric Ace
+  - name: Eric Ace
   maturity: alpha
   provider:
     name: Eric Ace

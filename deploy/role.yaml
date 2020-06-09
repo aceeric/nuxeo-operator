@@ -80,7 +80,6 @@ rules:
   - patch
   - update
   - watch
-
 - apiGroups:
     - route.openshift.io
   resources:

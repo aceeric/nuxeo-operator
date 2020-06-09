@@ -3,36 +3,70 @@ GOROOT                 := $(shell go env GOROOT)
 OPERATOR_VERSION       := 0.1.0
 IMAGE_REGISTRY         := default-route-openshift-image-registry.apps-crc.testing
 IMAGE_ORG              := images
-IMAGE_NAME             := nuxeo-operator
+REGISTRY_NAMESPACE     := custom-operators
+OPERATOR_IMAGE_NAME    := nuxeo-operator
+BUNDLE_IMAGE_NAME      := nuxeo-operator-manifest-bundle
+BUNDLE_INDEX_NAME      := nuxeo-operator-index
 OPERATOR_SDK_SUPPORTED := v0.18.0
 OPERATOR_SDK_INSTALLED := $(shell operator-sdk version | cut -d, -f1 | cut -d: -f2 | sed "s/[[:blank:]]*\"//g")
 
 # Since Operator SDK is undergoing active development, check the version so that the Makefile is repeatable
 ifneq ($(OPERATOR_SDK_SUPPORTED),$(OPERATOR_SDK_INSTALLED))
-    $(error Requires: operator-sdk $(OPERATOR_SDK_SUPPORTED). Found $(OPERATOR_SDK_INSTALLED))
+    $(error Requires operator-sdk: $(OPERATOR_SDK_SUPPORTED). Found: $(OPERATOR_SDK_INSTALLED))
 endif
 
 .PHONY : all
-all: build-operator olm-generate build-operator-image push-operator-image
+all:
+	echo run 'make help' to see a list of available targets
 
-.PHONY : build-operator
-build-operator:
+.PHONY : operator-build
+operator-build:
 	operator-sdk generate k8s
 	operator-sdk generate crds
 	go build -o $(ROOT)/build/_output/bin/nuxeo-operator $(ROOT)/cmd/manager
 
-.PHONY : olm-generate
-olm-generate:
-	operator-sdk generate csv --csv-version $(OPERATOR_VERSION) --update-crds
-
-.PHONY : build-operator-image
-build-operator-image:
-	docker build --tag $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(IMAGE_NAME):$(OPERATOR_VERSION)\
+.PHONY : operator-image-build
+operator-image-build:
+	docker build --tag $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
  		--file $(ROOT)/build/Dockerfile $(ROOT)/build
 
-.PHONY : push-operator-image
-push-operator-image:
-	docker push $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(IMAGE_NAME):$(OPERATOR_VERSION)
+.PHONY : operator-image-push
+operator-image-push:
+	docker push $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)
+
+.PHONY : olm-generate
+olm-generate:
+	operator-sdk generate csv --csv-version $(OPERATOR_VERSION) --interactive=false --update-crds --csv-channel alpha
+
+.PHONY : bundle-generate
+bundle-generate:
+	operator-sdk bundle create --generate-only --package nuxeo-operator --channels alpha --default-channel alpha
+
+# https://sdk.operatorframework.io/docs/olm-integration/olm-deployment/#operator-sdk-run-packagemanifests-command-overview
+# todo-me doesn't work: Error: unknown flag: --manifests-dir
+.PHONY : bundle-test
+bundle-test:
+	operator-sdk run packagemanifests --olm-namespace openshift-operator-lifecycle-manager --operator-namespace nuxeo\
+      --operator-version $(OPERATOR_VERSION) --manifests-dir deploy/olm-catalog/nuxeo-operator
+
+.PHONY : bundle-build
+bundle-build:
+	docker build --tag $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_IMAGE_NAME):$(OPERATOR_VERSION)\
+    --file bundle.Dockerfile $(ROOT)
+
+.PHONY : bundle-push
+bundle-push:
+	docker push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_IMAGE_NAME):$(OPERATOR_VERSION)
+
+.PHONY : index-add
+index-add:
+	opm index add --bundles $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_IMAGE_NAME):$(OPERATOR_VERSION)\
+    --tag $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_INDEX_NAME):$(OPERATOR_VERSION) --skip-tls\
+    --container-tool docker
+
+.PHONY : index-push
+index-push:
+	docker push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_INDEX_NAME):$(OPERATOR_VERSION)
 
 .PHONY : help
 help:
@@ -49,29 +83,58 @@ print-%:
 export HELPTEXT
 define HELPTEXT
 
-This Make file builds the Nuxeo Operator. Options are a) run from within project root, or, b) use the -C
-make arg if running from outside project root. Why? 'go build' - as of 1.14 - seems to have module-based
-behavior that is current-working-dir dependent. Therefore, since this project uses Go modules, the Make needs to
-run in the project root directory. This Make file assumes the necessary dependencies (go, operator-sdk, etc.)
-are already installed.
+This Make file builds the Nuxeo Operator and installs it into an OpenShift cluster. This Make file assumes
+that all the required dependencies (go, operator-sdk, opm, etc.) are already installed. The Make file runs silently
+unless you provide a VERBOSE arg or variable. E.g.: make VERBOSE=
 
 Targets:
 
-all                  In order, runs: build-operator olm-generate build-operator-image push-operator-image
-build-operator       Builds the operator binary from Go sources.
-olm-generate         Generates files under deploy/olm-catalog/nuxeo-operator to support creating an installable
-                     Operator that integrates with OLM.
-build-operator-image Builds a container image containing the Operator Go binary that was built by the
-                     'build-operator' target.
-push-operator-image  Pushes the Operator container image to a registry identified by the IMAGE_REGISTRY and
-                     IMAGE_ORG variables. This supports pushing to a public/private registry, as well as an
-                     OpenShift imagesream in the OpenShift cluster. The current version of the Makefile defaults
-                     to $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(IMAGE_NAME):$(OPERATOR_VERSION) since this
-                     version of the project is targeted at local CRC testing. A future version will improve this.
-help                 Prints this help.
-print-%              A diagnostic tool. Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to
-                     print the value of 'OPERATOR_VERSION'.
+operator-build        Builds the operator binary from Go sources. Note: 'go build' - as of 1.14 - seems to have
+                      module-based behavior that is current-working-dir dependent. Therefore, since this project
+                      uses Go modules, this target needs to run in the project root directory or, via the -C
+                      make arg if running from outside project root.
+operator-image-build  Builds a container image containing the Operator Go binary that was built by the
+                      'operator-build' target, and includes other scripts generated by the Operator SDK that are
+                      included in the source tree.
+operator-image-push   Pushes the Operator container image to a registry identified by the IMAGE_REGISTRY and
+                      IMAGE_ORG variables. This supports pushing to a public/private registry, as well as an
+                      OpenShift imagesream in the OpenShift cluster. The current version of the Makefile defaults
+                      to $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION) since this
+                      version of the project is targeted at local CRC testing. A future version will improve this.
+olm-generate          Generates files under deploy/olm-catalog/nuxeo-operator/manifests to support creating an
+                      installable Operator that integrates with OLM. Note - this overwrites the CSV each time so,
+                      should only be run when the goal is to *replace* the CSV since the CSV currently contains
+                      values that were hand-edited into the file after it was initially generated.
+bundle-generate       Generates bundle.Dockerfile in project root, and annotations.yaml in
+                      deploy/olm-catalog/nuxeo-operator/metadata. This target uses the output of 'olm-generate'
+                      and is a precursor to packaging the operator for deployment as an OLM Index.
+bundle-build          Creates a local container image from the output of 'bundle-generate'. Uses bundle.Dockerfile
+                      generated by the 'bundle-generate' target (included in the source tree)
+bundle-push           Pushes the Operator bundle image built by the target above to the $(REGISTRY_NAMESPACE)
+                      project in the cluster.
+index-add             Creates an OLM Index in the local docker cache using the 'opm' tool. (Available
+                      from https://github.com/operator-framework/operator-registry)
+index-push            Pushes the Nuxeo Operator Index image to the cluster in the $(REGISTRY_NAMESPACE) namespace
+help                  Prints this help.
+print-%               A diagnostic tool. Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to
+                      print the value of 'OPERATOR_VERSION'.
 
-The Make file runs silently unless you provide a VERBOSE arg or variable. E.g.: make VERBOSE=
+To build and install the Nuxeo Operator into a test cluster from a clean cloned copy of this repository, execute
+the following Make targets in order:
+
+ 1. operator-build       Build the operator binary
+ 2. operator-image-build Build the operator container image
+ 3. operator-image-push  Push the operator container image to the OpenShift cluster
+ 4. TODO                 Test the package manifests in cluster
+ 5. bundle-build         Build the Operator bundle image
+ 6. bundle-push          Push the Operator bundle image to the OpenShift cluster
+ 7. index-add            Generate an OLM Index
+ 8. index-push           Push the OLM Index to the OpenShift cluster
+
+TODO AFTER TESTING FIX THESE DOCS
+
+After completing the steps above, the Operator should fully installed and accessible in the cluster. You can
+verify with: 'kubectl describe packagemanifest nuxeo-operator'. See the examples directory for guidance on subscribing
+the Operator in a namespace, and then deploying a Nuxeo CR to cause the Operator to bring up a Nuxeo cluster.
 
 endef

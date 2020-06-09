@@ -2,7 +2,69 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[]'
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "nuxeo.com/v1alpha1",
+          "kind": "Nuxeo",
+          "metadata": {
+            "name": "my-nuxeo"
+          },
+          "spec": {
+            "access": {
+              "hostname": "nuxeo-server.apps-crc.testing",
+              "termination": "passthrough"
+            },
+            "nodeSets": [
+              {
+                "env": [
+                  {
+                    "name": "NUXEO_PACKAGES",
+                    "value": "nuxeo-web-ui"
+                  }
+                ],
+                "interactive": true,
+                "name": "cluster",
+                "replicas": 1
+              }
+            ],
+            "nuxeoImage": "nuxeo:10.10",
+            "revProxy": {
+              "nginx": {
+                "configMap": "tls-cfgmap",
+                "image": "image-registry.openshift-image-registry.svc.cluster.local:5000/nuxeo/nginx:latest",
+                "secret": "tls-secret"
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "nuxeo.com/v1alpha1",
+          "kind": "Nuxeo",
+          "metadata": {
+            "name": "my-nuxeo"
+          },
+          "spec": {
+            "access": {
+              "hostname": "nuxeo-server.apps-crc.testing"
+            },
+            "nodeSets": [
+              {
+                "env": [
+                  {
+                    "name": "NUXEO_PACKAGES",
+                    "value": "nuxeo-web-ui"
+                  }
+                ],
+                "interactive": true,
+                "name": "cluster",
+                "replicas": 1
+              }
+            ],
+            "nuxeoImage": "nuxeo:10.10"
+          }
+        }
+      ]
     capabilities: Basic Install
   name: nuxeo-operator.v0.1.0
   namespace: placeholder
@@ -14,8 +76,11 @@ spec:
       kind: Nuxeo
       name: nuxeos.nuxeo.com
       version: v1alpha1
-  description: The Nuxeo Operator maintains a Nuxeo cluster
+  description: The Nuxeo Operator manages the state of a Nuxeo cluster.
   displayName: Nuxeo Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
   install:
     spec:
       deployments:
@@ -32,8 +97,7 @@ spec:
                 name: nuxeo-operator
             spec:
               containers:
-              - command:
-                - nuxeo-operator
+              - name: nuxeo-operator
                 env:
                 - name: WATCH_NAMESPACE
                   valueFrom:
@@ -45,10 +109,15 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: nuxeo-operator
-                image: REPLACE_IMAGE
+                image: image-registry.openshift-image-registry.svc.cluster.local:5000/nuxeo/nuxeo-operator:0.1.0
                 imagePullPolicy: Always
-                name: nuxeo-operator:0.1.0
-                resources: {}
+                resources:
+                  limits:
+                    cpu: 200m
+                    memory: 128Mi
+                  requests:
+                    cpu: 100m
+                    memory: 64Mi
               serviceAccountName: nuxeo-operator
       permissions:
       - rules:
@@ -175,5 +244,4 @@ spec:
   maturity: alpha
   provider:
     name: Eric Ace
-  replaces: nuxeo-operator.v0.0.0
   version: 0.1.0

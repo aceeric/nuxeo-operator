@@ -3,7 +3,7 @@ kind: Nuxeo
 metadata:
   name: my-nuxeo
 spec:
-  nuxeoImage: nuxeo:10.10
+  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/nuxeo/nuxeo:10.10
   access:
     hostname: nuxeo-server.apps-crc.testing
   nodeSets:

@@ -8,13 +8,13 @@ Presently, I'm doing this development on a Ubuntu 18.04 desktop and OpenShift Co
 
 Below is the sequence of capabilities that are planned for this Operator. These are all preliminary and will be tuned as I get further into the project.
 
-#### Version 0.1.0 *(complete)*
+#### Version 0.1.0 *(in progress)*
 
 This version is really just a POC of the Operator with basic functionality. The goal is to be able to bring up - and reconcile the state of - a basic Nuxeo cluster that optionally supports TLS via an Nginx reverse proxy.
 
 This version creates/reconciles a Deployment, a Service, and an OpenShift Route. (I'm starting with OpenShift but will support Kubernetes in a later version.) It also includes the ability to install Nuxeo Marketplace packages (https://connect.nuxeo.com/nuxeo/site/marketplace) assuming Internet access to the Marketplace by the Operator.
 
-This version of the Operator is pre-Level 1 capability. (https://sdk.operatorframework.io/docs/operator-capabilities/)
+This version of the Operator is pre-Level I capability. (https://sdk.operatorframework.io/docs/operator-capabilities/)
 
 | Feature                                                      | Status      |
 | ------------------------------------------------------------ | ----------- |
@@ -30,35 +30,26 @@ This version of the Operator is pre-Level 1 capability. (https://sdk.operatorfra
 | Support running the Operator binary only externally to the cluster to verify the basic Operator functionality | complete |
 | Implement a minimal Status field of the Nuxeo CR consisting of the number of active pods  | complete |
 | Perform basic testing whereby cluster resources are modified and expected resource reconciliation is performed by the Nuxeo Operator | complete |
-
-
-
-#### Version 0.2.0 *(In Progress)*
-
-Version 0.2.0 will focus on supporting the Operator Lifecycle Manager (OLM) framework, and running the Operator in-cluster via an OLM subscription.
-
-| Feature                                                      | Status |
-| ------------------------------------------------------------ | ------ |
 | Add the basic elements (CSV, RBACs, bundling, etc.) to support packaging the Operator as a community Operator | in progress |
 | Deploy and test the Operator from a private internal Operator registry in the cluster via OLM subscription | in progress |
+| Automate the build with *Make*                               | in progress |
 
 
 
-#### Version 0.3.0
+#### Version 0.2.0
 
-Version 0.3.0 will focus on productionalization by implementing unit testing, and end-to-end testing, and automating the build process.
+Version 0.2.0 will focus on productionalization by implementing unit testing, and end-to-end testing, and extending the build automation to include these
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Incorporate comprehensive unit testing into the operator build |        |
 | Incorporate end-to-end testing                               |        |
-| Automate the build with *Make*                               |        |
 
 
 
-#### Version 0.4.0
+#### Version 0.3.0
 
-Version 0.4.0 will focus on Kubernetes support. My belief at present is that the only significant difference will be creating/reconciling a Kubernetes *Ingress* object rather than an OpenShift *Route* object.
+Version 0.3.0 will focus on Kubernetes support. My belief at present is that the only significant difference will be creating/reconciling a Kubernetes *Ingress* object rather than an OpenShift *Route* object.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -70,9 +61,9 @@ Version 0.4.0 will focus on Kubernetes support. My belief at present is that the
 
 
 
-#### Version 0.5.0
+#### Version 0.4.0
 
-Version 0.5.0 will focus on adding additional functionality to the Operator that I feel is required to make the Operator suitable for consideration by a general audience.
+Version 0.4.0 will focus on adding additional functionality to the Operator that I feel is required to make the Operator suitable for consideration by a general audience.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -85,9 +76,9 @@ Version 0.5.0 will focus on adding additional functionality to the Operator that
 
 
 
-#### Version 0.6.0
+#### Version 0.5.0
 
-Version 0.6.0 will focus on supporting the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
+Version 0.5.0 will focus on supporting the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -100,9 +91,9 @@ Version 0.6.0 will focus on supporting the *Service Binding Operator* to facilit
 
 
 
-#### Version 0.7.0
+#### Version 0.6.0
 
-Version 0.7.0 will focus on making the Operator available as a Community Operator
+Version 0.6.0 will focus on making the Operator available as a Community Operator
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -118,6 +109,7 @@ Version 0.7.0 will focus on making the Operator available as a Community Operato
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
+| LOE to reach Phase V in Operator Maturity Model? |        |
 | OperatorHub availability? |        |
 | Other?... |        |
 
@@ -127,7 +119,7 @@ Version 0.7.0 will focus on making the Operator available as a Community Operato
 
 ------
 
-### Testing version 0.1.0 of the Operator
+### Testing version 0.1.0 of the Operator manual deployment (not using OLM)
 
 These are the steps I follow to test version 0.1.0 of the Operator.
 

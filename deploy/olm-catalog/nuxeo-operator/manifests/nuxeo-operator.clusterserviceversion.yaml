@@ -32,7 +32,7 @@ metadata:
             "revProxy": {
               "nginx": {
                 "configMap": "tls-cfgmap",
-                "image": "image-registry.openshift-image-registry.svc.cluster.local:5000/nuxeo/nginx:latest",
+                "image": "nginx:latest",
                 "secret": "tls-secret"
               }
             }
@@ -109,7 +109,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: nuxeo-operator
-                image: image-registry.openshift-image-registry.svc.cluster.local:5000/nuxeo/nuxeo-operator:0.1.0
+                image: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo-operator:0.1.0
                 imagePullPolicy: Always
                 resources:
                   limits:

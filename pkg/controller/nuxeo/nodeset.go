@@ -94,7 +94,7 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 // If the revProxy arg indicates that a reverse proxy is to be included in the deployment, then that results in
 // another (TLS sidecar) container being added to the deployment
 func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, nodeSet v1alpha1.NodeSet, revProxy v1alpha1.RevProxySpec) *v1.Deployment {
-	replicas32 := int32(nodeSet.Replicas)
+	replicas := nodeSet.Replicas
 	nuxeoImage := "nuxeo:latest"
 	if nux.Spec.NuxeoImage != "" {
 		nuxeoImage = nux.Spec.NuxeoImage
@@ -116,7 +116,7 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labelsForNuxeo(nux, nodeSet.Interactive),
 			},
-			Replicas: &replicas32,
+			Replicas: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labelsForNuxeo(nux, nodeSet.Interactive),

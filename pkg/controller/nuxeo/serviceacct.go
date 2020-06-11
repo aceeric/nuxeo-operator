@@ -43,10 +43,10 @@ func reconcileServiceAccount(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLog
 }
 
 // defaultServiceAccount creates and returns a service account struct
-func (r *ReconcileNuxeo) defaultServiceAccount(nux *v1alpha1.Nuxeo, svcName string) (*corev1.ServiceAccount, error) {
+func (r *ReconcileNuxeo) defaultServiceAccount(nux *v1alpha1.Nuxeo, svcAcctName string) (*corev1.ServiceAccount, error) {
 	sa := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      svcName,
+			Name:      svcAcctName,
 			Namespace: nux.Namespace,
 		},
 	}

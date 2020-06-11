@@ -81,26 +81,26 @@ rules:
   - update
   - watch
 - apiGroups:
-    - route.openshift.io
+  - route.openshift.io
   resources:
-    - routes
+  - routes
   verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
-    - extensions
+  - extensions
   resources:
-    - ingresses
+  - ingresses
   verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

@@ -1,6 +1,6 @@
 # Nuxeo Operator
 
-This project is a very early - **0.1.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
+This project is a very early - **0.2.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
 
 Presently, I'm doing this development on a Ubuntu 18.04 desktop and OpenShift Code Ready Containers (https://github.com/code-ready/crc).
 
@@ -27,7 +27,7 @@ This version of the Operator is pre-Level I capability. (https://sdk.operatorfra
 | Create and reconcile a Service resource for the Route to use, and for potential use within the cluster. The service will communicate with Nuxeo on 8080, or Nginx on 8443 | complete |
 | Create all resources that originate from a Nuxeo CR with `ownerReferences` that reference the Nuxeo CR - so that deletion of the Nuxeo CR will result in recursive removal of all generated resources for proper clean up | complete |
 | Support custom Nuxeo images, with a default of `nuxeo:latest` if no custom image is provided in the Nuxeo CR | complete |
-| Support running the Operator binary only externally to the cluster to verify the basic Operator functionality | complete |
+| Support running the Operator binary externally to the cluster to verify the basic Operator functionality | complete |
 | Implement a minimal Status field of the Nuxeo CR consisting of the number of active pods  | complete |
 | Perform basic testing whereby cluster resources are modified and expected resource reconciliation is performed by the Nuxeo Operator | complete |
 | Add the basic elements (CSV, RBACs, bundling, etc.) to support packaging the Operator as a community Operator | complete |
@@ -36,34 +36,35 @@ This version of the Operator is pre-Level I capability. (https://sdk.operatorfra
 
 
 
-#### Version 0.2.0
+#### Version 0.2.0 *(complete)*
 
-Version 0.2.0 will focus on productionalization by implementing unit testing, and end-to-end testing, and extending the build automation to include these
+Version 0.2.0 lays the groundwork for productionalization by implementing initial basic unit testing, and end-to-end (e2e) testing, and extending the build automation to include these. The goal of the testing at this stage is to frame out the approach, select the test tooling, and create an initial set of reasonable tests. In order to be fully production-ready, more tests will clearly be needed, and will be added as work progresses.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Incorporate comprehensive unit testing into the operator build |        |
-| Incorporate end-to-end testing                               |        |
+| Incorporate unit testing into the operator build using https://github.com/stretchr/testify | complete |
+| Incorporate end-to-end testing, cloned from the operator-sdk memcached test. | complete |
+| Integrate unit and e2e tests into the Make file | complete |
 
 
 
-#### Version 0.3.0
+#### Version 0.3.0 *(in progress)*
 
-Version 0.3.0 will focus on Kubernetes support. My belief at present is that the main significant difference will be creating/reconciling a Kubernetes *Ingress* object rather than an OpenShift *Route* object.
+Version 0.3.0 adds Kubernetes support.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Implement the ability to detect whether the Operator is running in a Kubernetes cluster vs. an OpenShift cluster |        |
 | Create an *Ingress* resource for access outside of the Kubernetes cluster |        |
 | Support a Kubernetes-suitable Dockerfile for the Operator (Operator SDK generates a Dockerfile based on ubi) |        |
-| Document Kubernetes testing using MicroK8s (https://microk8s.io/) |        |
+| Document Kubernetes testing using MicroK8s (https://microk8s.io/) and kubectl |        |
 | Will need to run a private registry in MicroK8s for equivalence with OpenShift image stream |        |
 
 
 
 #### Version 0.4.0
 
-Version 0.4.0 will focus on adding additional functionality to the Operator that I feel is required to make the Operator suitable for consideration by a general audience.
+Version 0.4.0 incorporates additional features into the Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -78,7 +79,7 @@ Version 0.4.0 will focus on adding additional functionality to the Operator that
 
 #### Version 0.5.0
 
-Version 0.5.0 will focus on supporting the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
+Version 0.5.0 supports the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -93,33 +94,41 @@ Version 0.5.0 will focus on supporting the *Service Binding Operator* to facilit
 
 #### Version 0.6.0
 
-Version 0.6.0 will focus on making the Operator available as a Community Operator
+Version 0.6.0 makes the Operator available as a Community Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Gain free access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with those production environments |        |
+| Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with those production environments |        |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |        |
 | Provide `kustomize` examples to illustrate bringing up an exemplar Nuxeo Cluster using kustomize) https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |        |
+| Review and augment unit and e2e tests                        |        |
 | Support multi-architecture build. Incorporate lint, gofmt, etc. into the build process |        |
+| Github CI / badges |        |
+| Review the license |        |
 | Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |        |
 
 
 
-#### Long Term
+#### Other...
 
-| Feature                                       | Status |
-| --------------------------------------------- | ------ |
-| LOE to reach Phase V Operator Maturity Model? |        |
-| OperatorHub availability?                     |        |
-| Other?...                                     |        |
+These have not been prioritized yet.
+
+| Feature                         | Status |
+| ------------------------------- | ------ |
+| Phase V Operator Maturity Model |        |
+| OperatorHub availability |        |
+| Deploy a cluster as a Stateful Set or Deployment |        |
+| JetStack Cert Manager integration |        |
+| Horizontal Pod Auto-scaling |        |
+| Other?... |        |
 
 
 
 ------
 
-### Testing version 0.1.0 of the Operator with manual deployment
+### Testing the Operator with manual deployment
 
-These are the steps you can follow to test version 0.1.0 of the Operator via manual deployment. Following this section, instructions are provided for testing via OLM Subscription.
+These are the steps you can follow to test the Operator via manual deployment. In the next section, instructions are provided for testing via OLM Subscription.
 
 ##### Assumptions
 
@@ -171,7 +180,7 @@ Since the project is still in an early development stage, and is being tested on
 $ oc new-project images
 ```
 
-Create a Nuxeo `ImageStream` in the `images` project. These steps use `docker` but `podman` should also work. Also note that I have Docker configured for insecure access to the internal CRC registry:
+Create a Nuxeo image stream in the `images` project. These steps use `docker` but `podman` should also work. Also note that I have Docker configured for insecure access to the internal CRC registry:
 
 ```shell
 $ sudo cat /etc/docker/daemon.json
@@ -210,12 +219,12 @@ $ oc apply -f deploy/examples/nuxeo-cr.yaml
 nuxeo.nuxeo.com/my-nuxeo created
 ```
 
-Build the Operator binary. This step assumes the current working directory is the directory into which you git cloned this project. Note - this project is Go 1.14. (This build command builds the executable to the same location as the Make file):
+Build the Operator binary. This step assumes the current working directory is the directory into which you git cloned this project. Note - this project is Go 1.14. Use the provided Make target:
 
 ```shell
 $ go version
 go version go1.14.2 linux/amd64
-$ go build -o build/_output/bin/nuxeo-operator cmd/manager/main.go
+$ make operator-build
 ```
 
 Run the Operator outside of the cluster from the command line. To run the operator this way, you provide the  watch namespace as an environment variable, and a command-line option specifying the path of a kube config with credentials for the cluster:
@@ -304,7 +313,7 @@ nuxeo   default-route-openshift-image-registry.apps-crc.testing/nuxeo/nuxeo   10
 ```
 
 
-Generate a self-signed TLS certificate and key, and a `dhparams` file to use in terminating the TLS connection in the Nginx sidecar:
+Generate a self-signed TLS certificate and key, and a `dhparams` file to use in terminating the TLS connection in the Nginx sidecar. You can use the script `hack/make-tls-secret` to create a secret YAML in the `tmp` directory, or you can do it by hand:
 ```shell
 $ mkdir tmp
 $ cd tmp
@@ -460,9 +469,9 @@ Error from server (NotFound): serviceaccounts "nuxeo" not found
 
 ------
 
-### Testing version 0.1.0 of the Operator via OLM
+### Testing the Operator via OLM
 
-These are the steps to test the Nuxeo Operator via OLM. If you didn't execute create an `images` project and put the Nuxeo 10.10 docker image into the project  as an image stream:
+These are the steps to test the Nuxeo Operator via OLM. If you didn't execute the prior section, then create an `images` project and put the Nuxeo 10.10 docker image into the project  as an image stream:
 
 ```shell
 $ oc new-project images
@@ -483,7 +492,7 @@ NAME    IMAGE REPOSITORY                                                       T
 nuxeo   default-route-openshift-image-registry.apps-crc.testing/images/nuxeo   10.10 ...
 ```
 
-Build and deploy the Nuxeo Operator OLM *Index* - which is what OLM uses to support instantiating the operator via an OLM `subscription`. This section will use the Make file for these tasks. The Make targets that accomplish this are:
+Build and deploy the Nuxeo Operator OLM *Index* - which is what OLM uses to instantiate the operator via an OLM `subscription`. This section will use the Make file for these tasks. The Make targets that accomplish this are:
 
 1. **operator-build** - build the operator Go binary from Go sources
 2. **operator-image-build** - build the operator container image
@@ -515,7 +524,7 @@ If success , then you will see the Operator image in the `images` namespace, alo
 $ oc get is -n images
 NAME             IMAGE REPOSITORY    TAGS    UPDATED
 nuxeo            ...nuxeo            10.10   6 minutes ago
-nuxeo-operator   ...nuxeo-operator   0.1.0   35 seconds ago
+nuxeo-operator   ...nuxeo-operator   0.x.0   35 seconds ago
 ```
 
 Next, generate the OLM components to enable the Operator to be deployed via OLM. The Make file generates the OLM components into a `custom-operators` project, so create that project:
@@ -537,8 +546,8 @@ If successful, then:
 ```shell
 $ oc get is -n custom-operators
 NAME                             IMAGE REPOSITORY                                TAGS  ...
-nuxeo-operator-index             default-route-openshift-image-registry.apps...  0.1.0 ...
-nuxeo-operator-manifest-bundle   default-route-openshift-image-registry.apps...  0.1.0 ...
+nuxeo-operator-index             default-route-openshift-image-registry.apps...  0.x.0 ...
+nuxeo-operator-manifest-bundle   default-route-openshift-image-registry.apps...  0.x.0 ...
 ```
 
 
@@ -645,10 +654,10 @@ NAME                                               PACKAGE          SOURCE      
 subscription.operators.coreos.com/nuxeo-operator   nuxeo-operator   nuxeo-operator   alpha
 
 NAME                                                               ... PHASE
-clusterserviceversion.operators.coreos.com/nuxeo-operator.v0.1.0   ... Succeeded
+clusterserviceversion.operators.coreos.com/nuxeo-operator.v0.x.0   ... Succeeded
 
 NAME                                             CSV                    APPROVAL  APPROVED
-installplan.operators.coreos.com/install-fzfkv   nuxeo-operator.v0.1.0  Automatic true
+installplan.operators.coreos.com/install-fzfkv   nuxeo-operator.v0.x.0  Automatic true
 
 NAME                              READY   STATUS    RESTARTS   AGE
 nuxeo-operator-5784fbc7cd-dtht4   1/1     Running   0          2m8s
@@ -659,7 +668,7 @@ The key thing to observe is that the `clusterserviceversion` should be in the **
 
 ```shell
 $ oc logs nuxeo-operator-5784fbc7cd-dtht4
-{"level":"info","ts":1591727227.9497278,"logger":"cmd","msg":"Operator Version: 0.1.0"}
+{"level":"info","ts":1591727227.9497278,"logger":"cmd","msg":"Operator Version: 0.x.0"}
 {"level":"info","ts":1591727227.9499292,"logger":"cmd","msg":"Go Version: go1.14.2"}
 {"level":"info","ts":1591727227.9499755,"logger":"cmd","msg":"Go OS/Arch: linux/amd64"}
 {"level":"info","ts":1591727227.95001,"logger":"cmd","msg":"Version of operator-sdk: v0.17.1"}
@@ -724,7 +733,7 @@ $ oc delete nuxeo my-nuxeo
 Allow a moment or two for OpenShift to remove the resources. Then:
 
 ```shell
-$ $ oc get nuxeo,deployment,replicaset,pod,route,service,sa,csv,ip,sub
+$ oc get nuxeo,deployment,replicaset,pod,route,service,sa,csv,ip,sub
 NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.extensions/nuxeo-operator   1/1     1            1           7m33s
 
@@ -746,10 +755,10 @@ serviceaccount/deployer         2         13m
 serviceaccount/nuxeo-operator   2         7m33s
 
 NAME                                                               DISPLAY          ...
-clusterserviceversion.operators.coreos.com/nuxeo-operator.v0.1.0   Nuxeo Operator   ...
+clusterserviceversion.operators.coreos.com/nuxeo-operator.v0.x.0   Nuxeo Operator   ...
 
 NAME                                             CSV                     APPROVAL  ...
-installplan.operators.coreos.com/install-8lgcq   nuxeo-operator.v0.1.0   Automatic ...
+installplan.operators.coreos.com/install-8lgcq   nuxeo-operator.v0.x.0   Automatic ...
 
 NAME                                               PACKAGE          SOURCE         ...
 subscription.operators.coreos.com/nuxeo-operator   nuxeo-operator   nuxeo-operator ...
@@ -763,7 +772,18 @@ project.project.openshift.io "images" deleted
 project.project.openshift.io "custom-operators" deleted
 ```
 
+That's a basic demonstration of the capability of the Nuxeo Operator as of the current version.
 
+------
 
-That's a basic demonstration of the capability of the Nuxeo Operator as of version 0.1.0.
+### End to end testing
+
+The e2e testing that is currently implemented uses the `operator-sdk local` capability. The e2e testing has a handful of prerequisites:
+
+1. Create the e2e test namespace: `kubectl create namespace operator-test`
+2. The e2e test creates a Deployment that references the operator image, and the operator creates a Deployment that references the Nuxeo image. So make sure that the current version of the `nuxeo-operator` image and the 10.10 `nuxeo` image are both present as image streams in the `images` namespace. The steps to accomplish this are documented above in this README.
+3. Ensure that the `operator-test` namespace can pull images from the `images` namespace: `oc project operator-test; oc policy add-role-to-group system:image-puller system:serviceaccounts:operator-test --namespace=images`
+4. The Make file provides a target `operator-e2e-test` to run the e2e tests. It references the internal OpenShift registry using a variable that you can inspect by running Make with the `--just-print` option.
+
+Once these prerequisites are satisfied, then run the e2e tests: `make operator-e2e-test`. 
 

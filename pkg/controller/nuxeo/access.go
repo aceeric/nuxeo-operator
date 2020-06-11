@@ -24,7 +24,7 @@ import (
 func reconcileAccess(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
 	if util.IsOpenShift() {
-		return reconcileOpenshiftRoute(r, access, nodeSet, instance, reqLogger)
+		return reconcileOpenShiftRoute(r, access, nodeSet, instance, reqLogger)
 	} else {
 		err := goerrors.New("nuxeo validation error")
 		reqLogger.Error(err, "Kubernetes Ingress not supported yet")
@@ -32,8 +32,8 @@ func reconcileAccess(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1a
 	}
 }
 
-// reconcileOpenshiftRoute configures access to the Nuxeo cluster via an OpenShift Route
-func reconcileOpenshiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1alpha1.NodeSet,
+// reconcileOpenShiftRoute configures access to the Nuxeo cluster via an OpenShift Route
+func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
 	found := &routev1.Route{}
 	routeName := routeName(instance, nodeSet)
@@ -66,7 +66,8 @@ func reconcileOpenshiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nod
 }
 
 // defaultRoute generates and returns a Route struct from the passed params. The generated Route is illustrated
-// below. The 'tls' section of the route is only populated if the passed 'access' arg specifies a TLSSecret:
+// below. The 'tls' section of the route is only populated if the passed 'access' arg specifies a TLSSecret and/or
+// Termination.
 //
 //  apiVersion: v1
 //  kind: Route

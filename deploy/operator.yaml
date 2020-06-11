@@ -15,10 +15,7 @@ spec:
       serviceAccountName: nuxeo-operator
       containers:
         - name: nuxeo-operator
-          # Replace this with the built image name
           image: REPLACE_IMAGE
-          command:
-          - nuxeo-operator
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE

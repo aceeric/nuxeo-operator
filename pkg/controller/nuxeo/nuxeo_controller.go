@@ -7,9 +7,11 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	nuxeov1alpha1 "nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -47,7 +49,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Deployments and requeue the owner Nuxeo
+	// Watch for changes to Deployment
 	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &nuxeov1alpha1.Nuxeo{},
@@ -56,7 +58,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Services and requeue the owner Nuxeo
+	// Watch for changes to Servic
 	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &nuxeov1alpha1.Nuxeo{},
@@ -65,17 +67,25 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Routes and requeue the owner Nuxeo
-	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &nuxeov1alpha1.Nuxeo{},
-	})
-	if err != nil {
-		return err
+	// Watch for changes to OpenShift Route
+	if util.IsOpenShift() {
+		err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &nuxeov1alpha1.Nuxeo{},
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		// Watch for changes to Kubernetes Ingress
+		err = c.Watch(&source.Kind{Type: &v1beta1.Ingress{}}, &handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &nuxeov1alpha1.Nuxeo{},
+		})
+		if err != nil {
+			return err
+		}
 	}
-
-	// Future: watch for changes to Kubernetes Ingress
-
 	return nil
 }
 

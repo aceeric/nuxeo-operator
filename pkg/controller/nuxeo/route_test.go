@@ -15,8 +15,8 @@ import (
 
 // TestBasicRouteCreation tests the basic mechanics of creating a new OpenShift Route from the Nuxeo CR spec
 // when a Route does not already exist
-func (suite *accessSuite) TestBasicRouteCreation() {
-	nux := suite.accessSuiteNewNuxeo()
+func (suite *routeSuite) TestBasicRouteCreation() {
+	nux := suite.routeSuiteNewNuxeo()
 	result, err := reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
 	require.Nil(suite.T(), err, "reconcileOpenShiftRoute failed with err: %v\n", err)
 	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileOpenShiftRoute returned unexpected result: %v\n", result)
@@ -31,8 +31,8 @@ func (suite *accessSuite) TestBasicRouteCreation() {
 // it verifies the Route hostname was updated. Since all of the basic mechanics of Route reconciliation are verified
 // in the TestBasicRouteCreation function, this function dispenses with the various require.Nil - etc. - checks.
 // It seems redundant to me to repeat them here: if they would fail here, they would fail there.
-func (suite *accessSuite) TestRouteHostChange() {
-	nux := suite.accessSuiteNewNuxeo()
+func (suite *routeSuite) TestRouteHostChange() {
+	nux := suite.routeSuiteNewNuxeo()
 	// create the route
 	_, _ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
 	newHostName := "modified." + nux.Spec.Access.Hostname
@@ -45,8 +45,8 @@ func (suite *accessSuite) TestRouteHostChange() {
 	require.Equal(suite.T(), newHostName, found.Spec.Host, "Route has incorrect host name: %v\n", found.Spec.Host)
 }
 
-// accessSuite is the Access test suite structure
-type accessSuite struct {
+// routeSuite is the Route test suite structure
+type routeSuite struct {
 	suite.Suite
 	r              ReconcileNuxeo
 	nuxeoName      string
@@ -56,7 +56,7 @@ type accessSuite struct {
 }
 
 // SetupSuite initializes the Fake client, a ReconcileNuxeo struct, and various test suite constants
-func (suite *accessSuite) SetupSuite() {
+func (suite *routeSuite) SetupSuite() {
 	suite.r = initUnitTestReconcile()
 	suite.nuxeoName = "testnux"
 	suite.routeHostName = "test-host.corpdomain.io"
@@ -65,20 +65,19 @@ func (suite *accessSuite) SetupSuite() {
 }
 
 // AfterTest removes objects of the type being tested in this suite after each test
-func (suite *accessSuite) AfterTest(_, _ string) {
+func (suite *routeSuite) AfterTest(_, _ string) {
 	obj := routev1.Route{}
 	_ = suite.r.client.DeleteAllOf(context.TODO(), &obj)
 }
 
-
-// This function runs the Access unit test suite. It is called by 'go test' and will call every
-// function in this file with a accessSuite receiver that begins with "Test..."
-func TestAccessUnitTestSuite(t *testing.T) {
-	suite.Run(t, new(accessSuite))
+// This function runs the Route unit test suite. It is called by 'go test' and will call every
+// function in this file with a routeSuite receiver that begins with "Test..."
+func TestRouteUnitTestSuite(t *testing.T) {
+	suite.Run(t, new(routeSuite))
 }
 
-// accessSuiteNewNuxeo creates a test Nuxeo struct suitable for the test cases in this suite
-func (suite *accessSuite) accessSuiteNewNuxeo() *v1alpha1.Nuxeo {
+// routeSuiteNewNuxeo creates a test Nuxeo struct suitable for the test cases in this suite
+func (suite *routeSuite) routeSuiteNewNuxeo() *v1alpha1.Nuxeo {
 	return &v1alpha1.Nuxeo{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      suite.nuxeoName,

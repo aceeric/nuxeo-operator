@@ -7,6 +7,9 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+// see IsOpenShift() / SetIsOpenShift()
+var isOpenShift = false
+
 func HashObject(object interface{}) string {
 	hf := fnv.New32()
 	printer := spew.ConfigState{
@@ -29,9 +32,15 @@ func SpewObject(object interface{}) string {
 	return printer.Sdump(object)
 }
 
-// future: detect Kubernetes vs OpenShift
+// Returns true if the operator is running in an OpenShift cluster. Else false = Kubernetes. False
+// by default, unless SetIsOpenShift() was called
 func IsOpenShift() bool {
-	return true
+	return isOpenShift
+}
+
+// Sets operator state indicating that the operator believes it is running in an OpenShift cluster.
+func SetIsOpenShift() {
+	isOpenShift = true
 }
 
 var NuxeoServiceAccountName = "nuxeo"

@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -201,14 +202,17 @@ type NuxeoList struct {
 
 func init() {
 	SchemeBuilder.Register(&Nuxeo{}, &NuxeoList{})
-	if util.IsOpenShift() {
-		registerOpenShiftRoute()
+	if registerOpenShiftRoute() {
+		// default = not OpenShift
+		util.SetIsOpenShift()
+	} else if !registerKubernetesIngress() {
+		panic("Unable to register either an OpenShift Route or a Kubernetes Ingress to the SchemaBuilder")
 	}
 }
 
-// registerOpenShiftRoute registers the OpenShift Route objects with the Scheme Builder so they are visible to
-// the Nuxeo Operator as defined types. Presently, this function panics on failure.
-func registerOpenShiftRoute() {
+// registerOpenShiftRoute registers OpenShift Route types with the Scheme Builder. Returns true if
+// success, else false
+func registerOpenShiftRoute() bool {
 	const GroupName = "route.openshift.io"
 	const GroupVersion = "v1"
 	SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
@@ -222,7 +226,27 @@ func registerOpenShiftRoute() {
 	}
 	SchemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
 	AddToScheme := SchemeBuilder.AddToScheme
-	if err := AddToScheme(scheme.Scheme); err != nil {
-		panic("Unable to add route.openshift.io/vi/Route to the SchemaBuilder")
+	return AddToScheme(scheme.Scheme) != nil
+}
+
+// registerKubernetesIngress registers Kubernetes Ingress types with the Scheme Builder. Returns true if
+// success, else false
+func registerKubernetesIngress() bool {
+	const GroupName = "networking.k8s.io"
+	const GroupVersion = "v1beta1"
+	SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	addKnownTypes := func(scheme *runtime.Scheme) error {
+		scheme.AddKnownTypes(SchemeGroupVersion,
+			&v1beta1.Ingress{},
+			&v1beta1.IngressList{},
+		)
+		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+		return nil
 	}
+	SchemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme := SchemeBuilder.AddToScheme
+	if err := AddToScheme(scheme.Scheme); err != nil {
+		return false
+	}
+	return true
 }

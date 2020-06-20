@@ -1,4 +1,5 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+ARG BASE_IMAGE=registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM ${BASE_IMAGE}
 
 ENV OPERATOR=/usr/local/bin/nuxeo-operator \
     USER_UID=1001 \

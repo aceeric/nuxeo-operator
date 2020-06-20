@@ -3,6 +3,7 @@ GOROOT                 := $(shell go env GOROOT)
 OCICLI                 := docker
 OPERATOR_VERSION       := 0.2.0
 # if OpenShift, this is the OpenShift integrated container image registry
+# If MicroK8s this is the internal registry plugin
 IMAGE_REGISTRY         := default-route-openshift-image-registry.apps-crc.testing
 IMAGE_REGISTRY_CLUST   := image-registry.openshift-image-registry.svc.cluster.local:5000
 IMAGE_ORG              := images
@@ -15,10 +16,21 @@ OPERATOR_SDK_SUPPORTED := v0.18.0
 OPERATOR_SDK_INSTALLED := $(shell operator-sdk version | cut -d, -f1 | cut -d: -f2 | sed "s/[[:blank:]]*\"//g")
 UNIT_TEST_ARGS         := -v
 E2E_TEST_ARGS          := --verbose
+BASE_IMAGE_ARG         :=
+NUXEO_IMAGE            := nuxeo:10.10
 
 # Since Operator SDK is undergoing active development, check the version so that the Makefile is repeatable
 ifneq ($(OPERATOR_SDK_SUPPORTED),$(OPERATOR_SDK_INSTALLED))
     $(error Requires operator-sdk: $(OPERATOR_SDK_SUPPORTED). Found: $(OPERATOR_SDK_INSTALLED))
+endif
+
+# set Make variables for MicroK8s
+ifeq ($(TARGET_CLUSTER),MICROK8S)
+    BASE_IMAGE_ARG       := --build-arg BASE_IMAGE=alpine
+    BUNDLE_BUILD_ARG     := --build-arg TARGET_CLUSTER=mk8s
+    IMAGE_REGISTRY       := localhost:32000
+    IMAGE_REGISTRY_CLUST := localhost:32000
+    E2E_KUBE_CONFIG_ARG  := --kubeconfig=/var/snap/microk8s/current/credentials/kubelet.config
 endif
 
 .PHONY : all
@@ -31,19 +43,23 @@ operator-unit-test:
 
 .PHONY : operator-e2e-test
 operator-e2e-test:
-	operator-sdk test local $(ROOT)/test/e2e --operator-namespace operator-test $(E2E_TEST_ARGS)\
-		--image $(IMAGE_REGISTRY_CLUST)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)
+	operator-sdk test local --debug $(ROOT)/test/e2e --operator-namespace operator-test $(E2E_TEST_ARGS)\
+		--image $(IMAGE_REGISTRY_CLUST)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
+		$(E2E_KUBE_CONFIG_ARG)\
+		--go-test-flags="--nuxeo-image=$(IMAGE_REGISTRY_CLUST)/$(IMAGE_ORG)/$(NUXEO_IMAGE)"
 
+# CGO_ENABLED=0 seems standard and allows the executable go file to run on images that do not provide some libs
 .PHONY : operator-build
 operator-build:
 	operator-sdk generate k8s
 	operator-sdk generate crds
-	go build -o $(ROOT)/build/_output/bin/nuxeo-operator $(ROOT)/cmd/manager
+	CGO_ENABLED=0 go build -o $(ROOT)/build/_output/bin/nuxeo-operator $(ROOT)/cmd/manager
 
 .PHONY : operator-image-build
 operator-image-build:
 	$(OCICLI) build --tag $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
- 		--file $(ROOT)/build/Dockerfile $(ROOT)/build
+ 		--file $(ROOT)/build/Dockerfile $(BASE_IMAGE_ARG)\
+ 		$(ROOT)/build
 
 .PHONY : operator-image-push
 operator-image-push:
@@ -71,7 +87,7 @@ bundle-build:
 	# olm-generate because operator-sdk overwrites the CSV
 	cp $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml $(ROOT)/deploy/olm-catalog/nuxeo-operator/manifests
 	$(OCICLI) build --tag $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_IMAGE_NAME):$(OPERATOR_VERSION)\
-		--file bundle.Dockerfile $(ROOT)
+		--file bundle.Dockerfile $(ROOT) $(BUNDLE_BUILD_ARG)
 	$(OCICLI) push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_IMAGE_NAME):$(OPERATOR_VERSION)
 
 .PHONY : index-add
@@ -94,7 +110,8 @@ endif
 
 .PHONY : print-%
 print-%:
-	$(info $* is a $(flavor $*) variable set to [$($*)]) @true
+#	$(info $* is a $(flavor $*) variable set to [$($*)]) @true
+	$(info $($*))
 
 export HELPTEXT
 define HELPTEXT
@@ -137,6 +154,8 @@ index-push            Pushes the Nuxeo Operator Index image to the cluster in th
 help                  Prints this help.
 print-%               A diagnostic tool. Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to
                       print the value of 'OPERATOR_VERSION'.
+
+TODO VARIABLES TARGET_CLUSTER
 
 To build and install the Nuxeo Operator into a test cluster from a clean cloned copy of this repository, execute
 the following Make targets in order:

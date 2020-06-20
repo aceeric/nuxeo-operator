@@ -63,6 +63,8 @@ type ServiceSpec struct {
 	TargetPort int32 `json:"targetPort,omitempty"`
 }
 
+type NuxeoTLSTerminationType string
+
 // NuxeoAccess supports creation of an OpenShift Route supporting access to the Nuxeo Service from outside of the
 // cluster. In a future version, a Kubernetes Ingress object will be supported
 type NuxeoAccess struct {
@@ -86,6 +88,7 @@ type NuxeoAccess struct {
 	// +kubebuilder:validation:Optional
 	// Specifies the TLS termination type. E.g. 'edge', 'passthrough', etc.
 	// +optional
+	// todo-me consider operator-defined (platform-agnostic) Type and associated Consts rather than OpenShift
 	Termination routev1.TLSTerminationType `json:"termination,omitempty"`
 }
 
@@ -203,7 +206,7 @@ type NuxeoList struct {
 func init() {
 	SchemeBuilder.Register(&Nuxeo{}, &NuxeoList{})
 	if registerOpenShiftRoute() {
-		// default = not OpenShift
+		// by default: not OpenShift
 		util.SetIsOpenShift()
 	} else if !registerKubernetesIngress() {
 		panic("Unable to register either an OpenShift Route or a Kubernetes Ingress to the SchemaBuilder")
@@ -211,7 +214,7 @@ func init() {
 }
 
 // registerOpenShiftRoute registers OpenShift Route types with the Scheme Builder. Returns true if
-// success, else false
+// success (e.g. running on OpenShift), else false
 func registerOpenShiftRoute() bool {
 	const GroupName = "route.openshift.io"
 	const GroupVersion = "v1"
@@ -230,7 +233,9 @@ func registerOpenShiftRoute() bool {
 }
 
 // registerKubernetesIngress registers Kubernetes Ingress types with the Scheme Builder. Returns true if
-// success, else false
+// success (e.g. running on Kubernetes), else false.
+// Note: https://kubernetes.io/blog/2019/07/18/api-deprecations-in-1-16/ says:
+// Migrate to use the networking.k8s.io/v1beta1 API version, available since v1.14
 func registerKubernetesIngress() bool {
 	const GroupName = "networking.k8s.io"
 	const GroupVersion = "v1beta1"

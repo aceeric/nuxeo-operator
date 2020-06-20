@@ -15,6 +15,7 @@ rules:
   - events
   - configmaps
   - secrets
+  - serviceaccounts
   verbs:
   - create
   - delete
@@ -92,8 +93,21 @@ rules:
   - patch
   - update
   - watch
+# todo-me delete this?
 - apiGroups:
   - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
   resources:
   - ingresses
   verbs:

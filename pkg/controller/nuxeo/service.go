@@ -72,8 +72,8 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 //      interactive: "true"
 //    ports:
 //      - name: web
-//        port: 80
-//        targetPort: 8080
+//        port: 80 (or 443)
+//        targetPort: 8080 (or 8443)
 func (r *ReconcileNuxeo) defaultService(nux *v1alpha1.Nuxeo, svc v1alpha1.ServiceSpec, svcName string) (*corev1.Service, error) {
 	var svcType = corev1.ServiceTypeClusterIP
 	var port int32 = 80

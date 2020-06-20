@@ -109,7 +109,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: nuxeo-operator
-                image: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo-operator:0.2.0
+                image: localhost:32000/images/nuxeo-operator:0.2.0
                 imagePullPolicy: Always
                 resources:
                   limits:
@@ -132,6 +132,7 @@ spec:
           - events
           - configmaps
           - secrets
+          - serviceaccounts
           verbs:
           - create
           - delete
@@ -211,6 +212,18 @@ spec:
           - watch
         - apiGroups:
           - extensions
+          resources:
+          - ingresses
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - networking.k8s.io
           resources:
           - ingresses
           verbs:

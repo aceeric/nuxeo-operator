@@ -597,7 +597,7 @@ Create a `CatalogSource` in the `nuxeo-test` namespace to serve the OLM registry
 $ REGISTRY=$(make print-IMAGE_REGISTRY_CLUST);\
   VERSION=$(make print-OPERATOR_VERSION);\
   echo $REGISTRY $VERSION
-# e.g. image-registry.openshift-image-registry.svc.cluster.local:5000 0.2.0
+# e.g. image-registry.openshift-image-registry.svc.cluster.local:5000 0.3.0
 $ SHA=$(kubectl get is nuxeo-operator-index -n custom-operators -o\
   jsonpath='{@.status.tags[0].items[0].image}')
 
@@ -605,7 +605,7 @@ $ SHA=$(kubectl get is nuxeo-operator-index -n custom-operators -o\
 $ REGISTRY=$(TARGET_CLUSTER=MICROK8S make print-IMAGE_REGISTRY_CLUST);\
   VERSION=$(TARGET_CLUSTER=MICROK8S make print-OPERATOR_VERSION);\
   echo $REGISTRY $VERSION
-# e.g. localhost:32000 0.2.0
+# e.g. localhost:32000 0.3.0
 $ SHA=$(curl -vH "Accept: application/vnd.docker.distribution.manifest.v2+json"\
   http://$REGISTRY/v2/custom-operators/nuxeo-operator-index/manifests/$VERSION 2>&1\
   | grep Docker-Content-Digest | awk '{print $3}')

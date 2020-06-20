@@ -1,7 +1,7 @@
 ROOT                   := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 GOROOT                 := $(shell go env GOROOT)
 OCICLI                 := docker
-OPERATOR_VERSION       := 0.2.0
+OPERATOR_VERSION       := 0.3.0
 # if OpenShift, this is the OpenShift integrated container image registry
 # If MicroK8s this is the internal registry plugin
 IMAGE_REGISTRY         := default-route-openshift-image-registry.apps-crc.testing

@@ -73,7 +73,8 @@ func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nod
 //      caCertificate: "
 //      destinationCACertificate: "
 //      insecureEdgeTerminationPolicy: "
-func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, routeName string, nodeSet v1alpha1.NodeSet) (*v1.Route, error) {
+func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, routeName string,
+	nodeSet v1alpha1.NodeSet) (*v1.Route, error) {
 	targetPort := intstr.IntOrString{
 		Type:   intstr.String,
 		StrVal: "web",

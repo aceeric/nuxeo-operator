@@ -25,6 +25,7 @@ var (
 
 func TestNuxeo(t *testing.T) {
 	nuxeoList := &v1alpha1.NuxeoList{}
+
 	err := framework.AddToFrameworkScheme(apis.AddToScheme, nuxeoList)
 	if err != nil {
 		t.Fatalf("failed to add custom resource scheme to framework: %v", err)
@@ -63,6 +64,7 @@ func NuxeoCluster(t *testing.T) {
 func nuxeoScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context) error {
 	const nuxeoName = "nuxeo"
 	const clusterName = "test-cluster"
+
 	namespace, err := ctx.GetOperatorNamespace()
 	if err != nil {
 		return fmt.Errorf("could not get namespace: %v", err)
@@ -74,7 +76,6 @@ func nuxeoScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context
 			Namespace: namespace,
 		},
 		Spec: v1alpha1.NuxeoSpec{
-			//NuxeoImage:      "image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo-operator:0.2.0",
 			ImagePullPolicy: corev1.PullAlways,
 			Access: v1alpha1.NuxeoAccess{
 				Hostname: "z",
@@ -94,7 +95,7 @@ func nuxeoScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context
 					Spec: corev1.PodSpec{
 						ServiceAccountName: util.NuxeoServiceAccountName,
 						Containers: []corev1.Container{{
-							Image:           "image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:10.10",
+							Image:           *args.nuxeoImageName,
 							ImagePullPolicy: corev1.PullAlways,
 							Name:            "nuxeo",
 							Ports: []corev1.ContainerPort{{

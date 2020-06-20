@@ -1,8 +1,8 @@
 # Nuxeo Operator
 
-This project is a very early - **0.2.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
+This project is a very early - **0.3.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
 
-Presently, I'm doing this development on a Ubuntu 18.04 desktop and OpenShift Code Ready Containers (https://github.com/code-ready/crc).
+Presently, I'm doing this development on a Ubuntu 18.04 desktop with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
 
 ### Planned Features
 
@@ -12,7 +12,7 @@ Below is the sequence of capabilities that are planned for this Operator. These 
 
 This version is really just a POC of the Operator with basic functionality. The goal is to be able to bring up - and reconcile the state of - a basic Nuxeo cluster that optionally supports TLS via an Nginx reverse proxy. The goal is to do this manually, and also via an OLM subscription.
 
-This version creates/reconciles a Deployment, a Service, a Service Account, and an OpenShift Route. (I'm starting with OpenShift but will support Kubernetes in a later version.) It also includes the ability to install Nuxeo Marketplace packages (https://connect.nuxeo.com/nuxeo/site/marketplace) assuming Internet access to the Marketplace by the Operator.
+This version creates/reconciles a Deployment, a Service, a Service Account, and an OpenShift Route or a Kubernetes Ingress. It also includes the ability to install Nuxeo Marketplace packages (https://connect.nuxeo.com/nuxeo/site/marketplace) assuming Internet access to the Marketplace by the Operator.
 
 This version of the Operator is pre-Level I capability. (https://sdk.operatorframework.io/docs/operator-capabilities/)
 
@@ -48,32 +48,35 @@ Version 0.2.0 lays the groundwork for productionalization by implementing initia
 
 
 
-#### Version 0.3.0 *(in progress)*
+#### Version 0.3.0 *(complete)*
 
-Version 0.3.0 adds Kubernetes support.
+Version 0.3.0 adds Kubernetes support - testing with MicroK8s only at this time.
 
-| Feature                                                      | Status      |
-| ------------------------------------------------------------ | ----------- |
-| Implement the ability to detect whether the Operator is running in a Kubernetes cluster vs. an OpenShift cluster | complete    |
-| Create an *Ingress* resource for access outside of the Kubernetes cluster | in progress |
-| Support a Kubernetes-suitable Dockerfile for the Operator (Operator SDK generates a Dockerfile based on ubi) |             |
-| Document Kubernetes testing using MicroK8s (https://microk8s.io/) and kubectl | in progress |
-| Test with the MicroK8s built-in registry (https://microk8s.io/docs/registry-built-in) for equivalence with the OpenShift internal image registry | in progress |
+| Feature                                                      | Status   |
+| ------------------------------------------------------------ | -------- |
+| Implement the ability to detect whether the Operator is running in a Kubernetes cluster vs. an OpenShift cluster | complete |
+| Create an *Ingress* resource for access outside of the Kubernetes cluster and test with HTTP as well as TLS passthrough | complete |
+| Support a suitable Dockerfile for the Operator (Operator SDK generates a Dockerfile based on Red Hat *ubi*) | complete |
+| Document Kubernetes testing using MicroK8s (https://microk8s.io/) and kubectl | complete |
+| Test with the MicroK8s built-in registry (https://microk8s.io/docs/registry-built-in) for equivalence with the OpenShift internal image registry | complete |
+| Update the Make file to support both OpenShift/CRC *and* MicroK8s | complete |
 
 
 
-#### Version 0.4.0
+#### Version 0.4.0 *(in progress)*
 
 Version 0.4.0 incorporates additional features into the Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Support a Secret with payload for TLS termination in the Route. Previously, TLS passthrough was the only tested Route/Ingress functionality |        |
+| Support a Secret with payload for TLS termination in the Route/Ingress. Previously, TLS passthrough was the only tested functionality |        |
 | Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA |        |
 | Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster |        |
-| Support readiness and liveness probes for the Nuxeo pods     |        |
+| Support readiness and liveness probes for the Nuxeo pods. Update Nuxeo Status accordingly |        |
 | Support explicit definition of nuxeo.conf properties in the Nuxeo CR |        |
 | Ability to define *Interactive* nodes and *Worker* nodes separately resulting in two Deployments. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI |        |
+| Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. |        |
+| Support the ability to terminate TLS directly in Tomcat, rather than requiring a sidecar. |        |
 
 
 
@@ -126,23 +129,28 @@ These have not been prioritized yet.
 
 ------
 
-### Testing the Operator with manual deployment
+## Testing the Operator
+
+### Testing with manual deployment
 
 These are the steps to test the Operator via manual deployment. In the next section, instructions are provided for testing via OLM Subscription.
 
-Testing has been performed using *Code Ready Containers* (CRC) for OpenShift, and Canonical *MicroK8s* (MK8s) for Kubernetes. Please see the docs directory for important configuration information based on your environment.
+Testing has been performed using *Code Ready Containers* (CRC) for OpenShift, and Canonical *MicroK8s* (MK8s) for Kubernetes.
 
-A later release will document instructions for running in a full OpenShift or Kubernetes cluster. But for now, if you're testing in a full cluster you will have to fill in the blanks yourself. In these instructions, when there is a difference in the steps for CRC vs MicroK8s, both instructions will be provided. The instructions use the alias `mkubectl` for the MicroK8s `kubectl` command.
+***Before following these test steps, please see the `docs` directory for important configuration information for CRC and MK8s.***
+
+A later release will document instructions for running in a full OpenShift or Kubernetes cluster. But for now, if you're testing in a full cluster you will have to fill in the blanks yourself. In these instructions, when there is a difference in the steps for CRC vs MicroK8s, both instructions are provided.
+
+##### A general note about these test steps
+
+Before progressing, hopefully you've read the CRC or MK8s README as discussed above. If you're running on MK8s, it was recommended that you create an alias `mkubectl` for the MK8s `kubectl`. In the documentation that follows, the notation `(m)kubectl` refers to the `mkubectl` alias if running MK8s, and `kubectl` if running CRC.
 
 ##### Steps
 
-Since the project is still in an early development stage, the built-in image registries are used for storing images. This simplifies testing because these dev images will always be available in-cluster. Create an `images` namespace to hold various image streams: 
+Since the project is still in an early development stage, built-in image registries are used for storing images. This simplifies testing because these dev images will always be available in-cluster. Create an `images` namespace to hold various images/image streams: 
 
 ```shell
-# CRC
-$ oc new-project images
-# MK8s TODO-ME UNCLEAR IF A NAMESPACE IS NEEDED IN MICROK8S
-$ mkubectl create namespace images
+$ (m)kubectl create namespace images
 ```
 
 Create a Nuxeo image:
@@ -162,29 +170,25 @@ $ docker push $HOST/images/nuxeo:10.10
 Deploy the Nuxeo CRD into the cluster:
 
 ```shell
-# CRC
-$ kubectl apply -f deploy/crds/nuxeo.com_nuxeos_crd.yaml
-# MK8s - on occasion it seems to hang on re-apply so if re-applying, delete then apply
+# MK8s - on occasion MK8s seems to hang on re-apply so if re-applying, delete first
 $ mkubectl delete crd/nuxeos.nuxeo.com
-$ mkubectl apply -f deploy/crds/nuxeo.com_nuxeos_crd.yaml
+$ (m)kubectl apply -f deploy/crds/nuxeo.com_nuxeos_crd.yaml
 ```
 
-Create a `nuxeo` project to test the Operator in, and grant all service accounts in the `nuxeo` project the ability to pull images from the `images` project:
+Create a `nuxeo` namespace to test the Operator in, and for CRC grant all service accounts in the `nuxeo` project the ability to pull images from the `images` project:
 ```shell
+$ (m)kubectl create namespace nuxeo
 # CRC
-$ kubectl create namespace nuxeo
 $ oc policy add-role-to-group system:image-puller system:serviceaccounts:nuxeo\
   --namespace=images
-# MK8s
-$ mkubectl create namespace nuxeo
 ```
 
-Create a Nuxeo CR for a single-node Nuxeo instance with port 80 access external to the cluster:
+Create a Nuxeo CR for a single-node Nuxeo instance with port 80 access external to the cluster. Note the different path for the MK8s resource due to the different image registry reference.
 ```shell
 # CRC
 $ kubectl apply -f deploy/examples/nuxeo-cr.yaml -n nuxeo
 # MK8s
-$ mkubectl apply -f deploy/examples/nuxeo-cr.yaml -n nuxeo
+$ mkubectl apply -f hack/microk8s/nuxeo-cr-mk8s.yaml -n nuxeo
 ```
 
 Build the Operator binary. This step assumes the current working directory is the directory into which you git cloned this project. Note - this project is Go 1.14. Use the provided Make target:
@@ -195,7 +199,7 @@ go version go1.14.2 linux/amd64
 $ make operator-build
 ```
 
-Run the Operator outside of the cluster from the command line. To run the operator this way, you provide the  watch namespace as an environment variable, and a command-line option specifying the path of a kube config with credentials for the cluster:
+Run the Operator outside of the cluster from the command line. To run the operator this way, you provide the  watch namespace as an environment variable, and a command-line option specifying the path of a kube config with credentials for the cluster. For MK8s use the kube config in it's snap location:
 
 ```shell
 # CRC
@@ -244,17 +248,19 @@ pod/my-nuxeo-cluster-6c4b7466dc-zc4wh   1/1     Running   0          32s
 
 ```
 
-Test access to Nuxeo. Of key importance here is that the host name in the route - `nuxeo-server.apps-crc.testing` - is addressable from your local host:
-
-
-
-<<<<<<<<<<<<<<<<<<<<< HERE
+Test access to Nuxeo. Of key importance here is that the host name in the route - `nuxeo-server.apps-crc.testing` - is addressable from your local host. The CRC and MicroK8s setup documents in the docs folder describe this.
 
 ```shell
+# CRC
 $ ping nuxeo-server.apps-crc.testing
 PING nuxeo-server.apps-crc.testing (192.168.130.11) 56(84) bytes of data.
 64 bytes from api.crc.testing (192.168.130.11): icmp_seq=1 ttl=64 time=0.333 ms
 ...
+# MK8s
+$ ping nuxeo-server.apps-crc.testing
+PING nuxeo-server.apps-crc.testing (127.0.0.1) 56(84) bytes of data.
+64 bytes from localhost (127.0.0.1): icmp_seq=1 ttl=64 time=0.075 ms
+# common
 $ curl http://nuxeo-server.apps-crc.testing
 <META HTTP-EQUIV="refresh" CONTENT="0;URL=/nuxeo">
 ```
@@ -267,7 +273,7 @@ To review what happened so far:
 
 1. You deployed a Nuxeo CR that specified the `nuxeo-web-ui` Marketplace package
 2. You ran the operator from your desktop
-3. The Operator saw the Nuxeo CR you generated, and created a Route, a Service, a Service Account, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
+3. The Operator saw the Nuxeo CR you generated, and created a Route/Ingress, a Service, a Service Account, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
 4. OpenShift reconciled the Deployment into a ReplicaSet and a Pod. The Pod also got the `NUXEO_PACKAGES` environment variable. The Pod runs under the generated `nuxeo` Service Account
 5. The Pod started the Nuxeo Container
 6. The Nuxeo Container saw the environment variable `NUXEO_PACKAGES=nuxeo-web-ui` and so Nuxeo reached out over the Internet to a hard-coded Marketplace URL, got the package, and installed it into the Nuxeo Container
@@ -275,20 +281,38 @@ To review what happened so far:
 
 ##### **Next, test TLS access using an Nginx sidecar**
 
-Create an *Ningx* ImageStream in the `images` namespace. This step uses the `$HOST` environment variable defined above:
+Create an *Ningx* image in the `images` namespace. This step uses the `$HOST` environment variable defined above:
 
 ```shell
 $ echo $HOST
-# yours might be different:
+# CRC (yours might be different):
 default-route-openshift-image-registry.apps-crc.testing
+# MK8s:
+localhost:32000
+# common
 $ docker pull nginx:latest
 $ docker tag nginx:latest $HOST/images/nginx:latest
 $ docker push $HOST/images/nginx:latest
 latest: digest: sha256:... size: 1362
+# CRC
 $ kubectl get imagestreams -n images
 NAME    IMAGE REPOSITORY                                                      TAGS
 nginx   default-route-openshift-image-registry.apps-crc.testing/nuxeo/nginx   latest
 nuxeo   default-route-openshift-image-registry.apps-crc.testing/nuxeo/nuxeo   10.10
+# MK8s
+$ curl http://localhost:32000/v2/_catalog
+{"repositories":["images/nginx","images/nuxeo"]}
+$ curl http://localhost:32000/v2/images/nginx/tags/list
+{"name":"images/nginx","tags":["latest"]}
+$ curl http://localhost:32000/v2/images/nginx/manifests/latest
+{
+   "schemaVersion": 1,
+   "name": "images/nginx",
+   "tag": "latest",
+   "architecture": "amd64",
+   "fsLayers": [
+   ...
+# etc...
 ```
 
 
@@ -354,36 +378,32 @@ stringData:
     -----END DH PARAMETERS-----
 ```
 
-Now, generate the Secret you created above, as well as a ConfigMap provided with the Operator. Both of these resources are used by the Operator to configure Nginx. This assumes you are still in the `tmp` directory:
+Now, generate the Secret you created above, as well as a ConfigMap provided with the Operator. Both of these resources are used by the Operator to configure the Nuxeo pod Nginx sidecar. This assumes you are still in the `tmp` directory:
 
 ```shell
-$ oc project
-Using project "nuxeo" on server "https://api.crc.testing:6443".
-$ kubectl apply -f tls-secret.yaml
-secret/tls-secret created
-$ kubectl apply -f ../deploy/examples/tls-cfgmap.yaml
-configmap/tls-cfgmap created
-$ kubectl get secret,cm
+$ (m)kubectl apply -f tls-secret.yaml,../deploy/examples/tls-cfgmap.yaml -n nuxeo
+$ (m)kubectl get secret,cm -n nuxeo
 NAME                              TYPE                                  DATA   AGE
 ...
 secret/tls-secret                 kubernetes.io/tls                     3      84s
 
 NAME                   DATA   AGE
 configmap/tls-cfgmap   2      44s
-
 ```
 
 Now, create a different Nuxeo CR - this one configures Nuxeo for port 443 access outside the cluster. This CR has a different spec that indicates Nginx is to be used as a reverse proxy:
 
 ```shell
 $ cd ..
-$ kubectl apply -f deploy/examples/nuxeo-cr-tls.yaml
-nuxeo.nuxeo.com/my-nuxeo configured
+# CRC
+$ kubectl apply -f deploy/examples/nuxeo-cr-tls.yaml -n nuxeo
+# MK8s
+$ mkubectl apply -f hack/microk8s/nuxeo-cr-tls-mk8s.yaml -n nuxeo
 ```
 
 Observe the Operator modifying the Service, and the Deployment. Observe OpenShift regenerating the Pod. Wait for the Pod to stabilize. Note that the Nuxeo Pod now contains two Containers (as indicated by a Ready state of 2/2). The first Container is the Nginx sidecar, and the second Container is Nuxeo:
 ```shell
-$ kubectl get pod
+$ (m)kubectl get pod -n nuxeo
 NAME                                READY   STATUS    RESTARTS   AGE
 my-nuxeo-cluster-84b7bc487b-h2rdz   2/2     Running   0          40s
 ```
@@ -396,7 +416,7 @@ https://nuxeo-server.apps-crc.testing/nuxeo
 Because Nginx is terminating TLS with a self-signed certificate, your browser will display a certificate authenticity warning. Just go ahead and add an exception. That should take you to exactly the same page as you saw before. Check the Nginx container logs to verify that it is acting as the reverse proxy:
 
 ```shell
-$ kubectl logs my-nuxeo-cluster-84b7bc487b-h2rdz -c nginx -f
+$ (m)kubectl logs my-nuxeo-cluster-84b7bc487b-h2rdz -c nginx -f -n nuxeo
 /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
 /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
 ...
@@ -409,7 +429,11 @@ Go back to the console that was running the Nuxeo Operator from the command line
 Review the resources created by the Nuxeo Operator. Then, delete the Nuxeo CR and observe that all of those resources are cleaned up automatically by OpenShift via cascading delete, because of the `ownerReferences` on the resources:
 
 ```shell
-$ kubectl get nuxeo,deployment,replicaset,pod,route,service,sa
+# CRC
+$ kubectl get nuxeo,service,sa,deployment,replicaset,route,pod -n nuxeo
+# MK8s:
+$ mkubectl get nuxeo,service,sa,deployment,replicaset,ingress,pod -n nuxeo
+# CRC output is shown
 NAME                       AGE
 nuxeo.nuxeo.com/my-nuxeo   106m
 
@@ -432,15 +456,15 @@ NAME                      SECRETS   AGE
 ...
 serviceaccount/nuxeo      2         103m
 
-$ kubectl delete nuxeo my-nuxeo
+$ (m)kubectl delete nuxeo my-nuxeo
 ```
 
 Allow a moment or two for OpenShift to remove the resources. Then:
 
 ```shell
-$ kubectl get nuxeo,deployment,replicaset,pod,route,service
+$ (m)kubectl get nuxeo,deployment,replicaset,pod... -n nuxeo
 No resources found in nuxeo namespace.
-$ kubectl get sa/nuxeo
+$ (m)kubectl get sa/nuxeo -n nuxeo
 Error from server (NotFound): serviceaccounts "nuxeo" not found
 ```
 
@@ -450,25 +474,19 @@ Error from server (NotFound): serviceaccounts "nuxeo" not found
 
 ### Testing the Operator via OLM
 
-These are the steps to test the Nuxeo Operator via OLM. If you didn't execute the prior section, then create an `images` project and put the Nuxeo 10.10 docker image into the project  as an image stream:
+These are the steps to test the Nuxeo Operator via OLM. If you didn't execute the prior section, then create an `images` namespace and put the Nuxeo 10.10 docker image into the namespace:
 
 ```shell
-$ oc new-project images
-Now using project "images" on server "https://api.crc.testing:6443".
-...
+$ (m)kubectl create namespace images
 $ docker pull nuxeo:10.10
-...
-Status: Downloaded newer image for nuxeo:10.10
-docker.io/library/nuxeo:10.10
+# CRC
 $ HOST=$(kubectl get route default-route -n openshift-image-registry --template='{{ .spec.host }}')
-$ docker tag nuxeo:10.10 $HOST/images/nuxeo:10.10
 $ docker login -u kubeadmin -p $(oc whoami -t) $HOST
+# MK8s
+$ HOST=localhost:32000
+# common
+$ docker tag nuxeo:10.10 $HOST/images/nuxeo:10.10
 $ docker push $HOST/images/nuxeo:10.10
-...
-10.10: digest: sha256:... size: 3259
-$ kubectl get is
-NAME    IMAGE REPOSITORY                                                       TAGS  ...
-nuxeo   default-route-openshift-image-registry.apps-crc.testing/images/nuxeo   10.10 ...
 ```
 
 Build and deploy the Nuxeo Operator OLM *Index* - which is what OLM uses to instantiate the operator via an OLM `subscription`. This section will use the Make file for these tasks. The Make targets that accomplish this are:
@@ -494,39 +512,52 @@ $ popd
 Generate the Nuxeo Operator image. This will compile the Go binary, and push the resulting image into the `images` namespace. This step assumes your working directory is project root, e.g. `$HOME/go/nuxeo-operator`:
 
 ```shell
+# CRC
 $ make operator-build operator-image-build operator-image-push
+# MK8s
+$ TARGET_CLUSTER=MICROK8S make operator-build operator-image-build operator-image-push
 ```
 
 If success , then you will see the Operator image in the `images` namespace, along with the Nuxeo image you pushed previously:
 
 ```shell
+# CRC
 $ kubectl get is -n images
 NAME             IMAGE REPOSITORY    TAGS    UPDATED
 nuxeo            ...nuxeo            10.10   6 minutes ago
 nuxeo-operator   ...nuxeo-operator   0.x.0   35 seconds ago
+# MK8s
+$ curl http://localhost:32000/v2/_catalog
+{"repositories":["images/nginx","images/nuxeo","images/nuxeo-operator"]}
 ```
 
-Next, generate the OLM components to enable the Operator to be deployed via OLM. The Make file generates the OLM components into a `custom-operators` project, so create that project:
+Next, generate the OLM components to enable the Operator to be deployed via OLM. For OpenShift, the Make file generates images in the `custom-operators` project. (In MK8s, the images are managed by the registry add-on and the concept of image streams does not apply.) Create the project:
 
 ```shell
-$ oc new-project custom-operators
-Now using project "custom-operators" on server "https://api.crc.testing:6443".
-...
+# CRC only
+$ kubectl create namespace custom-operators
 ```
 
 Now, run the Make file to create the OLM Index that serves the Nuxeo Operator. This step assumes your working directory is project root, and builds on the prior Make step:
 
 ```shell
+# CRC
 $ make bundle-build index-add index-push
+# MK8s
+$ TARGET_CLUSTER=MICROK8S make bundle-build index-add index-push
 ```
 
 If successful, then:
 
 ```shell
+# CRC
 $ kubectl get is -n custom-operators
 NAME                             IMAGE REPOSITORY                                TAGS  ...
 nuxeo-operator-index             default-route-openshift-image-registry.apps...  0.x.0 ...
 nuxeo-operator-manifest-bundle   default-route-openshift-image-registry.apps...  0.x.0 ...
+# MK8s
+$ curl http://localhost:32000/v2/_catalog
+{"repositories":["custom-operators/nuxeo-operator-index","custom-operators/nuxeo-operator-manifest-bundle","images/nginx","images/nuxeo","images/nuxeo-operator"]}
 ```
 
 
@@ -544,55 +575,76 @@ You can now use the Operator's OLM integration to instantiate a Nuxeo cluster. T
 
 These steps are now presented in detail:
 
-Create a project, and grant the project authorization to pull images from the `images` namespace **and** the `custom-operators` namespace:
+Create a namespace, and for OpenShift grant the namespace authorization to pull images from the `images` namespace **and** the `custom-operators` namespace: HEREHERE
 
 ```shell
-$ oc new-project nuxeo-test
-Now using project "nuxeo-test" on server "https://api.crc.testing:6443".
-...
+$ (m)kubectl create namespace nuxeo-test
+# CRC only
 $ oc policy add-role-to-group system:image-puller system:serviceaccounts:nuxeo-test\
   --namespace=images
 # you may get a warning like this - ignore it
 Warning: Group 'system:serviceaccounts:nuxeo-test' not found
-
 clusterrole.rbac.authorization.k8s.io/system:image-puller added: "system:serviceaccounts:nuxeo-test"
+
 $ oc policy add-role-to-group system:image-puller system:serviceaccounts:nuxeo-test\
   --namespace=custom-operators
 ```
 
-Create a `CatalogSource` in the `nuxeo-test` namespace to serve the OLM registry components in the project. Note that the steps below use a SHA reference because if you build the operator index multiple times, the OLM caching behavior won't find newer images if the tag doesn't change. So using a SHA isn't mandatory the first time, but following this process always works. And - note that the catalog source pulls an image from the custom-operators namespace and so the image puller role created above is mandatory:
+Create a `CatalogSource` in the `nuxeo-test` namespace to serve the OLM registry components in the namespace. Note that the steps below use a SHA reference because if you build the operator index multiple times, the OLM caching behavior won't find newer images if the tag doesn't change. So using a SHA isn't mandatory the first time, but following this process always works. And - note that the catalog source pulls an image from the custom-operators namespace and so the image puller role created above is mandatory:
 
 ```shell
-$ SHA=$(kubectl get is nuxeo-operator-index -n custom-operators -o jsonpath='{@.status.tags[0].items[0].image}')
-# below is an example - your SHA may differ
-$ echo $SHA
+# CRC
+$ REGISTRY=$(make print-IMAGE_REGISTRY_CLUST);\
+  VERSION=$(make print-OPERATOR_VERSION);\
+  echo $REGISTRY $VERSION
+# e.g. image-registry.openshift-image-registry.svc.cluster.local:5000 0.2.0
+$ SHA=$(kubectl get is nuxeo-operator-index -n custom-operators -o\
+  jsonpath='{@.status.tags[0].items[0].image}')
+
+# MK8s
+$ REGISTRY=$(TARGET_CLUSTER=MICROK8S make print-IMAGE_REGISTRY_CLUST);\
+  VERSION=$(TARGET_CLUSTER=MICROK8S make print-OPERATOR_VERSION);\
+  echo $REGISTRY $VERSION
+# e.g. localhost:32000 0.2.0
+$ SHA=$(curl -vH "Accept: application/vnd.docker.distribution.manifest.v2+json"\
+  http://$REGISTRY/v2/custom-operators/nuxeo-operator-index/manifests/$VERSION 2>&1\
+  | grep Docker-Content-Digest | awk '{print $3}')
+
+# common
+$ SHA=${SHA%$'\r'}; echo $SHA
+# e.g.
 sha256:22621b4ea0745b10df4a1e2d985c6b00d74b8a0d16ac42dac4001fcdc3d36d6c
-$ cat <<EOF | kubectl apply -f -
+
+$ cat <<EOF | (m)kubectl apply -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: nuxeo-operator
+  name: nuxeo-operator-index
   namespace: nuxeo-test
 spec:
-  displayName: Nuxeo Operator
+  displayName: Nuxeo Operator Index
   publisher: Test
   sourceType: grpc
-  image: image-registry.openshift-image-registry.svc.cluster.local:5000/custom-operators/nuxeo-operator-index@$SHA
+  image: $REGISTRY/custom-operators/nuxeo-operator-index@$SHA
 EOF
 ```
 
 Confirm the `CatalogSource ` is operating correctly. It may take a moment for the pod to reach the *Running* state:
 
 ```shell
-$ kubectl get catalogsource,pod
-NAME             DISPLAY          TYPE   PUBLISHER   AGE
-nuxeo-operator   Nuxeo Operator   grpc   Test        4m31s
+$ (m)kubectl get catalogsource,pod -n nuxeo-test
+NAME                   DISPLAY                TYPE   PUBLISHER   AGE
+nuxeo-operator-index   Nuxeo Operator Index   grpc   Test        29s
 
-NAME                   READY   STATUS    RESTARTS   AGE
-nuxeo-operator-k4r8p   1/1     Running   0          5m17s
+NAME                         READY   STATUS    RESTARTS   AGE
+nuxeo-operator-index-k4r8p   1/1     Running   0          29s
 
-$ kubectl logs nuxeo-operator-k4r8p
+$ (m)kubectl logs nuxeo-operator-index-k4r8p -n nuxeo-test
 time="2020-06-09T18:04:12Z" level=info msg="serving registry" database=/database/index.db port=50051
+
+$ (m)kubectl get packagemanifest nuxeo-operator -n nuxeo-test
+NAME             CATALOG                AGE
+nuxeo-operator   Nuxeo Operator Index   71s
 ```
 
 If the Nuxeo OLM Index Pod was correctly built and is running successfully, it will be hosting a gRPC server serving on port 50051. The logs will be a single line as shown above.
@@ -600,7 +652,7 @@ If the Nuxeo OLM Index Pod was correctly built and is running successfully, it w
 Next, create an Operator Group, and then subscribe to the Nuxeo Operator via OLM:
 
 ```shell
-$ cat <<EOF | kubectl apply -f -
+$ cat <<EOF | (m)kubectl apply -f -
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
@@ -625,12 +677,12 @@ operatorgroup.operators.coreos.com/operator-group created
 subscription.operators.coreos.com/nuxeo-operator created
 ```
 
-Wait for OLM to deploy the Operator. Note that the CSV has an image reference to the `images` namespace, hence the image puller role assignment above. Verify that the Operator Subscription progressed to an *Install Plan* and a *CSV*, and verify the CSV succeeded:
+Wait for OLM to deploy the Operator. Note that the CSV has an image reference to the `images` namespace, hence (for OpenShift/CRC) the image puller role assignment above. Verify that the Operator Subscription progressed to an *Install Plan* and a *CSV*, and verify the CSV succeeded:
 
 ```shell
-$ kubectl get sub,csv,ip,pod
-NAME                                               PACKAGE          SOURCE           CHANNEL
-subscription.operators.coreos.com/nuxeo-operator   nuxeo-operator   nuxeo-operator   alpha
+$ (m)kubectl get sub,csv,ip,pod -n nuxeo-test
+NAME                                              PACKAGE         SOURCE         CHANNEL
+subscription.operators.coreos.com/nuxeo-operator  nuxeo-operator  nuxeo-operator alpha
 
 NAME                                                               ... PHASE
 clusterserviceversion.operators.coreos.com/nuxeo-operator.v0.x.0   ... Succeeded
@@ -646,7 +698,7 @@ nuxeo-operator-5784fbc7cd-dtht4   1/1     Running   0          2m8s
 The key thing to observe is that the `clusterserviceversion` should be in the **Succeeded** phase. Check the logs of the Nuxeo Operator:
 
 ```shell
-$ kubectl logs nuxeo-operator-5784fbc7cd-dtht4
+$ (m)kubectl logs nuxeo-operator-5784fbc7cd-dtht4 -n nuxeo-test
 {"level":"info","ts":1591727227.9497278,"logger":"cmd","msg":"Operator Version: 0.x.0"}
 {"level":"info","ts":1591727227.9499292,"logger":"cmd","msg":"Go Version: go1.14.2"}
 {"level":"info","ts":1591727227.9499755,"logger":"cmd","msg":"Go OS/Arch: linux/amd64"}
@@ -660,13 +712,21 @@ $ kubectl logs nuxeo-operator-5784fbc7cd-dtht4
 These Nuxeo Operator logs should look familiar to you if you built and ran the operator outside of the cluster manually in the prior section. Next, Create a Nuxeo CR. From here on down, the steps are identical to the manual deployment section above:
 
 ```shell
-$ kubectl apply -f deploy/examples/nuxeo-cr.yaml
+# CRC
+$ kubectl apply -f deploy/examples/nuxeo-cr.yaml -n nuxeo-test
+# MK8s
+$ mkubectl apply -f hack/microk8s/nuxeo-cr-mk8s.yaml -n nuxeo-test
 ```
 
 Wait for the Nuxeo objects to be created by the Operator:
 
 ```shell
-$ kubectl get nuxeo,deployment,replicaset,pod,route,service,sa
+# CRC
+$ kubectl get nuxeo,deployment,replicaset,pod,route,service,sa -n nuxeo-test
+# MK8s
+$ mkubectl get nuxeo,deployment,replicaset,pod,ingress,service,sa -n nuxeo-test
+
+# CRC output shown
 NAME                       AGE
 nuxeo.nuxeo.com/my-nuxeo   14s
 
@@ -681,7 +741,7 @@ replicaset.extensions/nuxeo-operator-78b864d584    1         1         1       2
 NAME                                   READY   STATUS    RESTARTS   AGE
 pod/my-nuxeo-cluster-f4cbc976b-877tc   1/1     Running   0          14s
 pod/nuxeo-operator-78b864d584-9tq8m    1/1     Running   0          2m4s
-pod/nuxeo-operator-fmwbh               1/1     Running   0          5m15s
+pod/nuxeo-operator-index-fmwbh         1/1     Running   0          5m15s
 
 NAME                                              HOST/PORT                       ...
 route.route.openshift.io/my-nuxeo-cluster-route   nuxeo-server.apps-crc.testing   ...
@@ -697,7 +757,7 @@ serviceaccount/nuxeo            2         14s
 serviceaccount/nuxeo-operator   2         2m4s
 ```
 
-Access the Nuxeo cluster using  the URL, and log in to this unlicensed development server with Administrator/Administrator:
+Access the Nuxeo cluster with your browser and log in to this unlicensed development server with Administrator/Administrator:
 
 ```shell
 http://nuxeo-server.apps-crc.testing
@@ -706,13 +766,18 @@ http://nuxeo-server.apps-crc.testing
 Tear down the Nuxeo cluster:
 
 ```shell
-$ kubectl delete nuxeo my-nuxeo
+$ (m)kubectl delete nuxeo my-nuxeo -n nuxeo-test
 ```
 
-Allow a moment or two for OpenShift to remove the resources. Then:
+Allow a moment or two for the cluster to remove the resources. Then:
 
 ```shell
-$ kubectl get nuxeo,deployment,replicaset,pod,route,service,sa,csv,ip,sub
+# CRC
+$ kubectl get nuxeo,deployment,replicaset,pod,route,service,sa,csv,ip,sub -n nuxeo-test
+# MK8s
+$ mkubectl get nuxeo,deployment,replicaset,pod,ingress,service,sa,csv,ip,sub -n nuxeo-test
+
+# CRC output shown
 NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.extensions/nuxeo-operator   1/1     1            1           7m33s
 
@@ -721,16 +786,14 @@ replicaset.extensions/nuxeo-operator-78b864d584   1         1         1       7m
 
 NAME                                  READY   STATUS    RESTARTS   AGE
 pod/nuxeo-operator-78b864d584-9tq8m   1/1     Running   0          7m33s
-pod/nuxeo-operator-fmwbh              1/1     Running   0          10m
+pod/nuxeo-operator-index-fmwbh        1/1     Running   0          10m
 
 NAME                             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   ...
-service/nuxeo-operator           ClusterIP   172.30.18.240   <none>        50051/TCP ...
+service/nuxeo-operator-index     ClusterIP   172.30.18.240   <none>        50051/TCP ...
 service/nuxeo-operator-metrics   ClusterIP   172.30.63.66    <none>        8383/TCP  ...
 
 NAME                            SECRETS   AGE
-serviceaccount/builder          2         13m
-serviceaccount/default          2         13m
-serviceaccount/deployer         2         13m
+...
 serviceaccount/nuxeo-operator   2         7m33s
 
 NAME                                                               DISPLAY          ...
@@ -742,13 +805,14 @@ installplan.operators.coreos.com/install-8lgcq   nuxeo-operator.v0.x.0   Automat
 NAME                                               PACKAGE          SOURCE         ...
 subscription.operators.coreos.com/nuxeo-operator   nuxeo-operator   nuxeo-operator ...
 ```
-You should be able to observe that all of the Nuxeo cluster resources have been removed, and only the Nuxeo Operator and related OLM components remain. Go ahead and remove the projects to clean up your environment:
+You should be able to observe that all of the Nuxeo *cluster* resources have been removed, and only the Nuxeo Operator and related OLM components remain. Go ahead and remove the namespaces to clean up your environment:
 
 ```shell
-$ kubectl delete project nuxeo-test images custom-operators
-project.project.openshift.io "nuxeo-test" deleted
-project.project.openshift.io "images" deleted
-project.project.openshift.io "custom-operators" deleted
+# CRC
+$ kubectl delete namespace nuxeo-test images custom-operators
+# MK8s
+$ mkubectl delete namespace nuxeo-test images
+
 ```
 
 That's a basic demonstration of the capability of the Nuxeo Operator as of the current version.
@@ -757,12 +821,22 @@ That's a basic demonstration of the capability of the Nuxeo Operator as of the c
 
 ### End to end testing
 
-The e2e testing that is currently implemented uses the `operator-sdk local` capability. The e2e testing has a handful of prerequisites:
+The e2e testing uses the `operator-sdk local` capability. The e2e testing has a handful of prerequisites:
 
-1. Create the e2e test namespace: `kubectl create namespace operator-test`
-2. The e2e test creates a Deployment that references the operator image, and the operator creates a Deployment that references the Nuxeo image. So make sure that the current version of the `nuxeo-operator` image and the 10.10 `nuxeo` image are both present as image streams in the `images` namespace. The steps to accomplish this are documented above in this README.
-3. Ensure that the `operator-test` namespace can pull images from the `images` namespace: `oc project operator-test; oc policy add-role-to-group system:image-puller system:serviceaccounts:operator-test --namespace=images`
-4. The Make file provides a target `operator-e2e-test` to run the e2e tests. It references the internal OpenShift registry using a variable that you can inspect by running Make with the `--just-print` option.
+1. Create the e2e test namespace: `(m)kubectl create namespace operator-test`
+2. The e2e test creates a Deployment that references the operator image, and the operator creates a Deployment that references the Nuxeo image. So make sure that the current version of the `nuxeo-operator` image and the 10.10 `nuxeo` image are both present as image streams in the OpenShift `images` namespace, or in the MK8s registry add-on. The steps to accomplish this are documented above in this README.
+3. For OpenShift, ensure that the `operator-test` namespace can pull images from the `images` namespace: `oc project operator-test; oc policy add-role-to-group system:image-puller system:serviceaccounts:operator-test --namespace=images`
+4. The Make file provides a target `operator-e2e-test` to run the e2e tests. It references the internal OpenShift/MK8s registry using a variable that you can inspect by running Make with the `--just-print` option.
+5. For MK8s, make sure you created a cluster role binding as shown in the *microk8s.md* document in the docs folder. Once these prerequisites are satisfied, then run the e2e tests with Make:
 
-Once these prerequisites are satisfied, then run the e2e tests: `make operator-e2e-test`. 
+```shell
+# CRC
+$ make operator-e2e-test
+
+# MK8s
+$ mkubectl get clusterrolebinding microk8s-e2e
+NAME           AGE
+microk8s-e2e   1h
+$ TARGET_CLUSTER=MICROK8S make operator-e2e-test
+```
 

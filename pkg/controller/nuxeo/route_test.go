@@ -45,6 +45,14 @@ func (suite *routeSuite) TestRouteHostChange() {
 	require.Equal(suite.T(), newHostName, found.Spec.Host, "Route has incorrect host name: %v\n", found.Spec.Host)
 }
 
+func (suite *routeSuite) TestRouteToTLS() {
+	// todo-me test when the Nuxeo CR is updated to indicate TLS passthrough
+}
+
+func (suite *routeSuite) TestRouteFromTLS() {
+	// todo-me test when Nuxeo CR indicates TLS passthrough then is updated to standard HTTP
+}
+
 // routeSuite is the Route test suite structure
 type routeSuite struct {
 	suite.Suite

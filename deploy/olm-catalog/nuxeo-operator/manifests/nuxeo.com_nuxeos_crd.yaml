@@ -54,7 +54,8 @@ spec:
                     x-kubernetes-int-or-string: true
                   termination:
                     description: Specifies the TLS termination type. E.g. 'edge',
-                      'passthrough', etc.
+                      'passthrough', etc. todo-me consider operator-defined (platform-agnostic)
+                      Type and associated Consts rather than OpenShift
                     type: string
                   tlsSecret:
                     description: Specifies the name of a secret with fields required
@@ -6605,10 +6606,6 @@ spec:
                     - NodePort
                     - LoadBalancer
                     type: string
-                required:
-                - port
-                - targetPort
-                - type
                 type: object
             required:
             - nodeSets

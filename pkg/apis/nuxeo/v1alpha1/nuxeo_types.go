@@ -12,6 +12,50 @@ import (
 	"nuxeo-operator/pkg/util"
 )
 
+// NuxeoStorage defines a type of persistent storage
+type NuxeoStorage int32
+
+const (
+	// Binaries holds the blobs that are attached to documents
+	Binaries NuxeoStorage = iota
+	// TransientStore holds transient data with configurable expiration
+	TransientStore
+	// Connect is for Nuxeo Connect
+	Connect
+	// Data holds various Nuxeo system data
+	Data
+	// NuxeoTmp is like /tmp for Nuxeo
+	NuxeoTmp
+)
+
+// By default, all filesystem access inside a Nuxeo Pod is ephemeral and data is lost when the Pod terminates.
+// The NuxeoStorageSpec enables definition of persistent filesystem storage. By default, the Nuxeo Operator will
+// create a PVC for each specified storage with volumeMode=Filesystem, accessMode=ReadWriteOnce, and no storage class.
+// This Operator will define a volume and a volume mount for the PVC with a hard-coded path that is reasonable
+// for the storage. The Mount path can be overridden. If a PVC is not desired, the Volume Source can be overridden by
+// specifying the 'volumeSource'.
+type NuxeoStorageSpec struct {
+	// +kubebuilder:validation:Enum=Binaries;TransientStore;Connect;Data;NuxeoTmp
+	// Defines the type of Nuxeo data for of the storage
+	StorageType NuxeoStorage `json:"storageType"`
+
+	// Defines the amount of storage to request. E.g.: 2Gi, 100M, etc.
+	Size string `json:"size"`
+
+	// +kubebuilder:validation:Optional
+	// Path within the container at which the volume should be mounted. Defaults are: Binaries=/var/lib/nuxeo/binaries.
+	// TransientStore=/var/lib/nuxeo/transientstore. Connect=/opt/nuxeo/connect. Data =/var/lib/nuxeo/data.
+	// NuxeoTmp=/opt/nuxeo/server/tmp.
+	// +optional
+	MountPath string `json:"mountPath,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Enables you to totally customize the Volume Source. For example, you can customize a PVC beyond what is
+	// supported by the built-in PVC generator. Or you can use a different Volume Source completely.
+	// +optional
+	VolumeSource corev1.VolumeSource `json:"volumeSource,omitempty"`
+}
+
 // NodeSet defines the structure of the Nuxeo cluster. Each NodeSet results in a Deployment. This supports the
 // capability to define different configurations for a Deployment of interactive Nuxeo nodes vs a Deployment
 // of worker Nuxeo nodes.
@@ -39,6 +83,20 @@ type NodeSet struct {
 	// PodTemplate - whether they are explicitly defined or not - are used.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Supports a custom readiness probe. If not explicitly specified in the CR then a default httpGet readiness
+	// probe on /nuxeo/runningstatus:8080 will be defined by the operator. To disable a probe, define an exec
+	// probe that invokes the command 'true'
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Supports a custom liveness probe. If not explicitly specified in the CR then a default httpGet liveness
+	// probe on /nuxeo/runningstatus:8080 will be defined by the operator. To disable a probe, define an exec
+	// probe that invokes the command 'true'
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Provides the ability to override hard-coded pod defaults, enabling fine-grained control over the

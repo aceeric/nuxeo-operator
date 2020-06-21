@@ -8,12 +8,12 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/openshift/api/route/v1"
 	v13 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -41,12 +41,22 @@ func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nod
 		reqLogger.Error(err, "Error attempting to get Route for Nuxeo cluster: "+routeName)
 		return reconcile.Result{}, err
 	}
-	if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) {
+	//if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) {
+	//	reqLogger.Info("Updating Route", "Namespace", expected.Namespace, "Name", expected.Name)
+	//	expected.Spec.DeepCopyInto(&found.Spec)
+	//	if err = r.client.Update(context.TODO(), found); err != nil {
+	//		return reconcile.Result{}, err
+	//	}
+	//}
+	// experiment
+	if different, err := util.ObjectsDiffer(expected.Spec, found.Spec); err == nil && different {
 		reqLogger.Info("Updating Route", "Namespace", expected.Namespace, "Name", expected.Name)
 		expected.Spec.DeepCopyInto(&found.Spec)
 		if err = r.client.Update(context.TODO(), found); err != nil {
 			return reconcile.Result{}, err
 		}
+	} else if err != nil {
+		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
 }

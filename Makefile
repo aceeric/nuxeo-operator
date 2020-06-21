@@ -1,7 +1,7 @@
 ROOT                   := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 GOROOT                 := $(shell go env GOROOT)
 OCICLI                 := docker
-OPERATOR_VERSION       := 0.3.0
+OPERATOR_VERSION       := 0.4.0
 # if OpenShift, this is the OpenShift integrated container image registry
 # If MicroK8s this is the internal registry plugin
 IMAGE_REGISTRY         := default-route-openshift-image-registry.apps-crc.testing
@@ -110,7 +110,6 @@ endif
 
 .PHONY : print-%
 print-%:
-#	$(info $* is a $(flavor $*) variable set to [$($*)]) @true
 	$(info $($*))
 
 export HELPTEXT
@@ -137,7 +136,7 @@ operator-image-push   Pushes the Operator container image to a registry identifi
                       to $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION) since this
                       version of the project is targeted at local CRC testing. A future version will improve this.
 operator-unit-test    Runs the Operator unit tests.
-operator-e2e-test     Runs the Operator e2e tests. This target requires a few pre-requisites that are documented
+operator-e2e-test     Runs the Operator e2e tests. This target has a few pre-requisites that are documented
                       in the README.
 olm-generate          Generates files under deploy/olm-catalog/nuxeo-operator/manifests to support creating an
                       installable Operator that integrates with OLM. Note - this *overwrites* the CSV each time so,
@@ -154,8 +153,6 @@ index-push            Pushes the Nuxeo Operator Index image to the cluster in th
 help                  Prints this help.
 print-%               A diagnostic tool. Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to
                       print the value of 'OPERATOR_VERSION'.
-
-TODO VARIABLES TARGET_CLUSTER
 
 To build and install the Nuxeo Operator into a test cluster from a clean cloned copy of this repository, execute
 the following Make targets in order:

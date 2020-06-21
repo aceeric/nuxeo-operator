@@ -4,11 +4,15 @@ from the CR: Deployment, Ingress/Route, Service, ServiceAccount.
 
 Unit testing is performed using https://github.com/stretchr/testify. See the Make file for the unit test target.
 
-Each unit test file follows the same structure:
+Each unit test file conforms to the same structure:
   test functions - test functions are at the top, and take a test suite struct receiver
   suite struct - the test suite structure required by testify, and augmented with suite-specific state
   setup/teardown function(s) - perform setup / teardown
   suite function - is run by 'go test' and calls all test functions
   helper functions - called by the various test functions
+
+The main "entry point" of the package is the Reconcile function in nuxeo_controller.go. Each dependent
+resource is reconciled in a dedicated file. E.g. nuxeo_controller.go 'Reconcile' calls 'reconcileNodeSet' in
+nodeset.go to reconcile the NodeSets in the Nuxeo CR. Same for Service, ServiceAccount, etc.
 */
 package nuxeo

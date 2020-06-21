@@ -44,7 +44,7 @@ The *registry* add-on enables the internal registry in the Kubernetes cluster fo
 
 I followed the recommendation and added myself to the `microk8s` group that the snap install creates: `sudo usermod -a -G microk8s $USER`. (For me, this required a restart to take effect.)
 
-With all this configuration complete, I added an alias: `alias mkubectl='microk8s kubectl'`. So in the README, ***mkubectl* is used as the MK8s kubectl**. I did this to keep the existing kubectl separate from the K8s kubectl.
+With all this configuration complete, I added an alias: `alias mkubectl='microk8s kubectl'`. So in the README, ***mkubectl* is used as the MK8s kubectl**. I did this to keep the existing kubectl separate from the MK8s kubectl.
 
 A quick sanity check:
 
@@ -80,14 +80,14 @@ $ mkubectl get daemonset -n ingress -o yaml | grep args: -C10
           ...
 ```
 
-The documented test steps include OLM testing. To install OLM, follow the steps documented here: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/install/install.md. My testing was performed with version **0.15.0**. The install steps are:
+The test steps in the main README for this project include OLM testing. To install OLM, follow the steps documented here: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/install/install.md. My testing was performed with version **0.15.0**. Simplified install steps are:
 
 ```shell
 $ release=0.15.0
 $ url=https://github.com/operator-framework/operator-lifecycle-manager/releases/download/${release}
 $ namespace=olm
-$ microk8s kubectl apply -f ${url}/crds.yaml
-$ microk8s kubectl apply -f ${url}/olm.yaml
+$ mkubectl apply -f ${url}/crds.yaml
+$ mkubectl apply -f ${url}/olm.yaml
 ```
 
 If the OLM install succeeded, then:

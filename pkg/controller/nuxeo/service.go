@@ -7,12 +7,12 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -44,7 +44,18 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 		reqLogger.Error(err, "Error attempting to get Service for Nuxeo cluster: "+svcName)
 		return reconcile.Result{}, err
 	}
-	if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) {
+	//if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) {
+	//	reqLogger.Info("Updating Service", "Namespace", expected.Namespace, "Name", expected.Name)
+	//	if expected.Spec.Type == corev1.ServiceTypeClusterIP && expected.Spec.Type == found.Spec.Type {
+	//		expected.Spec.ClusterIP = found.Spec.ClusterIP
+	//	}
+	//	expected.Spec.DeepCopyInto(&found.Spec)
+	//	if err = r.client.Update(context.TODO(), found); err != nil {
+	//		return reconcile.Result{}, err
+	//	}
+	//}
+	// experiment
+	if different, err := util.ObjectsDiffer(expected.Spec, found.Spec); err == nil && different {
 		reqLogger.Info("Updating Service", "Namespace", expected.Namespace, "Name", expected.Name)
 		if expected.Spec.Type == corev1.ServiceTypeClusterIP && expected.Spec.Type == found.Spec.Type {
 			expected.Spec.ClusterIP = found.Spec.ClusterIP
@@ -53,6 +64,8 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 		if err = r.client.Update(context.TODO(), found); err != nil {
 			return reconcile.Result{}, err
 		}
+	} else if err != nil {
+		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
 }

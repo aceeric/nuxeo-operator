@@ -58,7 +58,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Servic
+	// Watch for changes to Service
 	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &nuxeov1alpha1.Nuxeo{},
@@ -144,6 +144,7 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 			interactiveNodeSet = &nodeSet
 		}
 	}
+	// ensure that exactly one interactive nodeset was specified in the CR
 	if interactiveNodeSet == nil {
 		err = goerrors.New("nuxeo validation error")
 		reqLogger.Error(err, "No interactive NodeSets specified")

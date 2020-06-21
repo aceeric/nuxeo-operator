@@ -3,17 +3,16 @@ package nuxeo
 import (
 	"context"
 	goerrors "errors"
-	"reflect"
 
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -44,10 +43,18 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1
 		return reconcile.Result{}, err
 	}
 	shouldUpdate := false
-	if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) || tlsSpecChanged(expected.Spec.TLS, found.Spec.TLS) {
+	//if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) || tlsSpecChanged(expected.Spec.TLS, found.Spec.TLS) {
+	//	expected.Spec.DeepCopyInto(&found.Spec)
+	//	shouldUpdate = true
+	//}
+	// experiment
+	if different, err := util.ObjectsDiffer(expected.Spec, found.Spec); err == nil && different {
 		expected.Spec.DeepCopyInto(&found.Spec)
 		shouldUpdate = true
+	} else if err != nil {
+		return reconcile.Result{}, err
 	}
+	// ingress tls termination behavior is affected by annotations rather than the ingress spec
 	if a := updatedAnnotations(expected.ObjectMeta.Annotations, found.ObjectMeta.Annotations); a != nil {
 		found.ObjectMeta.Annotations = a
 		shouldUpdate = true
@@ -60,19 +67,21 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1
 	return reconcile.Result{}, nil
 }
 
-// returns true if the passed expected and actual IngressTLS's are different, else false
-func tlsSpecChanged(expected []v1beta1.IngressTLS, found []v1beta1.IngressTLS) bool {
-	if expected == nil && found == nil {
-		return false
-	} else if expected == nil || found == nil {
-		return true
-	}
-	return reflect.DeepEqual(expected, found)
-}
+//// returns true if the passed expected and actual IngressTLS's are different, else false
+//func tlsSpecChanged(expected []v1beta1.IngressTLS, found []v1beta1.IngressTLS) bool {
+//	if expected == nil && found == nil {
+//		return false
+//	} else if expected == nil || found == nil {
+//		return true
+//	}
+//	return reflect.DeepEqual(expected, found)
+//}
 
 // checks the annotations in the Ingress from the cluster. If the SSL passthrough annotations are different then
 // add/remove the passthrough annotation in the cluster copy and return the modified copy. Caller must update
-// the cluster from the return value. Returns nil if no change.
+// the cluster from the return value. Returns nil if no change. The use case is: the watched Nuxeo CR was changed
+// and TLS termination was added/removed and so the Ingress annotations that control this must be updated
+// accordingly.
 func updatedAnnotations(expected map[string]string, found map[string]string) map[string]string{
 	if found != nil {
 		if _, ok := found[nginxPassthroughAnnotation]; ok {
@@ -91,17 +100,19 @@ func updatedAnnotations(expected map[string]string, found map[string]string) map
 
 // defaultIngress generates and returns an Ingress struct from the passed params. The generated Ingress spec
 // is illustrated below:
-// spec:
-//   rules:
-//   - host: <access.Hostname>
-//     http:
-//       paths:
-//       - backend:
-//           serviceName: <see serviceName function>
-//           servicePort: web
-//   tls: (if access.Termination specified)
-//   - hosts:
-//     - <access.Hostname>
+//  spec:
+//    rules:
+//    - host: <access.Hostname>
+//      http:
+//        paths:
+//        - backend:
+//            serviceName: <see serviceName function>
+//            servicePort: web
+//    tls: (if access.Termination specified)
+//    - hosts:
+//      - <access.Hostname>
+// If the passed 'access' struct indicates TLS termination then an annotation is included in the
+// returned object's metadata
 func (r *ReconcileNuxeo) defaultIngress(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, ingressName string,
 	nodeSet v1alpha1.NodeSet) (*v1beta1.Ingress, error) {
 	targetPort := intstr.IntOrString{

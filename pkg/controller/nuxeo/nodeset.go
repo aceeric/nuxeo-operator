@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,8 +22,8 @@ import (
 // Otherwise, the fall-through case is that a Deployment exists that matches the NodeSet and so in this
 // case - cluster state is not modified.
 func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo, revProxy v1alpha1.RevProxySpec, reqLogger logr.Logger) (reconcile.Result, error) {
-	actual := &v1.Deployment{}
-	var expected *v1.Deployment
+	actual := &appsv1.Deployment{}
+	var expected *appsv1.Deployment
 	var err error
 	depName := deploymentName(instance, nodeSet)
 	if expected, err = r.defaultDeployment(instance, depName, nodeSet, revProxy); err != nil {
@@ -107,7 +107,7 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 // If the revProxy arg indicates that a reverse proxy is to be included in the deployment, then that results in
 // another (TLS sidecar) container being added to the deployment
 func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, nodeSet v1alpha1.NodeSet,
-	revProxy v1alpha1.RevProxySpec) (*v1.Deployment, error) {
+	revProxy v1alpha1.RevProxySpec) (*appsv1.Deployment, error) {
 	replicas := nodeSet.Replicas
 	nuxeoImage := "nuxeo:latest"
 	if nux.Spec.NuxeoImage != "" {
@@ -121,12 +121,12 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 	} else {
 		pullPolicy = nux.Spec.ImagePullPolicy
 	}
-	dep := &v1.Deployment{
+	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      depName,
 			Namespace: nux.Namespace,
 		},
-		Spec: v1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labelsForNuxeo(nux, nodeSet.Interactive),
 			},

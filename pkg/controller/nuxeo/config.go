@@ -78,6 +78,8 @@ func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.
 	// initialized rather than nodeSet.NuxeoConfig.NuxeoConf.Value then the volume and mount are
 	// still initialized but the ConfigMap is expected to have been provided externally to the
 	// operator.
+	// todo-me need to completely replace nuxeo.conf? How to reconcile user-provided nuxeo.conf with
+	//  auto-generated '### BEGIN - DO NOT EDIT BETWEEN BEGIN AND END ###' in the generated nuxeo.conf?
 	if nodeSet.NuxeoConfig.NuxeoConf != (v1alpha1.NuxeoConfigSetting{}) {
 		volMnt := corev1.VolumeMount{
 			Name:      "nuxeoconf",

@@ -109,7 +109,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: nuxeo-operator
-                image: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo-operator:0.4.0
+                image: OPERATOR_IMAGE
                 imagePullPolicy: Always
                 resources:
                   limits:

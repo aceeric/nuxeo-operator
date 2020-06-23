@@ -20,7 +20,7 @@ func (suite *serviceSuite) TestBasicServiceCreation() {
 	result, err := reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
 	require.Nil(suite.T(), err, "reconcileService failed with err: %v\n", err)
 	require.Equal(suite.T(), reconcile.Result{}, result,
-	"reconcileService returned unexpected result: %v\n", result)
+		"reconcileService returned unexpected result: %v\n", result)
 	found := &corev1.Service{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: serviceName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)

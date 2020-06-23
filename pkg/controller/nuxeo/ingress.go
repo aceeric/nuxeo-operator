@@ -82,7 +82,7 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1
 // the cluster from the return value. Returns nil if no change. The use case is: the watched Nuxeo CR was changed
 // and TLS termination was added/removed and so the Ingress annotations that control this must be updated
 // accordingly.
-func updatedAnnotations(expected map[string]string, found map[string]string) map[string]string{
+func updatedAnnotations(expected map[string]string, found map[string]string) map[string]string {
 	if found != nil {
 		if _, ok := found[nginxPassthroughAnnotation]; ok {
 			if expected == nil {

@@ -3,10 +3,7 @@ package util
 import (
 	"crypto/md5"
 	goerrors "errors"
-	"fmt"
-	"hash/fnv"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,28 +11,6 @@ import (
 
 // see IsOpenShift() / SetIsOpenShift()
 var isOpenShift = false
-
-func HashObject(object interface{}) string {
-	hf := fnv.New32()
-	printer := spew.ConfigState{
-		Indent:         " ",
-		SortKeys:       true,
-		DisableMethods: true,
-		SpewKeys:       true,
-	}
-	_, _ = printer.Fprintf(hf, "%#v", object)
-	return fmt.Sprint(hf.Sum32())
-}
-
-func SpewObject(object interface{}) string {
-	printer := spew.ConfigState{
-		Indent:         " ",
-		SortKeys:       true,
-		DisableMethods: true,
-		SpewKeys:       true,
-	}
-	return printer.Sdump(object)
-}
 
 // Returns true if the operator is running in an OpenShift cluster. Else false = Kubernetes. False
 // by default, unless SetIsOpenShift() was called prior to this call
@@ -53,7 +28,7 @@ var NuxeoServiceAccountName = "nuxeo"
 // ObjectsDiffer generates a YAML from each passed object then generates an MD5 sum of each YAML and returns
 // true if the MD5 sums differ, and false if the MD5 sums are the same. If the YAML generation fails, then the
 // resulting error is returned, otherwise a nil error is returned. This function is intended for comparing
-// CR specs. The underlying assumption is that any difference is a spec is actionable for the operator. So this
+// CR specs. The underlying assumption is that any difference in a spec is actionable for the operator. So this
 // handles two cases: 1) the Nuxeo CR is modified, and a dependent CR should look different as a result. 2) A
 // cluster CR owned by the Nuxeo CR is modified independently of the Operator and is therefore out of sync
 // with how the Operator would expect it to look. Note that this works in most cases but not all. For example,
@@ -79,19 +54,13 @@ func ObjectsDiffer(expected interface{}, actual interface{}) (bool, error) {
 	return expMd5 != actMd5, nil
 }
 
-// getNuxeoContainer walks the container array in the passed deployment and returns a ref to the container
-// named "nuxeo", and nil in error. If not found, returns a nil container ref and an error.
+// GetNuxeoContainer walks the container array in the passed deployment and returns a ref to the container
+// named "nuxeo". If not found, returns a nil container ref and an error.
 func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error){
-	var nuxeoContainer *corev1.Container
 	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
 		if dep.Spec.Template.Spec.Containers[i].Name == "nuxeo" {
-			nuxeoContainer = &dep.Spec.Template.Spec.Containers[i]
-			break
+			return &dep.Spec.Template.Spec.Containers[i], nil
 		}
 	}
-	if nuxeoContainer == nil {
-		// seems impossible but...
-		return nil, goerrors.New("could not find a nuxeo container in the deployment")
-	}
-	return nuxeoContainer, nil
+	return nil, goerrors.New("could not find a container named 'nuxeo' in the deployment")
 }

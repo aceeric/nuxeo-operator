@@ -14,10 +14,12 @@ BUNDLE_IMAGE_NAME      := nuxeo-operator-manifest-bundle
 INDEX_IMAGE_NAME       := nuxeo-operator-index
 OPERATOR_SDK_SUPPORTED := v0.18.0
 OPERATOR_SDK_INSTALLED := $(shell operator-sdk version | cut -d, -f1 | cut -d: -f2 | sed "s/[[:blank:]]*\"//g")
-UNIT_TEST_ARGS         := -v
-E2E_TEST_ARGS          := --verbose
+# operator base image differes for OpenShift/Kubernetes. See build/Dockerfile
 BASE_IMAGE_ARG         :=
-NUXEO_IMAGE            := nuxeo:10.10
+UNIT_TEST_ARGS         ?= -v -coverprofile cp.out
+E2E_TEST_ARGS          ?= --verbose
+# used for e2e tests
+NUXEO_IMAGE            ?= nuxeo:10.10
 
 # Since Operator SDK is undergoing active development, check the version so that the Makefile is repeatable
 ifneq ($(OPERATOR_SDK_SUPPORTED),$(OPERATOR_SDK_INSTALLED))
@@ -27,7 +29,6 @@ endif
 # set Make variables for MicroK8s
 ifeq ($(TARGET_CLUSTER),MICROK8S)
     BASE_IMAGE_ARG       := --build-arg BASE_IMAGE=alpine
-    BUNDLE_BUILD_ARG     := --build-arg TARGET_CLUSTER=mk8s
     IMAGE_REGISTRY       := localhost:32000
     IMAGE_REGISTRY_CLUST := localhost:32000
     E2E_KUBE_CONFIG_ARG  := --kubeconfig=/var/snap/microk8s/current/credentials/kubelet.config
@@ -58,8 +59,8 @@ operator-build:
 .PHONY : operator-image-build
 operator-image-build:
 	$(OCICLI) build --tag $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
- 		--file $(ROOT)/build/Dockerfile $(BASE_IMAGE_ARG)\
- 		$(ROOT)/build
+		--file $(ROOT)/build/Dockerfile $(BASE_IMAGE_ARG)\
+		$(ROOT)/build
 
 .PHONY : operator-image-push
 operator-image-push:
@@ -83,11 +84,15 @@ bundle-test:
 # todo-me is it possible to not push the bundle image but rather to reference it locally in the index-add target? 
 .PHONY : bundle-build
 bundle-build:
+	if ! grep OPERATOR_IMAGE\
+		$(ROOT)/deploy/olm-catalog/nuxeo-operator/manifests/nuxeo-operator.clusterserviceversion.yaml >/dev/null 2>&1;\
+		then echo "ERROR: Missing OPERATOR_IMAGE substitution token in nuxeo-operator.clusterserviceversion.yaml"; exit 1; fi
 	# if building the bundle image, always include the latest CRD. Not crazy about this but it can't be done in
 	# olm-generate because operator-sdk overwrites the CSV
 	cp $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml $(ROOT)/deploy/olm-catalog/nuxeo-operator/manifests
 	$(OCICLI) build --tag $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_IMAGE_NAME):$(OPERATOR_VERSION)\
-		--file bundle.Dockerfile $(ROOT) $(BUNDLE_BUILD_ARG)
+		--file bundle.Dockerfile $(ROOT) $(BUNDLE_BUILD_ARG)\
+		--build-arg OPERATOR_IMAGE=$(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)
 	$(OCICLI) push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(BUNDLE_IMAGE_NAME):$(OPERATOR_VERSION)
 
 .PHONY : index-add
@@ -116,7 +121,7 @@ export HELPTEXT
 define HELPTEXT
 
 This Make file provides targets to build the Nuxeo Operator version $(OPERATOR_VERSION) and install the Operator
-into an OpenShift cluster. It also builds and installs OLM components that enable the operator
+into an OpenShift/Kubernetes cluster. It also builds and installs OLM components that enable the operator
 to be deployed via an OLM subscription. This Make file assumes that all required dependencies are
 already installed: go, operator-sdk, opm, and docker. The Make file runs silently unless you provide
 a VERBOSE arg or variable. E.g.: make VERBOSE=
@@ -132,9 +137,9 @@ operator-image-build  Builds a container image containing the Operator Go binary
                       included in the source tree.
 operator-image-push   Pushes the Operator container image to a registry identified by the IMAGE_REGISTRY and
                       IMAGE_ORG variables. This supports pushing to a public/private registry, as well as an
-                      OpenShift imagesream in the OpenShift cluster. The current version of the Makefile defaults
-                      to $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION) since this
-                      version of the project is targeted at local CRC testing. A future version will improve this.
+                      in-cluster registry. The current version of the Makefile defaults to
+                      $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION) since this
+                      version of the project is targeted at local testing. A future version will improve this.
 operator-unit-test    Runs the Operator unit tests.
 operator-e2e-test     Runs the Operator e2e tests. This target has a few pre-requisites that are documented
                       in the README.
@@ -159,10 +164,10 @@ the following Make targets in order:
 
  1. operator-build       Build the operator binary
  2. operator-image-build Build the operator container image
- 3. operator-image-push  Push the operator container image to the OpenShift cluster
+ 3. operator-image-push  Push the operator container image to the cluster
  4. bundle-build         Build the Operator bundle image
  5. index-add            Generate an OLM Index image from the bundle image
- 6. index-push           Push the OLM Index image to the OpenShift cluster
+ 6. index-push           Push the OLM Index image to the cluster
 
 After completing the steps above, the Operator should be fully installed and accessible in the cluster. The
 README provides documentation on subscribing the Operator and using it to bring up a Nuxeo cluster.

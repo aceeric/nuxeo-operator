@@ -3,7 +3,6 @@ module nuxeo-operator
 go 1.14
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/fullstorydev/grpcurl v1.6.0 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.1.0

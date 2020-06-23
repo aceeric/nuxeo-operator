@@ -48,7 +48,7 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 		"Volumes not correctly defined")
 	actualCmName := dep.Spec.Template.Spec.Volumes[0].ConfigMap.Name
 	expectedCmName := suite.nuxeoName + "-" + suite.deploymentName + "-nuxeo-conf"
-	require.Equal(suite.T(), expectedCmName, actualCmName,"Nuxeo conf molume mount not correctly defined")
+	require.Equal(suite.T(), expectedCmName, actualCmName, "Nuxeo conf molume mount not correctly defined")
 }
 
 // nuxeoConfigSuite is the NuxeoConfig test suite structure

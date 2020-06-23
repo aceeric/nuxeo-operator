@@ -9,7 +9,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// updateNuxeoStatus updates the status field in the Nuxeo CR being watched by the operator
+// updateNuxeoStatus updates the status field in the Nuxeo CR being watched by the operator. This is a
+// very crude implementation and will be expanded in a later version
 func updateNuxeoStatus(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, reqLogger logr.Logger) {
 	deployments := appsv1.DeploymentList{}
 	opts := []client.ListOption{

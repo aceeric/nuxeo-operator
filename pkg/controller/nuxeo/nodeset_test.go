@@ -46,7 +46,7 @@ func (suite *nodeSetSuite) TestDeploymentUpdated() {
 
 // TestInteractiveChanged tests when a nodeset is changed from interactive true to false and vice versa
 func (suite *nodeSetSuite) TestInteractiveChanged() {
-	// todo-me
+	// todo-me code this test
 }
 
 // TestRevProxyDeploymentCreation is the same as TestBasicDeploymentCreation except it includes an Nginx rev proxy

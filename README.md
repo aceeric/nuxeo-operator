@@ -65,25 +65,35 @@ Version 0.3.0 adds Kubernetes support - testing with MicroK8s only at this time.
 
 #### Version 0.4.0 *(in progress)*
 
-Version 0.4.0 incorporates additional features into the Operator.
+Version 0.4.0 incorporates additional basic features into the Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Support readiness and liveness probes for the Nuxeo pods | complete |
-| Support storage configuration |        |
+| Support storage configuration for Nuxeo binaries, transient store, etc. | complete  |
 | Support explicit definition of nuxeo.conf properties in the Nuxeo CR |        |
-| Support a Secret with payload for TLS termination in the Route/Ingress. Previously, TLS passthrough was the only tested functionality |        |
-| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA |        |
-| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster |        |
-| Ability to define *Interactive* nodes and *Worker* nodes separately resulting in two Deployments. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI |        |
-| Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. |        |
-| Support the ability to terminate TLS directly in Tomcat, rather than requiring a sidecar. |        |
+| Support additional fields in the Nuxeo CR as defined in the APB: Java opts, templates, packages, nuxeo url, nuxeo name |        |
 
 
 
 #### Version 0.5.0
 
-Version 0.5.0 supports the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
+Version 0.5.0 incorporates some more advanced features into the Operator and extends the unit testing.
+
+| Feature                                                      | Status |
+| ------------------------------------------------------------ | ------ |
+| Support a Secret with payload for TLS termination in the Route/Ingress. Previously, TLS passthrough was the only tested functionality |        |
+| Support the ability to terminate TLS directly in Tomcat, rather than requiring a sidecar. |        |
+| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA. This would require a CA bundle+cert and passwords |        |
+| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster |        |
+| Ability to configure *Interactive* nodes and *Worker* nodes differently. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI |        |
+| Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |        |
+
+
+
+#### Version 0.6.0
+
+Version 0.6.0 supports the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -96,9 +106,9 @@ Version 0.5.0 supports the *Service Binding Operator* to facilitate integration 
 
 
 
-#### Version 0.6.0
+#### Version 0.7.0
 
-Version 0.6.0 makes the Operator available as a Community Operator.
+Version 0.7.0 makes the Operator available as a Community Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -108,8 +118,9 @@ Version 0.6.0 makes the Operator available as a Community Operator.
 | Provide `kustomize` examples to illustrate bringing up an exemplar Nuxeo Cluster using kustomize) https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |        |
 | Review and augment unit and e2e tests                        |        |
 | Support multi-architecture build. Incorporate lint, gofmt, etc. into the build process |        |
-| Github CI / badges |        |
+| GitHub CI / badges |        |
 | Review the license |        |
+| Find someone else to work on this with... | |
 | Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |        |
 
 

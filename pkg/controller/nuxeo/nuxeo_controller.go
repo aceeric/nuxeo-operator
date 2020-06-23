@@ -143,6 +143,9 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 			}
 			interactiveNodeSet = &nodeSet
 		}
+		if _, err = reconcileNuxeoConf(r, instance, nodeSet, reqLogger); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 	// ensure that exactly one interactive nodeset was specified in the CR
 	if interactiveNodeSet == nil {
@@ -157,6 +160,9 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 	if _, err = reconcileServiceAccount(r, instance, reqLogger); err != nil {
+		return reconcile.Result{}, err
+	}
+	if _, err = reconcilePvc(r, instance, reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
 

@@ -10,9 +10,15 @@ spec:
   - name: cluster
     replicas: 1
     interactive: true
-    env:
-    - name: NUXEO_PACKAGES
-      value: nuxeo-web-ui
-    storage:
-    - storageType: TransientStore
-      size: 10M
+    config:
+      javaOpts: "-Xms8m"
+      templates:
+      - custom
+      packages:
+      - nuxeo-web-ui
+      nxeoUrl: "http://nuxeo-server.apps-crc.testing/nuxeo"
+      nuxeoName: "nuxeo-test"
+      nuxeoConf:
+        value: |
+          a.b.c=test1
+          p.d.q=test2

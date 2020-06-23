@@ -14,7 +14,7 @@ func initUnitTestReconcile() ReconcileNuxeo {
 	s := scheme.Scheme
 	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.Nuxeo{})
 	// todo-me - this code is not required even though the following suggests that it is:
-	//           https://sdk.operatorframework.io/docs/golang/unit-testing/#testing-with-3rd-party-resources
+	//  https://sdk.operatorframework.io/docs/golang/unit-testing/#testing-with-3rd-party-resources
 	//if err := routev1.AddToScheme(s); err != nil {
 	//	t.Fatalf("Unable to add route scheme: (%v)", err)
 	//}

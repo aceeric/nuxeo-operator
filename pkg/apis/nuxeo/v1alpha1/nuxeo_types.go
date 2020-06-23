@@ -13,45 +13,55 @@ import (
 )
 
 // NuxeoStorage defines a type of persistent storage
-type NuxeoStorage int32
+type NuxeoStorage string
 
 const (
-	// Binaries holds the blobs that are attached to documents
-	Binaries NuxeoStorage = iota
-	// TransientStore holds transient data with configurable expiration
-	TransientStore
-	// Connect is for Nuxeo Connect
-	Connect
-	// Data holds various Nuxeo system data
-	Data
-	// NuxeoTmp is like /tmp for Nuxeo
-	NuxeoTmp
+	// NuxeoStorageBinaries holds the blobs that are attached to documents
+	NuxeoStorageBinaries NuxeoStorage = "Binaries"
+	// NuxeoStorageTransientStore holds transient data with configurable expiration
+	NuxeoStorageTransientStore = "TransientStore"
+	// NuxeoStorageConnect is for Nuxeo NuxeoStorageConnect
+	NuxeoStorageConnect = "Connect"
+	// NuxeoStorageData holds various Nuxeo system data
+	NuxeoStorageData = "Data"
+	// NuxeoStorageNuxeoTmp is like /tmp for Nuxeo
+	NuxeoStorageNuxeoTmp = "NuxeoTmp"
 )
 
-// By default, all filesystem access inside a Nuxeo Pod is ephemeral and data is lost when the Pod terminates.
-// The NuxeoStorageSpec enables definition of persistent filesystem storage. By default, the Nuxeo Operator will
-// create a PVC for each specified storage with volumeMode=Filesystem, accessMode=ReadWriteOnce, and no storage class.
+// By default, all filesystem access inside a Pod is ephemeral and data is lost when the Pod terminates. The
+// NuxeoStorageSpec enables definition of persistent storage. By default, the Nuxeo Operator will create a PVC
+// for each specified storage with volumeMode=Filesystem, accessMode=ReadWriteOnce, and no storage class.
 // This Operator will define a volume and a volume mount for the PVC with a hard-coded path that is reasonable
-// for the storage. The Mount path can be overridden. If a PVC is not desired, the Volume Source can be overridden by
-// specifying the 'volumeSource'.
+// for the storage. The Mount path can be overridden. If a default PVC as described is not desired, the Volume
+// Source can be overridden by specifying the 'volumeSource'.
 type NuxeoStorageSpec struct {
 	// +kubebuilder:validation:Enum=Binaries;TransientStore;Connect;Data;NuxeoTmp
 	// Defines the type of Nuxeo data for of the storage
+	// todo-me need a better designator than "storage type"? "storage role"?
 	StorageType NuxeoStorage `json:"storageType"`
 
 	// Defines the amount of storage to request. E.g.: 2Gi, 100M, etc.
 	Size string `json:"size"`
 
 	// +kubebuilder:validation:Optional
-	// Path within the container at which the volume should be mounted. Defaults are: Binaries=/var/lib/nuxeo/binaries.
-	// TransientStore=/var/lib/nuxeo/transientstore. Connect=/opt/nuxeo/connect. Data =/var/lib/nuxeo/data.
-	// NuxeoTmp=/opt/nuxeo/server/tmp.
+	// Enables explicit definition of a PVC supporting this storage. If specified, then overrides size and
+	// volumeSource.
+	// +optional
+	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+
+	// todo-me since these paths are just mappings maybe it should not be allowed to change them
+	//  because only binaries and transient stores appear to support ENV vars to set - others require
+	//  nuxeo.conf...
+	// +kubebuilder:validation:Optional
+	// Path within the container at which the volume should be mounted. Defaults are: NuxeoStorageBinaries=/var/lib/nuxeo/binaries.
+	// NuxeoStorageTransientStore=/var/lib/nuxeo/transientstore. NuxeoStorageConnect=/opt/nuxeo/connect. NuxeoStorageData =/var/lib/nuxeo/data.
+	// NuxeoStorageNuxeoTmp=/opt/nuxeo/server/tmp.
 	// +optional
 	MountPath string `json:"mountPath,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// Enables you to totally customize the Volume Source. For example, you can customize a PVC beyond what is
-	// supported by the built-in PVC generator. Or you can use a different Volume Source completely.
+	// Enables the Volume Source to be explicitly specified. Ignored if volumeClaimTemplate is specified. This could
+	// be used, for example, to define an EmptyDir volume source for testing/troubleshooting.
 	// +optional
 	VolumeSource corev1.VolumeSource `json:"volumeSource,omitempty"`
 }
@@ -97,6 +107,16 @@ type NodeSet struct {
 	// probe that invokes the command 'true'
 	// +optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Storage provides the ability to configure persistent filesystem storage for the Nuxeo Pods
+	// +optional
+	Storage []NuxeoStorageSpec `json:"storage,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// NuxeoConfig defines some common configuration settings to customize Nuxeo
+	// +optional
+	NuxeoConfig NuxeoConfig `json:"nuxeoConfig,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Provides the ability to override hard-coded pod defaults, enabling fine-grained control over the
@@ -146,7 +166,7 @@ type NuxeoAccess struct {
 	// +kubebuilder:validation:Optional
 	// Specifies the TLS termination type. E.g. 'edge', 'passthrough', etc.
 	// +optional
-	// todo-me consider operator-defined (platform-agnostic) Type and associated Consts rather than OpenShift
+	// todo-me consider operator-defined (platform-agnostic) Type and associated constants rather than OpenShift
 	Termination routev1.TLSTerminationType `json:"termination,omitempty"`
 }
 
@@ -189,6 +209,44 @@ type RevProxySpec struct {
 	// dummy supports testing
 	// +optional
 	Dummy DummyRevProxySpec `json:"dummy,omitempty"`
+}
+
+// NuxeoConfigSetting Supports configuration settings that can be specified with inline values, or from
+// Secrets or ConfigMaps
+type NuxeoConfigSetting struct {
+	// +kubebuilder:validation:Optional
+	// Specifies an inline value for the setting. Either this, or the valueFrom must be specified, but not
+	// both.
+	// +optional
+	Value string `json:"value,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Source for the copnfiguration settings's value. Cannot be used if value is not empty.
+	// +optional
+	ValueFrom corev1.VolumeSource `json:"valueFrom,omitempty"`
+}
+
+// NuxeoConfig provides the ability to configure the Nuxeo cluster. These settings are added to each Deployment
+// generated from the NodeSet.
+type NuxeoConfig struct {
+	// JavaOpts define environment variables that are passed on to the JVM in the container
+	JavaOpts string `json:"javaOpts,omitempty"`
+
+	// NuxeoTemplates defines a list of templates to load when starting Nuxeo
+	NuxeoTemplates []string `json:"nuxeoTemplates,omitempty"`
+
+	// NuxeoTemplates defines a list of packages to install when starting Nuxeo
+	NuxeoPackages []string `json:"nuxeoPackages,omitempty"`
+
+	// NuxeoUrl is the redirect url used by Nuxeo
+	NuxeoUrl string `json:"nuxeoUrl,omitempty"`
+
+	// NuxeoName defines a human-friendly name for this cluster
+	NuxeoName string `json:"nuxeoName,omitempty"`
+
+	// NuxeoConf specifies values to append to nuxeo.conf. Values can be provided inline, or from a Secret
+	// or ConfigMap
+	NuxeoConf NuxeoConfigSetting `json:"nuxeoConf,omitempty"`
 }
 
 // Defines the desired state of a Nuxeo cluster

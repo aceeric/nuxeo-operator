@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
@@ -21,7 +21,7 @@ func (suite *serviceAccountSuite) TestBasicServiceAccountCreation() {
 	result, err := reconcileServiceAccount(&suite.r, nux, log)
 	require.Nil(suite.T(), err, "reconcileServiceAccount failed with err: %v\n", err)
 	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileServiceAccount returned unexpected result: %v\n", result)
-	found := &v1.ServiceAccount{}
+	found := &corev1.ServiceAccount{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: util.NuxeoServiceAccountName, Namespace: suite.namespace}, found)
 	require.Nil(suite.T(), err, "ServiceAccount creation failed with err: %v\n", err)
 }
@@ -41,7 +41,7 @@ func (suite *serviceAccountSuite) SetupSuite() {
 
 // AfterTest removes objects of the type being tested in this suite after each test
 func (suite *serviceAccountSuite) AfterTest(_, _ string) {
-	obj := v1.ServiceAccount{}
+	obj := corev1.ServiceAccount{}
 	_ = suite.r.client.DeleteAllOf(context.TODO(), &obj)
 }
 

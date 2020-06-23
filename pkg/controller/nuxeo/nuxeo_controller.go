@@ -67,6 +67,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Watch for changes to ConfigMap
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &nuxeov1alpha1.Nuxeo{},
+	})
+	if err != nil {
+		return err
+	}
+
 	// Watch for changes to OpenShift Route
 	if util.IsOpenShift() {
 		err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{

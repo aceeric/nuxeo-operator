@@ -63,20 +63,20 @@ Version 0.3.0 adds Kubernetes support - testing with MicroK8s only at this time.
 
 
 
-#### Version 0.4.0 *(in progress)*
+#### Version 0.4.0 *(complete)*
 
 Version 0.4.0 incorporates additional basic features into the Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Support readiness and liveness probes for the Nuxeo pods | complete |
-| Support storage configuration for Nuxeo binaries, transient store, etc. | complete  |
-| Support explicit definition of nuxeo.conf properties in the Nuxeo CR |        |
-| Support additional fields in the Nuxeo CR as defined in the APB: Java opts, templates, packages, nuxeo url, nuxeo name |        |
+| Support storage configuration for Nuxeo binaries, the transient store, etc. | complete  |
+| Support explicit definition of nuxeo.conf properties in the Nuxeo CR | complete |
+| Support additional fields in the Nuxeo CR as defined in the APB: Java opts, templates, packages, nuxeo URL, nuxeo name | complete |
 
 
 
-#### Version 0.5.0
+#### Version 0.5.0 *(in progress)*
 
 Version 0.5.0 incorporates some more advanced features into the Operator and extends the unit testing.
 

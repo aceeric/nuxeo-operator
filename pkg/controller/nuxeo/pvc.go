@@ -37,7 +37,7 @@ func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Lo
 				volName := volumeNameForStorage(storage.StorageType)
 				pvc := corev1.PersistentVolumeClaim{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      volName +"-pvc",
+						Name:      volName + "-pvc",
 						Namespace: instance.Namespace,
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{

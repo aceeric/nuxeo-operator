@@ -7,8 +7,9 @@ LABEL operators.operatorframework.io.bundle.package.v1=nuxeo-operator
 LABEL operators.operatorframework.io.bundle.channels.v1=alpha
 LABEL operators.operatorframework.io.bundle.channel.default.v1=alpha
 
-ARG TARGET_CLUSTER=crc
-COPY deploy/olm-catalog/nuxeo-operator/manifests/*crd* /manifests/
-# todo-me replace with copy/sed
-COPY deploy/olm-catalog/nuxeo-operator/manifests/nuxeo-operator.clusterserviceversion.${TARGET_CLUSTER}.yaml /manifests/nuxeo-operator.clusterserviceversion.yaml
+COPY deploy/olm-catalog/nuxeo-operator/manifests /manifests/
+
+# the CSV has a replacement token for the operator image. Replace it with a build arg
+ARG OPERATOR_IMAGE
+RUN sed -i "s|OPERATOR_IMAGE|${OPERATOR_IMAGE}|g" /manifests/nuxeo-operator.clusterserviceversion.yaml
 COPY deploy/olm-catalog/nuxeo-operator/metadata /metadata/

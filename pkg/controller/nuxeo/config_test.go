@@ -24,13 +24,11 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	err := handleConfig(nux, &dep, nux.Spec.NodeSets[0])
 	require.Nil(suite.T(), err, "handleConfig failed with err: %v\n", err)
 	validActualEnvCnt := 0
-	// current functionality is for template config code to always include "default"...
-	templatesToCompare := append([]string{"default"}, suite.nuxeoTemplates...)
 	for _, env := range dep.Spec.Template.Spec.Containers[0].Env {
 		switch {
 		case env.Name == "JAVA_OPTS" && env.Value == suite.javaOpts:
 			validActualEnvCnt += 1
-		case env.Name == "NUXEO_TEMPLATES" && env.Value == strings.Join(templatesToCompare, ","):
+		case env.Name == "NUXEO_TEMPLATES" && env.Value == strings.Join(suite.nuxeoTemplates, ","):
 			validActualEnvCnt += 1
 		case env.Name == "NUXEO_PACKAGES" && env.Value == strings.Join(suite.nuxeoPackages, ","):
 			validActualEnvCnt += 1

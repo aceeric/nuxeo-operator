@@ -13,17 +13,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Tests the basic functionality to create a nuxeo.conf ConfigMap from inlined data in the Nuxeo CR
+// Tests the basic functionality to create a nuxeo.conf ConfigMap from inlined data in the Nuxeo CR. Defines
+// a Nuxeo CR with inline nuxeo.conf and calls the config map reconciliation. Verifies that a ConfigMap was
+// created that contains the matching nuxeo.conf content.
 func (suite *nuxeoConfSuite) TestBasicInlineNuxeoConf() {
 	nux := suite.nuxeoConfSuiteNewNuxeo()
 	result, err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], log)
-	require.Nil(suite.T(), err, "nuxeoConfSuiteNewNuxeo failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "nuxeoConfSuiteNewNuxeo returned unexpected result: %v\n", result)
+	require.Nil(suite.T(), err, "reconcileNuxeoConf failed with err: %v\n", err)
+	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileNuxeoConf returned unexpected result: %v\n", result)
 	found := &corev1.ConfigMap{}
 	cmName := nux.Name + "-" + nux.Spec.NodeSets[0].Name + "-nuxeo-conf"
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: suite.namespace}, found)
 	require.Nil(suite.T(), err, "Nuxeo conf ConfigMap creation failed with err: %v\n", err)
-	require.Equal(suite.T(), suite.nuxeoConfContent, found.Data[suite.nuxeoConfKey], "ConfigMap has incorrect nuxeo.conf content: %v\n", found.Data)
+	require.Equal(suite.T(), suite.nuxeoConfContent, found.Data[suite.nuxeoConfKey],
+		"ConfigMap has incorrect nuxeo.conf content: %v\n", found.Data)
+}
+
+func (suite *nuxeoConfSuite) TestExplicitNuxeoConf() {
+	// todo-me test when a nuxeo conf ConfigMap is defined by the configurer and the operator should not overwrite
 }
 
 // nuxeoConfSuite is the NuxeoConf test suite structure
@@ -72,6 +79,7 @@ func (suite *nuxeoConfSuite) nuxeoConfSuiteNewNuxeo() *v1alpha1.Nuxeo {
 				Replicas: 1,
 				NuxeoConfig: v1alpha1.NuxeoConfig{
 					NuxeoConf: v1alpha1.NuxeoConfigSetting{
+						// inline
 						Value: suite.nuxeoConfContent,
 					},
 				},

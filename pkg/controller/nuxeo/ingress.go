@@ -20,11 +20,11 @@ import (
 const nginxPassthroughAnnotation = "nginx.ingress.kubernetes.io/ssl-passthrough"
 
 // reconcileIngress configures access to the Nuxeo cluster via a Kubernetes Ingress
-func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1alpha1.NodeSet,
+func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
 	found := &v1beta1.Ingress{}
 	ingressName := ingressName(instance, nodeSet)
-	expected, err := r.defaultIngress(instance, access, ingressName, nodeSet)
+	expected, err := r.defaultIngress(instance, access, forcePassthrough, ingressName, nodeSet)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -113,7 +113,7 @@ func updatedAnnotations(expected map[string]string, found map[string]string) map
 //      - <access.Hostname>
 // If the passed 'access' struct indicates TLS termination then an annotation is included in the
 // returned object's metadata
-func (r *ReconcileNuxeo) defaultIngress(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, ingressName string,
+func (r *ReconcileNuxeo) defaultIngress(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, ingressName string,
 	nodeSet v1alpha1.NodeSet) (*v1beta1.Ingress, error) {
 	targetPort := intstr.IntOrString{
 		Type:   intstr.String,
@@ -143,8 +143,8 @@ func (r *ReconcileNuxeo) defaultIngress(nux *v1alpha1.Nuxeo, access v1alpha1.Nux
 			}},
 		},
 	}
-	if access.Termination != "" {
-		if access.Termination != routev1.TLSTerminationPassthrough {
+	if access.Termination != "" || forcePassthrough {
+		if access.Termination != "" && access.Termination != routev1.TLSTerminationPassthrough {
 			return nil, goerrors.New("current operator version only supports TLS passthrough")
 		}
 		ingress.Spec.TLS = []v1beta1.IngressTLS{{

@@ -14,7 +14,7 @@ BUNDLE_IMAGE_NAME      := nuxeo-operator-manifest-bundle
 INDEX_IMAGE_NAME       := nuxeo-operator-index
 OPERATOR_SDK_SUPPORTED := v0.18.0
 OPERATOR_SDK_INSTALLED := $(shell operator-sdk version | cut -d, -f1 | cut -d: -f2 | sed "s/[[:blank:]]*\"//g")
-# operator base image differes for OpenShift/Kubernetes. See build/Dockerfile
+# operator base image differs for OpenShift/Kubernetes. See build/Dockerfile
 BASE_IMAGE_ARG         :=
 UNIT_TEST_ARGS         ?= -v -coverprofile cp.out
 E2E_TEST_ARGS          ?= --verbose
@@ -146,13 +146,13 @@ operator-e2e-test     Runs the Operator e2e tests. This target has a few pre-req
 olm-generate          Generates files under deploy/olm-catalog/nuxeo-operator/manifests to support creating an
                       installable Operator that integrates with OLM. Note - this *overwrites* the CSV each time so,
                       should only be run when the goal is to *replace* the CSV since the CSV currently contains
-                      values that were hand-edited into the file after it was initially generated.
+                      values that were hand-edited into the file after it was initially generated (e.g. RBACs.)
 bundle-generate       Generates bundle.Dockerfile in project root, and annotations.yaml in
                       deploy/olm-catalog/nuxeo-operator/metadata. This target uses the output of 'olm-generate'
                       and is a precursor to packaging the operator for deployment as an OLM Index.
-bundle-build          Creates a container image from outputs 'bundle-generate' that are included in the source tree.
-index-add             Creates an OLM Index image using the output of the 'bundle-build' target. Uses the 'opm' command,
-                      which is built from https://github.com/operator-framework/operator-registry.
+bundle-build          Creates a container image from outputs of 'bundle-generate' that are included in the source tree.
+index-add             Creates an OLM Index image using the output of the 'bundle-build' target. Uses the 'opm'
+                      command, which is built from https://github.com/operator-framework/operator-registry.
 index-push            Pushes the Nuxeo Operator Index image to the cluster in the $(REGISTRY_NAMESPACE) namespace.
                       This is what enables OLM to create the Operator via a subscription.
 help                  Prints this help.

@@ -17,7 +17,7 @@ import (
 // when an Ingress does not already exist
 func (suite *ingressSuite) TestBasicIngressCreation() {
 	nux := suite.ingressSuiteNewNuxeo()
-	result, err := reconcileIngress(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
+	result, err := reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
 	require.Nil(suite.T(), err, "reconcileIngress failed with err: %v\n", err)
 	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileIngress returned unexpected result: %v\n", result)
 	found := &v1beta1.Ingress{}
@@ -33,11 +33,11 @@ func (suite *ingressSuite) TestBasicIngressCreation() {
 func (suite *ingressSuite) TestIngressHostChange() {
 	nux := suite.ingressSuiteNewNuxeo()
 	// create the ingress
-	_, _ = reconcileIngress(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
+	_, _ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
 	newHostName := "modified." + nux.Spec.Access.Hostname
 	nux.Spec.Access.Hostname = newHostName
 	// should update the ingress
-	_, _ = reconcileIngress(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
+	_, _ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
 	found := &v1beta1.Ingress{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)
@@ -51,6 +51,10 @@ func (suite *ingressSuite) TestIngressToTLS() {
 
 func (suite *ingressSuite) TestIngressFromTLS() {
 	// todo-me test when Nuxeo CR indicates TLS passthrough then is updated to standard HTTP
+}
+
+func (suite *ingressSuite) TestIngressForcePassthrough() {
+	// todo-me code this
 }
 
 // ingressSuite is the Ingress test suite structure

@@ -32,16 +32,13 @@ func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.
 	nuxeoContainer.Env = append(nuxeoContainer.Env, env)
 
 	// Nuxeo Templates
-	env = corev1.EnvVar{
-		Name:  "NUXEO_TEMPLATES",
-		Value: "default",
-	}
-	// todo-me it seems like if the CR configurator specified templates they should be taken exactly as
-	//  provided rather than appending to 'default'
 	if nodeSet.NuxeoConfig.NuxeoTemplates != nil || len(nodeSet.NuxeoConfig.NuxeoTemplates) != 0 {
-		env.Value += "," + strings.Join(nodeSet.NuxeoConfig.NuxeoTemplates, ",")
+		env = corev1.EnvVar{
+			Name:  "NUXEO_TEMPLATES",
+			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoTemplates, ","),
+		}
+		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
 	}
-	nuxeoContainer.Env = append(nuxeoContainer.Env, env)
 
 	// Nuxeo Packages
 	if nodeSet.NuxeoConfig.NuxeoPackages != nil || len(nodeSet.NuxeoConfig.NuxeoPackages) != 0 {

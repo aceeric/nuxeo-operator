@@ -19,11 +19,11 @@ import (
 )
 
 // reconcileOpenShiftRoute configures access to the Nuxeo cluster via an OpenShift Route
-func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nodeSet v1alpha1.NodeSet,
+func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
 	found := &v1.Route{}
 	routeName := routeName(instance, nodeSet)
-	expected, err := r.defaultRoute(instance, access, routeName, nodeSet)
+	expected, err := r.defaultRoute(instance, access, forcePassthrough, routeName, nodeSet)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -83,8 +83,8 @@ func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, nod
 //      caCertificate: "
 //      destinationCACertificate: "
 //      insecureEdgeTerminationPolicy: "
-func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, routeName string,
-	nodeSet v1alpha1.NodeSet) (*v1.Route, error) {
+func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool,
+	routeName string, nodeSet v1alpha1.NodeSet) (*v1.Route, error) {
 	targetPort := intstr.IntOrString{
 		Type:   intstr.String,
 		StrVal: "web",
@@ -108,7 +108,7 @@ func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.Nuxeo
 			TLS:  nil,
 		},
 	}
-	if access.Termination != "" {
+	if access.Termination != "" || forcePassthrough {
 		route.Spec.TLS = &v1.TLSConfig{
 			Termination: access.Termination,
 		}

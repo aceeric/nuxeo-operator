@@ -119,7 +119,7 @@ func (suite *persistentVolumeClaimSuite) persistentVolumeClaimSuiteNewNuxeo() *v
 // Creates an "orphaned" PVC that doesn't match any of the PVCs in the test deployment. This mimics a case where
 // a storage spec was defined in the Nuxeo CR, the reconciliation loop fired, a PVC was created, then the
 // storage spec was removed. In that case we want the reconciler to remove any associated PVC that was created
-//in a prior reconciliation loop (when the storage configuration was present.)
+// in a prior reconciliation loop (when the storage configuration was present.)
 func createOrphanPVC(instance *v1alpha1.Nuxeo, pvcName string, r ReconcileNuxeo) error {
 	pvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{

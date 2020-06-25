@@ -67,6 +67,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// todo-me Watch for changes to ServiceAccount?
+
 	// Watch for changes to ConfigMap
 	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
@@ -165,7 +167,12 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	if _, err = reconcileService(r, instance.Spec.Service, *interactiveNodeSet, instance, reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
-	if _, err = reconcileAccess(r, instance.Spec.Access, *interactiveNodeSet, instance, reqLogger); err != nil {
+	forcePassthrough := false
+	if instance.Spec.RevProxy.Tomcat != (nuxeov1alpha1.TomcatRevProxySpec{}) {
+		// if Tomcat then force tls passthrough termination in the route
+		forcePassthrough = true
+	}
+	if _, err = reconcileAccess(r, instance.Spec.Access, forcePassthrough, *interactiveNodeSet, instance, reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
 	if _, err = reconcileServiceAccount(r, instance, reqLogger); err != nil {

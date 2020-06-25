@@ -1,0 +1,20 @@
+    nuxeoConfig:
+      jvmPKISecret: foo # contains Key Store + pass + type, Trust Store + pass + type
+    marketplacePackages:
+    - valueFrom:
+        configMap: nuxeo-sample
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+

@@ -17,12 +17,16 @@ import (
 func (suite *probeSuite) TestProbes() {
 	nux := suite.probeSuiteNewNuxeo()
 	dep := genTestDeploymentForProbeSuite()
-	err := addProbes(&dep, nux.Spec.NodeSets[0])
+	err := addProbes(&dep, nux.Spec.NodeSets[0], false)
 	require.Nil(suite.T(), err, "addProbes failed with err: %v\n", err)
-	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].LivenessProbe, defaultProbe(),
+	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].LivenessProbe, defaultProbe(false),
 		"Incorrect LivenessProbe\n")
 	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].ReadinessProbe, nux.Spec.NodeSets[0].ReadinessProbe,
 		"Incorrect ReadinessProbe\n")
+}
+
+func (suite *probeSuite) TestProbesHttps() {
+	// todo-me test with useHttp=true
 }
 
 // probeSuite is the Probe test suite structure

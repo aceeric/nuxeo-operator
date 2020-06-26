@@ -13,7 +13,7 @@ import (
 )
 
 // configureTomcatForTLS configures Tomcat as the reverse proxy as follows:
-//  1) Mounts a volume and volume mount referencing the keystore.jks key from the secret in the passed
+//  1) Creates a volume and volume mount referencing the keystore.jks key from the secret in the passed
 //     tomcat rev proxy spec
 //  2) Creates env var TOMCAT_KEYSTORE_PASS referencing keystorePass in the same secret
 //  3) Configures the NUXEO_CUSTOM_PARAM env var to reference the keystore and password. Nuxeo will incorporate
@@ -32,7 +32,7 @@ func configureTomcatForTLS(dep *appsv1.Deployment, tomcat v1alpha1.TomcatRevProx
 				SecretName: tomcat.Secret,
 				Items: []corev1.KeyToPath{{
 					Key:  "keystore.jks",
-					Path:  "keystore.jks",
+					Path: "keystore.jks",
 				}},
 			}},
 	}
@@ -61,7 +61,9 @@ func configureTomcatForTLS(dep *appsv1.Deployment, tomcat v1alpha1.TomcatRevProx
 		nuxeoContainer.Env = append(nuxeoContainer.Env, *keystorePassEnv)
 	}
 
-	// NUXEO_CUSTOM_PARAM env var (refs TOMCAT_KEYSTORE_PASS set above)
+	// NUXEO_CUSTOM_PARAM env var (refs TOMCAT_KEYSTORE_PASS set above). We use this environment var
+	// because the configurer can also specify nuxeo.conf and if they did, it could clash with this code path
+	// if this code path also tried to use nuxeo.conf
 	tomcatConfig := map[string]string{
 		"nuxeo.server.https.port":         "8443",
 		"nuxeo.server.https.keystoreFile": "/etc/secrets/tomcat_keystore/keystore.jks",

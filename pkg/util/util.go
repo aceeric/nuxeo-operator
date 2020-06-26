@@ -19,8 +19,8 @@ func IsOpenShift() bool {
 }
 
 // Sets operator state indicating that the operator believes it is running in an OpenShift cluster.
-func SetIsOpenShift() {
-	isOpenShift = true
+func SetIsOpenShift(_isOpenShift bool) {
+	isOpenShift = _isOpenShift
 }
 
 var NuxeoServiceAccountName = "nuxeo"

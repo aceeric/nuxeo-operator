@@ -336,7 +336,7 @@ func init() {
 	SchemeBuilder.Register(&Nuxeo{}, &NuxeoList{})
 	if registerOpenShiftRoute() {
 		// by default: not OpenShift
-		util.SetIsOpenShift()
+		util.SetIsOpenShift(true)
 	} else if !registerKubernetesIngress() {
 		panic("Unable to register either an OpenShift Route or a Kubernetes Ingress to the SchemaBuilder")
 	}

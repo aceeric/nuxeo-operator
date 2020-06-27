@@ -34,7 +34,7 @@ func reconcileNuxeoConf(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1a
 // name + "-" + node set name + "-nuxeo-conf". If found, and owned by this Nuxeo, then it is removed. Otherwise
 // cluster state is not modified. Note that if the Nuxeo CR contains a nuxeo.conf configuration entry with
 // ValueFrom defined, and that name matches the internally defined name and it is owned by the Nuxeo CR then
-// it will be removed. So - configurators should not name their nuxeo.conf configmap the way this code does.
+// it will be removed. So - configurers should not name their nuxeo.conf ConfigMap the way this code does.
 func removeIfPresent(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet,
 	reqLogger logr.Logger) (reconcile.Result, error) {
 	found := &corev1.ConfigMap{}

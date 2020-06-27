@@ -41,7 +41,7 @@ spec:
                     description: Specifies the host name. This is incorporated by
                       the Operator into the operator-generated OpenShift Route and
                       should be accessible from outside the cluster via DNS or some
-                      other suitable routing mechanism
+                      other suitable name resolution mechanism
                     type: string
                   targetPort:
                     anyOf:
@@ -354,8 +354,9 @@ spec:
                                 not both.
                               type: string
                             valueFrom:
-                              description: Source for the copnfiguration settings's
-                                value. Cannot be used if value is not empty.
+                              description: Source for the configuration settings's
+                                value. Either this, or the value must be specified,
+                                but not both.
                               properties:
                                 awsElasticBlockStore:
                                   description: 'AWSElasticBlockStore represents an
@@ -1715,7 +1716,7 @@ spec:
                             this cluster
                           type: string
                         nuxeoPackages:
-                          description: NuxeoTemplates defines a list of packages to
+                          description: NuxeoPackages defines a list of packages to
                             install when starting Nuxeo
                           items:
                             type: string
@@ -1728,6 +1729,12 @@ spec:
                           type: array
                         nuxeoUrl:
                           description: NuxeoUrl is the redirect url used by Nuxeo
+                          type: string
+                        tlsSecret:
+                          description: tlsSecret enables TLS termination by the Nuxeo
+                            Pod. The field specifies the name of a secret containing
+                            keys keystore.jks and keystorePass. As of Nuxeo 10.10,
+                            only JKS is supported.
                           type: string
                       type: object
                     podTemplate:
@@ -8184,8 +8191,8 @@ spec:
                               within the container at which the volume should be mounted.
                               Defaults are: NuxeoStorageBinaries=/var/lib/nuxeo/binaries.
                               NuxeoStorageTransientStore=/var/lib/nuxeo/transientstore.
-                              NuxeoStorageConnect=/opt/nuxeo/connect. NuxeoStorageData
-                              =/var/lib/nuxeo/data. NuxeoStorageNuxeoTmp=/opt/nuxeo/server/tmp.'
+                              NuxeoStorageConnect=/opt/nuxeo/connect. NuxeoStorageData=/var/lib/nuxeo/data.
+                              NuxeoStorageNuxeoTmp=/opt/nuxeo/server/tmp.'
                             type: string
                           size:
                             description: 'Defines the amount of storage to request.
@@ -9789,9 +9796,6 @@ spec:
                   in the future. If omitted, then no reverse proxy is created and
                   traffic goes directly to the Nuxeo Pods.
                 properties:
-                  dummy:
-                    description: dummy supports testing
-                    type: object
                   nginx:
                     description: nginx supports configuration of Nginx as the reverse
                       proxy

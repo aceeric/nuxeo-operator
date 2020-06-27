@@ -7,7 +7,7 @@ import (
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 )
 
-// Configures Nginx as the reverse proxy by adding a sidecar Container and supporting Volumes into the
+// Configures Nginx as the reverse proxy by adding a sidecar Container and adding Volumes into the
 // passed Deployment as specified in the passed Nginx rev proxy spec
 func configureNginx(spec *v1.PodSpec, nginx v1alpha1.NginxRevProxySpec) {
 	spec.Containers = append(spec.Containers, nginxContainer(nginx))

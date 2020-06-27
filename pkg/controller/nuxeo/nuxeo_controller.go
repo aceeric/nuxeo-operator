@@ -168,8 +168,8 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 	forcePassthrough := false
-	if instance.Spec.RevProxy.Tomcat != (nuxeov1alpha1.TomcatRevProxySpec{}) {
-		// if Tomcat then force tls passthrough termination in the route
+	if interactiveNodeSet.NuxeoConfig.TlsSecret != "" {
+		// if Nuxeo is terminating TLS then force tls passthrough termination in the route/ingress
 		forcePassthrough = true
 	}
 	if _, err = reconcileAccess(r, instance.Spec.Access, forcePassthrough, *interactiveNodeSet, instance, reqLogger); err != nil {

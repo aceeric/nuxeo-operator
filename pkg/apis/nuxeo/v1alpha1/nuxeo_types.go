@@ -168,14 +168,6 @@ type NuxeoAccess struct {
 	Termination routev1.TLSTerminationType `json:"termination,omitempty"`
 }
 
-// TomcatRevProxySpec defines the configuration elements needed to configure Tomcat in the Nuxeo container
-// as the reverse proxy.
-type TomcatRevProxySpec struct {
-	// References a secret containing keys 'keystoreFile', and 'keystorePass' which are used to terminate
-	// the Tomcat TLS connection. The Port is hard-coded to 8443 at present.
-	Secret string `json:"secret"`
-}
-
 // NginxRevProxySpec defines the configuration elements needed to configure the Nginx reverse proxy.
 type NginxRevProxySpec struct {
 	// Defines a ConfigMap that contains an 'nginx.conf' key, and a 'proxy.conf' key, each of which provide required
@@ -200,10 +192,6 @@ type NginxRevProxySpec struct {
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
-// DummyRevProxySpec is intended to support testing in the future, and to stub out the ability to specify
-// different reverse proxies in the 'RevProxySpec' struct
-type DummyRevProxySpec struct{}
-
 // RevProxySpec defines the reverse proxies supported by the Nuxeo Operator. Details are provided in the individual
 // specs.
 type RevProxySpec struct {
@@ -211,16 +199,6 @@ type RevProxySpec struct {
 	// nginx supports configuration of Nginx as the reverse proxy
 	// +optional
 	Nginx NginxRevProxySpec `json:"nginx,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// tomcat configures the Tomcat in the Nuxeo container to terminate TLS
-	// +optional
-	Tomcat TomcatRevProxySpec `json:"tomcat,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// dummy supports testing
-	// +optional
-	Dummy DummyRevProxySpec `json:"dummy,omitempty"`
 }
 
 // NuxeoConfigSetting Supports configuration settings that can be specified with inline values, or from
@@ -242,24 +220,42 @@ type NuxeoConfigSetting struct {
 // NuxeoConfig provides the ability to configure the Nuxeo cluster. These settings are added to each Deployment
 // generated from the NodeSet.
 type NuxeoConfig struct {
+	// +kubebuilder:validation:Optional
 	// JavaOpts define environment variables that are passed on to the JVM in the container
+	// +optional
 	JavaOpts string `json:"javaOpts,omitempty"`
 
+	// +kubebuilder:validation:Optional
 	// NuxeoTemplates defines a list of templates to load when starting Nuxeo
+	// +optional
 	NuxeoTemplates []string `json:"nuxeoTemplates,omitempty"`
 
+	// +kubebuilder:validation:Optional
 	// NuxeoPackages defines a list of packages to install when starting Nuxeo
+	// +optional
 	NuxeoPackages []string `json:"nuxeoPackages,omitempty"`
 
+	// +kubebuilder:validation:Optional
 	// NuxeoUrl is the redirect url used by Nuxeo
+	// +optional
 	NuxeoUrl string `json:"nuxeoUrl,omitempty"`
 
+	// +kubebuilder:validation:Optional
 	// NuxeoName defines a human-friendly name for this cluster
+	// +optional
 	NuxeoName string `json:"nuxeoName,omitempty"`
 
+	// +kubebuilder:validation:Optional
 	// NuxeoConf specifies values to append to nuxeo.conf. Values can be provided inline, or from a Secret
 	// or ConfigMap
+	// +optional
 	NuxeoConf NuxeoConfigSetting `json:"nuxeoConf,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// tlsSecret enables TLS termination by the Nuxeo Pod. The field specifies the name of a secret containing
+	// keys keystore.jks and keystorePass. As of Nuxeo 10.10, only JKS is supported.
+	// +optional
+	TlsSecret string `json:"tlsSecret,omitempty"`
 }
 
 // Defines the desired state of a Nuxeo cluster

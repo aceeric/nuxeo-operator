@@ -1730,6 +1730,12 @@ spec:
                         nuxeoUrl:
                           description: NuxeoUrl is the redirect url used by Nuxeo
                           type: string
+                        tlsSecret:
+                          description: tlsSecret enables TLS termination by the Nuxeo
+                            Pod. The field specifies the name of a secret containing
+                            keys keystore.jks and keystorePass. As of Nuxeo 10.10,
+                            only JKS is supported.
+                          type: string
                       type: object
                     podTemplate:
                       description: Provides the ability to override hard-coded pod
@@ -9790,9 +9796,6 @@ spec:
                   in the future. If omitted, then no reverse proxy is created and
                   traffic goes directly to the Nuxeo Pods.
                 properties:
-                  dummy:
-                    description: dummy supports testing
-                    type: object
                   nginx:
                     description: nginx supports configuration of Nginx as the reverse
                       proxy
@@ -9822,18 +9825,6 @@ spec:
                         type: string
                     required:
                     - configMap
-                    - secret
-                    type: object
-                  tomcat:
-                    description: tomcat configures the Tomcat in the Nuxeo container
-                      to terminate TLS
-                    properties:
-                      secret:
-                        description: References a secret containing keys 'keystoreFile',
-                          and 'keystorePass' which are used to terminate the Tomcat
-                          TLS connection. The Port is hard-coded to 8443 at present.
-                        type: string
-                    required:
                     - secret
                     type: object
                 type: object

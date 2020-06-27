@@ -18,6 +18,7 @@ func handleStorage(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
 			volMnt := createVolumeMountForStorage(storage.StorageType, volume.Name)
 			envVar := createEnvVarForStorage(storage.StorageType, volMnt.MountPath)
 			dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, volume)
+			// todo-me move GetNuxeoContainer outside the for
 			if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 				return err
 			} else {

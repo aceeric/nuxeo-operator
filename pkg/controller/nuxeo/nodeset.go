@@ -153,13 +153,13 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 		},
 	}
 	// liveness/readiness
-	useHttps := false
-	if nux.Spec.RevProxy.Tomcat != (v1alpha1.TomcatRevProxySpec{}) {
-		// if Tomcat is the rev proxy then the nuxeo container itself - by virtue of Tomcat - will be listening
-		// on HTTPS:8443. Otherwise Nuxeo listens on HTTP:8080
-		useHttps = true
+	useHttpsForProbes := false
+	if nodeSet.NuxeoConfig.TlsSecret != "" {
+		// if Nuxeo is going to terminate TLS, then it will be listening on HTTPS:8443. Otherwise Nuxeo
+		// listens on HTTP:8080. This affects how the probes are configured immediately below.
+		useHttpsForProbes = true
 	}
-	if err := addProbes(dep, nodeSet, useHttps); err != nil {
+	if err := addProbes(dep, nodeSet, useHttpsForProbes); err != nil {
 		return nil, err
 	}
 	// storage persistence
@@ -186,8 +186,8 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 	// todo-me does it make sense to configure TLS for non-interactive Deployments?
 	if revProxy.Nginx != (v1alpha1.NginxRevProxySpec{}) {
 		configureNginx(&dep.Spec.Template.Spec, revProxy.Nginx)
-	} else if revProxy.Tomcat != (v1alpha1.TomcatRevProxySpec{}) {
-		if err := configureTomcatForTLS(dep, revProxy.Tomcat); err != nil {
+	} else if nodeSet.NuxeoConfig.TlsSecret != "" {
+		if err := configureNuxeoForTLS(dep, nodeSet.NuxeoConfig.TlsSecret); err != nil {
 			return nil, err
 		}
 	}

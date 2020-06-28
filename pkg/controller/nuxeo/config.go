@@ -1,6 +1,7 @@
 package nuxeo
 
 import (
+	goerrors "errors"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,71 +13,108 @@ import (
 // handleConfig examines the NuxeoConfig field of the passed NodeSet and configures the passed Deployment accordingly
 // by updating the Nuxeo container and Deployment. This injects configuration settings to support things like
 // Java Opts, nuxeo.conf, etc. See 'NuxeoConfig' in the NodeSet for more info.
-func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
+func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet,
+	jvmPkiSecret corev1.Secret) error {
 	var nuxeoContainer *corev1.Container
 	var err error
-	var env corev1.EnvVar
 
 	if nuxeoContainer, err = util.GetNuxeoContainer(dep); err != nil {
 		return err
 	}
+	if err := configureJavaOpts(nuxeoContainer, nodeSet); err != nil {
+		return err
+	}
+	configureNuxeoTemplates(nuxeoContainer, nodeSet)
+	configureNuxeoPackages(nuxeoContainer, nodeSet)
+	configureNuxeoURL(nuxeoContainer, nodeSet)
+	configureNuxeoEnvName(nuxeoContainer, nodeSet)
+	configureNuxeoConf(nux, dep, nuxeoContainer, nodeSet)
+	if err := configureJvmPki(dep, nuxeoContainer, jvmPkiSecret); err != nil {
+		return err
+	}
+	return nil
+}
 
-	// Java Opts
-	env = corev1.EnvVar{
+// configureJavaOpts defines a JAVA_OPTS environment variable in the passed container with a default value, or,
+// with the value specified in nodeSet.NuxeoConfig.JavaOpts
+func configureJavaOpts(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) error {
+	env := corev1.EnvVar{
 		Name:  "JAVA_OPTS",
 		Value: "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=1",
 	}
 	if nodeSet.NuxeoConfig.JavaOpts != "" {
 		env.Value = nodeSet.NuxeoConfig.JavaOpts
 	}
-	nuxeoContainer.Env = append(nuxeoContainer.Env, env)
+	if err := mergeOrAdd(nuxeoContainer, env, " "); err != nil {
+		return err
+	}
+	return nil
+}
 
-	// Nuxeo Templates
+// configureJavaOpts defines a NUXEO_TEMPLATES environment variable in the passed container iff
+// nodeSet.NuxeoConfig.NuxeoTemplates was specified in the CR
+func configureNuxeoTemplates(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
 	if nodeSet.NuxeoConfig.NuxeoTemplates != nil || len(nodeSet.NuxeoConfig.NuxeoTemplates) != 0 {
-		env = corev1.EnvVar{
+		env := corev1.EnvVar{
 			Name:  "NUXEO_TEMPLATES",
 			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoTemplates, ","),
 		}
 		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
 	}
+}
 
-	// Nuxeo Packages
+// configureNuxeoPackages defines a NUXEO_PACKAGES environment variable in the passed container iff
+// nodeSet.NuxeoConfig.NuxeoPackages was specified in the CR
+func configureNuxeoPackages(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
 	if nodeSet.NuxeoConfig.NuxeoPackages != nil || len(nodeSet.NuxeoConfig.NuxeoPackages) != 0 {
-		env = corev1.EnvVar{
+		env := corev1.EnvVar{
 			Name:  "NUXEO_PACKAGES",
 			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoPackages, ","),
 		}
 		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
 	}
+}
 
-	// Nuxeo URL
+// configureNuxeoURL defines a NUXEO_URL environment variable in the passed container iff
+// nodeSet.NuxeoConfig.NuxeoUrl was specified in the CR
+func configureNuxeoURL(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
 	if nodeSet.NuxeoConfig.NuxeoUrl != "" {
-		env = corev1.EnvVar{
+		env := corev1.EnvVar{
 			Name:  "NUXEO_URL",
 			Value: nodeSet.NuxeoConfig.NuxeoUrl,
 		}
 		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
 	}
+}
 
-	// Nuxeo Env Name
+// configureNuxeoEnvName defines a NUXEO_ENV_NAME environment variable in the passed container iff
+// nodeSet.NuxeoConfig.NuxeoName was specified in the CR
+func configureNuxeoEnvName(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
 	if nodeSet.NuxeoConfig.NuxeoName != "" {
-		env = corev1.EnvVar{
+		env := corev1.EnvVar{
 			Name:  "NUXEO_ENV_NAME",
 			Value: nodeSet.NuxeoConfig.NuxeoName,
 		}
 		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
 	}
+}
 
-	// nuxeo.conf. If the nodeSet.NuxeoConfig.NuxeoConf.Value is defined then this represents an
-	// inlined nuxeo.conf. In this case, this code initializes a volume and config map volume mount
-	// to reference a ConfigMap holding the inlined nuxeo.conf content. This section of code simply
-	// initializes the volume and volume mount. See the reconcileNuxeoConf function for the logic
-	// that reconciles the actual ConfigMap. If the nodeSet.NuxeoConfig.NuxeoConf.ValueFrom field is
-	// initialized rather than nodeSet.NuxeoConfig.NuxeoConf.Value then the volume and mount are
-	// still initialized but the ConfigMap is expected to have been provided externally to the
-	// operator.
-	// todo-me need to completely replace nuxeo.conf? How to reconcile user-provided nuxeo.conf with
-	//  auto-generated '### BEGIN - DO NOT EDIT BETWEEN BEGIN AND END ###' in the generated nuxeo.conf?
+// configureNuxeoConf handles the nuxeo.conf configuration from the Nuxeo CR. If the nodeSet.NuxeoConfig
+// .NuxeoConf.Value is defined then this represents an inlined nuxeo.conf. E.g.:
+//   nuxeoConf:
+//     value: |
+//       nuxeo.force.generation=true
+//       repository.clustering.enabled=true
+// In this case, this code initializes a volume mount, and a config map volume to reference a ConfigMap holding
+// the inlined nuxeo.conf content from the CR. This section of code simply configures the volume and volume mount.
+// See the reconcileNuxeoConf function for the code that reconciles the actual ConfigMap. If the nodeSet
+// .NuxeoConfig.NuxeoConf.ValueFrom field is initialized rather than nodeSet.NuxeoConfig.NuxeoConf.Value then
+// the volume and mount are still initialized here, but the ConfigMap is expected to have been provided by the
+// configurer, external to the operator.
+// todo-me need to completely replace nuxeo.conf? How to reconcile user-provided nuxeo.conf with
+//  auto-generated '### BEGIN - DO NOT EDIT BETWEEN BEGIN AND END ###' in the generated nuxeo.conf?
+func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nuxeoContainer *corev1.Container,
+	nodeSet v1alpha1.NodeSet) {
 	if nodeSet.NuxeoConfig.NuxeoConf != (v1alpha1.NuxeoConfigSetting{}) {
 		volMnt := corev1.VolumeMount{
 			Name:      "nuxeoconf",
@@ -96,6 +134,109 @@ func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.
 			vol.VolumeSource = nodeSet.NuxeoConfig.NuxeoConf.ValueFrom
 		}
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+	}
+}
+
+// configureJvmPki adds a new - or appends to an existing - JAVA_OPTS env var in the passed container's env var
+// array based on the contents of the passed secret. The secret is expected to have been provided by the configurer.
+// The function looks at the following keys in the secret: keyStore, keyStoreType, keyStorePassword, trustStore,
+// trustStoreType and trustStorePassword and sets the corresponding -Djavax.net.ssl... variables accordingly. For
+// the keystore and truststore components of the secret, volumes and volume mounts are created like
+// /etc/pki/jvm/keystore.??? and /etc/pki/jvm/truststore.??? with extensions based on store type. If no store
+// type is populated in the secret then the store file will have no extension.
+func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, jvmPkiSecret corev1.Secret) error {
+	if jvmPkiSecret.Name == "" {
+		return nil
+	}
+	optVal, keystoreType, truststoreType, trustStoreName, keyStoreName := "", "", "", "", ""
+
+	// key store
+	if val, ok := jvmPkiSecret.Data["keyStoreType"]; ok {
+		keystoreType = string(val)
+		optVal += " -Djavax.net.ssl.keyStoreType=" + keystoreType
+	}
+	if _, ok := jvmPkiSecret.Data["keyStore"]; ok {
+		keyStoreName = "keystore" + storeTypeToFileExtension(keystoreType)
+		optVal += " -Djavax.net.ssl.keyStore=/etc/pki/jvm/" + keyStoreName
+	}
+	if val, ok := jvmPkiSecret.Data["keyStorePassword"]; ok {
+		optVal += " -Djavax.net.ssl.keyStorePassword=" + string(val)
+	}
+
+	// trust store
+	if val, ok := jvmPkiSecret.Data["trustStoreType"]; ok {
+		truststoreType = string(val)
+		optVal += " -Djavax.net.ssl.trustStoreType=" + truststoreType
+	}
+	if _, ok := jvmPkiSecret.Data["trustStore"]; ok {
+		trustStoreName = "truststore" + storeTypeToFileExtension(truststoreType)
+		optVal += " -Djavax.net.ssl.trustStore=/etc/pki/jvm/" + trustStoreName
+	}
+	if val, ok := jvmPkiSecret.Data["trustStorePassword"]; ok {
+		optVal += " -Djavax.net.ssl.trustStorePassword=" + string(val)
+	}
+	env := corev1.EnvVar{
+		Name:  "JAVA_OPTS",
+		Value: optVal,
+	}
+	if err := mergeOrAdd(nuxeoContainer, env, " "); err != nil {
+		return err
+	}
+	// create a volume and volume mount for the keystore/truststore if defined
+	if keyStoreName != "" || trustStoreName != "" {
+		jvmPkiVolMnt := corev1.VolumeMount{
+			Name:      "jvm-pki",
+			ReadOnly:  true,
+			MountPath: "/etc/pki/jvm",
+		}
+		nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, jvmPkiVolMnt)
+		jvmPkiVol := corev1.Volume{
+			Name: "jvm-pki",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: jvmPkiSecret.Name,
+					Items: []corev1.KeyToPath{{
+						Key:  "trustStore",
+						Path: trustStoreName,
+					}, {
+						Key:  "keyStore",
+						Path: keyStoreName,
+					}},
+				}},
+		}
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, jvmPkiVol)
+	}
+	return nil
+}
+
+// Given "PKCS12" (or "pkcs12"), returns ".p12", else returns storeType in lower case prefixed with a period.
+// E.g. given "FOO", returns ".foo". Given "", returns "". Note that the file name of the store is irrelevant to
+// Java, but by convention, most folks would expect to see .p12 or .jks in the container.
+func storeTypeToFileExtension(storeType string) string {
+	lower := strings.ToLower(storeType)
+	if lower == "pkcs12" {
+		return ".p12"
+	} else if lower != "" {
+		return "." + lower
+	}
+	return lower
+}
+
+// mergeOrAdd searches the environment variable array in the passed container for an environment variable
+// whose name matches the name of the passed environment variable struct. If found in the container array,
+// the value of the passed variable is appended to the value of the existing environment variable in the array.
+// Otherwise the passed environment variable is appended to the container env var array.
+func mergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string) error {
+	if env.ValueFrom != nil {
+		return goerrors.New("mergeOrAdd cannot be used for 'ValueFrom' environment variables")
+	}
+	if existingEnv := util.GetEnv(container, env.Name); existingEnv == nil {
+		container.Env = append(container.Env, env)
+	} else {
+		if existingEnv.ValueFrom != nil {
+			return goerrors.New("mergeOrAdd cannot be used for 'ValueFrom' environment variables")
+		}
+		existingEnv.Value += separator + env.Value
 	}
 	return nil
 }

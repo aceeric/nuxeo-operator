@@ -1,20 +1,18 @@
+apiVersion: nuxeo.com/v1alpha1
+kind: Nuxeo
+metadata:
+  name: my-nuxeo
+spec:
+  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:10.10
+  access:
+    hostname: nuxeo-server.apps-crc.testing
+  nodeSets:
+  - name: cluster
+    replicas: 1
+    interactive: true
     nuxeoConfig:
-      jvmPKISecret: foo # contains Key Store + pass + type, Trust Store + pass + type
-    marketplacePackages:
-    - valueFrom:
-        configMap: nuxeo-sample
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-
+      nuxeoPackages:
+      - nuxeo-web-ui
+      nuxeoUrl: "http://nuxeo-server.apps-crc.testing/nuxeo"
+      nuxeoName: "nuxeo-test"
+      jvmPKISecret: jvm-pki-secret

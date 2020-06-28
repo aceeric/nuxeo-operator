@@ -179,7 +179,7 @@ type NginxRevProxySpec struct {
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// Specifies the image
+	// Specifies the Nginx image
 	// +optional
 	Image string `json:"image,omitempty"`
 
@@ -256,6 +256,15 @@ type NuxeoConfig struct {
 	// keys keystore.jks and keystorePass. As of Nuxeo 10.10, only JKS is supported.
 	// +optional
 	TlsSecret string `json:"tlsSecret,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// JvmPKISecret names a secret containing six keys that are used to establish the JVM-wide keystore/truststore.
+	// The operator mounts the keystore and truststore files into the Nuxeo container, and sets environment
+	// variables which the Nuxeo loader passes through into the JVM. All of the following keys will be configured
+	// from the secret into JVM keystore/truststore properties: keyStore, keyStorePassword, keyStoreType,
+	// trustStore, trustStorePassword, and trustStoreType.
+	// +optional
+	JvmPKISecret string `json:"jvmPKISecret,omitempty"`
 }
 
 // Defines the desired state of a Nuxeo cluster

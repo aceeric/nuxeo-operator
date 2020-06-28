@@ -43,7 +43,7 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) error {
 	nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, keystoreVolMnt)
 
 	// TLS_KEYSTORE_PASS env var
-	keystorePassEnv := getEnv(nuxeoContainer, "TLS_KEYSTORE_PASS")
+	keystorePassEnv := util.GetEnv(nuxeoContainer, "TLS_KEYSTORE_PASS")
 	if keystorePassEnv != nil {
 		return goerrors.New("TLS_KEYSTORE_PASS already defined - operator cannot override")
 	} else {
@@ -67,7 +67,7 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) error {
 		"nuxeo.server.https.keystoreFile": "/etc/secrets/tls-keystore/keystore.jks",
 		"nuxeo.server.https.keystorePass": "${env:TLS_KEYSTORE_PASS}",
 	}
-	customParamEnv := getEnv(nuxeoContainer, "NUXEO_CUSTOM_PARAM")
+	customParamEnv := util.GetEnv(nuxeoContainer, "NUXEO_CUSTOM_PARAM")
 	if customParamEnv == nil {
 		customParamEnv = &corev1.EnvVar{
 			Name:  "NUXEO_CUSTOM_PARAM",
@@ -90,7 +90,7 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) error {
 	nuxeoContainer.Env = append(nuxeoContainer.Env, *customParamEnv)
 
 	// NUXEO_TEMPLATES env var
-	templatesEnv := getEnv(nuxeoContainer, "NUXEO_TEMPLATES")
+	templatesEnv := util.GetEnv(nuxeoContainer, "NUXEO_TEMPLATES")
 	if templatesEnv == nil {
 		templatesEnv = &corev1.EnvVar{
 			Name:  "NUXEO_TEMPLATES",
@@ -103,17 +103,6 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) error {
 			return goerrors.New("operator Nuxeo TLS config conflicts with externally defined NUXEO_TEMPLATES env var")
 		}
 		templatesEnv.Value += ",https"
-	}
-	return nil
-}
-
-// getEnv searches the environment variable array in the passed container for an env var with the passed name.
-// If found, returns a ref to the env var, else returns nil.
-func getEnv(container *corev1.Container, envName string) *corev1.EnvVar {
-	for i := 0; i < len(container.Env); i++ {
-		if container.Env[i].Name == envName {
-			return &container.Env[i]
-		}
 	}
 	return nil
 }

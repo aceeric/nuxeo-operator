@@ -344,6 +344,16 @@ spec:
                           description: JavaOpts define environment variables that
                             are passed on to the JVM in the container
                           type: string
+                        jvmPKISecret:
+                          description: 'JvmPKISecret names a secret containing six
+                            keys that are used to establish the JVM-wide keystore/truststore.
+                            The operator mounts the keystore and truststore files
+                            into the Nuxeo container, and sets environment variables
+                            which the Nuxeo loader passes through into the JVM. All
+                            of the following keys will be configured from the secret
+                            into JVM keystore/truststore properties: keyStore, keyStorePassword,
+                            keyStoreType, trustStore, trustStorePassword, and trustStoreType.'
+                          type: string
                         nuxeoConf:
                           description: NuxeoConf specifies values to append to nuxeo.conf.
                             Values can be provided inline, or from a Secret or ConfigMap
@@ -9806,7 +9816,7 @@ spec:
                           configuration to the Nginx container
                         type: string
                       image:
-                        description: Specifies the image
+                        description: Specifies the Nginx image
                         type: string
                       imagePullPolicy:
                         description: Image pull policy. If not specified, then if

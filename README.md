@@ -84,10 +84,9 @@ Version 0.5.0 incorporates some more advanced features into the Operator and ext
 | ------------------------------------------------------------ | ------ |
 | Support a Secret with payload for TLS termination in the Route/Ingress. Previously, TLS passthrough was the only tested functionality |        |
 | Support the ability to terminate TLS directly in Nuxeo, rather than requiring a sidecar. | complete  |
-| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA. This would require a CA bundle+cert and passwords |        |
+| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA. This would require a CA bundle+cert and passwords | complete |
 | Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster |        |
 | Ability to configure *Interactive* nodes and *Worker* nodes differently. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI |        |
-| Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |        |
 
 
 
@@ -112,8 +111,10 @@ Version 0.7.0 makes the Operator available as a Community Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
+| Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
+| Address all "todo-me" in the code |  |
 | Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with those production environments |        |
-| Build out the Status field in the Nuxeo CR to be comparable with other resources | |
+| Build out the Status field in the Nuxeo CR to be comparable with other resources available on OperatorHub | |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |        |
 | Provide `kustomize` examples to illustrate bringing up an exemplar Nuxeo Cluster using kustomize) https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |        |
 | Review and augment unit and e2e tests                        |        |
@@ -136,6 +137,7 @@ These have not been prioritized yet.
 | Deploy a cluster as a Stateful Set or Deployment |        |
 | JetStack Cert Manager integration |        |
 | Horizontal Pod Auto-scaling |        |
+| cert-utils support? (https://github.com/redhat-cop/cert-utils-operator) | |
 | Other?... |        |
 
 

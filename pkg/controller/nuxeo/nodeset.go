@@ -2,6 +2,7 @@ package nuxeo
 
 import (
 	"context"
+	goerrors "errors"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -167,7 +168,16 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 		return nil, err
 	}
 	// 'NuxeoConfig' in the NodeSet
-	if err := handleConfig(nux, dep, nodeSet); err != nil {
+	jvmPkiSecret := corev1.Secret{}
+	if nodeSet.NuxeoConfig.JvmPKISecret != "" {
+		// if the config specifies a JVM PKI secret, get it here so lower layers in the call stack aren't doing
+		// a lot of cluster I/O and can instead be focused on basic struct initialization
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: nodeSet.NuxeoConfig.JvmPKISecret,
+			Namespace: nux.ObjectMeta.Namespace}, &jvmPkiSecret); err != nil {
+			return nil, goerrors.New("Nuxeo configuration specifies JVM PKI secret that does not exist: "+nodeSet.NuxeoConfig.JvmPKISecret)
+		}
+	}
+	if err := handleConfig(nux, dep, nodeSet, jvmPkiSecret); err != nil {
 		return nil, err
 	}
 	//if util.HashObject(nodeSet.PodTemplate.Spec) != util.HashObject(corev1.PodSpec{}) {

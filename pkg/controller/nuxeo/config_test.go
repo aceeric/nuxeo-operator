@@ -1,6 +1,7 @@
 package nuxeo
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 
@@ -21,12 +22,14 @@ import (
 func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	nux := suite.nuxeoConfigSuiteNewNuxeo()
 	dep := genTestDeploymentForConfigSuite()
-	err := handleConfig(nux, &dep, nux.Spec.NodeSets[0])
+	sec := genTestJvmPkiSecret()
+	err := handleConfig(nux, &dep, nux.Spec.NodeSets[0], sec)
 	require.Nil(suite.T(), err, "handleConfig failed with err: %v\n", err)
 	validActualEnvCnt := 0
 	for _, env := range dep.Spec.Template.Spec.Containers[0].Env {
 		switch {
-		case env.Name == "JAVA_OPTS" && env.Value == suite.javaOpts:
+		case env.Name == "JAVA_OPTS" && strings.Contains(env.Value, suite.javaOpts) &&
+			strings.Contains(env.Value, "-Djavax.net.ssl."):
 			validActualEnvCnt += 1
 		case env.Name == "NUXEO_TEMPLATES" && env.Value == strings.Join(suite.nuxeoTemplates, ","):
 			validActualEnvCnt += 1
@@ -40,9 +43,9 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	}
 	require.Equal(suite.T(), 5, validActualEnvCnt,
 		"Configuration environment variables were not created correctly\n")
-	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
+	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
 		"Volume Mounts not correctly defined")
-	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes),
+	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Volumes),
 		"Volumes not correctly defined")
 	actualCmName := dep.Spec.Template.Spec.Volumes[0].ConfigMap.Name
 	expectedCmName := suite.nuxeoName + "-" + suite.deploymentName + "-nuxeo-conf"
@@ -110,6 +113,10 @@ func (suite *nuxeoConfigSuite) nuxeoConfigSuiteNewNuxeo() *v1alpha1.Nuxeo {
 					NuxeoConf: v1alpha1.NuxeoConfigSetting{
 						Value: suite.nuxeoConfContent,
 					},
+					// this is ignored by the unit test because the unit test tests at a lower layer than this is
+					// looked at by the operator but it seems better to init the struct the way it would actually
+					// be used
+					JvmPKISecret: "jvm-pki-secret",
 				},
 			}},
 		},
@@ -136,4 +143,26 @@ func genTestDeploymentForConfigSuite() appsv1.Deployment {
 		},
 	}
 	return dep
+}
+
+// getTestJvmPkiSecret creates and returns a Secret with all six fields supported by the Operator for
+// configuring the JVM KeyStore/TrustStore. It simulates an existing secret referenced by the NodeSet.
+// NuxeoConfig.JvmPKISecret property
+func genTestJvmPkiSecret() corev1.Secret {
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "jvm-pki-secret",
+		},
+		Data: map[string][]byte{},
+	}
+	storeType, storePass := "jks", "frobozz"
+	storeTypeEncoded := base64.StdEncoding.EncodeToString([]byte(storeType))
+	storePassEncoded := base64.StdEncoding.EncodeToString([]byte(storePass))
+	secret.Data["keyStore"] = []byte{}
+	secret.Data["keyStoreType"] = []byte(storeTypeEncoded)
+	secret.Data["keyStorePassword"] = []byte(storePassEncoded)
+	secret.Data["trustStore"] = []byte{}
+	secret.Data["trustStoreType"] = []byte(storeTypeEncoded)
+	secret.Data["trustStorePassword"] = []byte(storePassEncoded)
+	return secret
 }

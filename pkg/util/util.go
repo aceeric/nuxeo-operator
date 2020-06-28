@@ -64,3 +64,15 @@ func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error){
 	}
 	return nil, goerrors.New("could not find a container named 'nuxeo' in the deployment")
 }
+
+// GetEnv searches the environment variable array in the passed container for an env var with the passed name.
+// If found, returns a ref to the env var, else returns nil.
+func GetEnv(container *corev1.Container, envName string) *corev1.EnvVar {
+	for i := 0; i < len(container.Env); i++ {
+		if container.Env[i].Name == envName {
+			return &container.Env[i]
+		}
+	}
+	return nil
+}
+

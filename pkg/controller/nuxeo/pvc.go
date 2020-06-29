@@ -33,7 +33,7 @@ func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Lo
 				_ = controllerutil.SetControllerReference(instance, &storage.VolumeClaimTemplate, r.scheme)
 				expectedPvcs = append(expectedPvcs, storage.VolumeClaimTemplate)
 			} else if storage.VolumeSource == (corev1.VolumeSource{}) {
-				// default PVC
+				// default PVC - let the operator define the PVC struct
 				volName := volumeNameForStorage(storage.StorageType)
 				pvc := corev1.PersistentVolumeClaim{
 					ObjectMeta: metav1.ObjectMeta{
@@ -52,7 +52,7 @@ func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Lo
 				_ = controllerutil.SetControllerReference(instance, &pvc, r.scheme)
 				expectedPvcs = append(expectedPvcs, pvc)
 			} else {
-				// volume source explicitly defined in CR so do not create a PVC
+				// volume source explicitly defined in CR so do not reconcile a PVC for this storage spec
 			}
 		}
 	}
@@ -86,8 +86,8 @@ func getPvc(pvcs []corev1.PersistentVolumeClaim, pvcName string) *corev1.Persist
 }
 
 // addPvcs creates expected PVCs in the cluster if 1) not already existent, or 2) the specs differ. If there
-// is an existing PVC for an expected PVC (same name) and that existing PVC is not owned by the passed Nuxeo then that
-// is an error condition, and a non-nil error is returned.
+// is an existing PVC for an expected PVC (same name) and that existing PVC is not owned by the passed Nuxeo
+// CR, then that is an error condition, and a non-nil error is returned.
 func addPvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.PersistentVolumeClaim,
 	actual []corev1.PersistentVolumeClaim) error {
 	for _, expectedPvc := range expected {
@@ -117,8 +117,8 @@ func addPvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.Pers
 }
 
 // deletePvcs removes orphaned PVCs. The use case is: a Nuxeo CR is deployed with a PVC defined for, say, Data.
-// Someone edits the CR and changes the name of the PVC. This function removes the previous PVC. Only PVCs
-// owned by the passed Nuxeo instance are removed.
+// Someone edits the Nuxeo CR and changes the name of the PVC. This function removes the previous PVC. Only PVCs
+// owned by the passed Nuxeo CR are removed.
 func deletePvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.PersistentVolumeClaim,
 	actual []corev1.PersistentVolumeClaim) error {
 	for _, actualPvc := range actual {

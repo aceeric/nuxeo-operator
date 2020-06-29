@@ -80,10 +80,7 @@ spec:
     nuxeoConfig:
       nuxeoPackages:
       - nuxeo-web-ui
-      nuxeoUrl: "http://nuxeo-server.apps-crc.testing/nuxeo"
-      nuxeoName: "nuxeo-test"
-
-      #### this property configures Nuxeo ####
+      # this property configures Nuxeo:
       jvmPKISecret: jvm-pki-secret
 EOF
 ```

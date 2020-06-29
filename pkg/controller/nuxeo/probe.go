@@ -35,10 +35,10 @@ func addProbes(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet, useHttps bool) 
 	}
 }
 
-// defaultProbe creates and returns a pointer to a default liveness/readiness probe struct. If useHttps is passed
+// defaultProbe creates - and returns a pointer to - a default liveness/readiness probe struct. If useHttps is passed
 // as true then the probe is configured to use HTTPS port 8443, else HTTP port 8080. Per Kubernetes spec, If the
 // scheme field is set to HTTPS, the kubelet sends an HTTPS request skipping certificate verification. So this
-// probe works even with self-signed certs in a test-style environment.
+// probe works even with Nuxeo terminating TLS using self-signed certs in a test-style environment.
 func defaultProbe(useHttps bool) *corev1.Probe {
 	scheme := corev1.URISchemeHTTP
 	port := int32(8080)

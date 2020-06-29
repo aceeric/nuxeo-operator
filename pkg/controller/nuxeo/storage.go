@@ -131,6 +131,7 @@ func createVolumeForStorage(storage v1alpha1.NuxeoStorageSpec) (corev1.Volume, e
 	return vol, nil
 }
 
+// volumeNameForStorage translates the passed storage type to a Volume name.
 func volumeNameForStorage(storageType v1alpha1.NuxeoStorage) string {
 	switch storageType {
 	case v1alpha1.NuxeoStorageBinaries:

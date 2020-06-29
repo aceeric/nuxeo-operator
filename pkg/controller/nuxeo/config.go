@@ -2,6 +2,7 @@ package nuxeo
 
 import (
 	goerrors "errors"
+	"strconv"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -28,8 +29,13 @@ func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.
 	configureNuxeoPackages(nuxeoContainer, nodeSet)
 	configureNuxeoURL(nuxeoContainer, nodeSet)
 	configureNuxeoEnvName(nuxeoContainer, nodeSet)
-	configureNuxeoConf(nux, dep, nuxeoContainer, nodeSet)
+	if err := configureNuxeoConf(nux, dep, nuxeoContainer, nodeSet); err != nil {
+		return err
+	}
 	if err := configureJvmPki(dep, nuxeoContainer, jvmPkiSecret); err != nil {
+		return err
+	}
+	if err := configureOfflinePackages(dep, nuxeoContainer, nodeSet); err != nil {
 		return err
 	}
 	return nil
@@ -105,36 +111,50 @@ func configureNuxeoEnvName(nuxeoContainer *corev1.Container, nodeSet v1alpha1.No
 //     value: |
 //       nuxeo.force.generation=true
 //       repository.clustering.enabled=true
-// In this case, this code initializes a volume mount, and a config map volume to reference a ConfigMap holding
-// the inlined nuxeo.conf content from the CR. This section of code simply configures the volume and volume mount.
+// The function initializes a volume mount, and a config map volume to reference a ConfigMap holding
+// the inlined nuxeo.conf content from the CR. This function only configures the volume and volume mount.
 // See the reconcileNuxeoConf function for the code that reconciles the actual ConfigMap. If the nodeSet
 // .NuxeoConfig.NuxeoConf.ValueFrom field is initialized rather than nodeSet.NuxeoConfig.NuxeoConf.Value then
-// the volume and mount are still initialized here, but the ConfigMap is expected to have been provided by the
-// configurer, external to the operator.
+// the volume and mount are still initialized here, but the volume source is expected to have been provided
+// by the configurer, external to the operator.
 // todo-me need to completely replace nuxeo.conf? How to reconcile user-provided nuxeo.conf with
 //  auto-generated '### BEGIN - DO NOT EDIT BETWEEN BEGIN AND END ###' in the generated nuxeo.conf?
 func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nuxeoContainer *corev1.Container,
-	nodeSet v1alpha1.NodeSet) {
-	if nodeSet.NuxeoConfig.NuxeoConf != (v1alpha1.NuxeoConfigSetting{}) {
-		volMnt := corev1.VolumeMount{
-			Name:      "nuxeoconf",
-			ReadOnly:  false,
-			MountPath: "/docker-entrypoint-initnuxeo.d",
-		}
-		nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
-		vol := corev1.Volume{
-			Name: "nuxeoconf",
-		}
-		if nodeSet.NuxeoConfig.NuxeoConf.Value != "" {
-			cmName := nux.Name + "-" + nodeSet.Name + "-nuxeo-conf"
-			vol.ConfigMap = &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
-			}
-		} else {
-			vol.VolumeSource = nodeSet.NuxeoConfig.NuxeoConf.ValueFrom
-		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+	nodeSet v1alpha1.NodeSet) error {
+	if nodeSet.NuxeoConfig.NuxeoConf == (v1alpha1.NuxeoConfigSetting{}) {
+		return nil
 	}
+	if nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) &&
+		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom.ConfigMap == nil &&
+		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom.Secret == nil {
+		return goerrors.New("only ConfigMap and Secret volume sources are currently supported")
+	}
+	volMnt := corev1.VolumeMount{
+		Name:      "nuxeoconf",
+		ReadOnly:  false,
+		MountPath: "/docker-entrypoint-initnuxeo.d/nuxeo.conf",
+		SubPath:   "nuxeo.conf",
+	}
+	nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+	vol := corev1.Volume{
+		Name: "nuxeoconf",
+	}
+	if nodeSet.NuxeoConfig.NuxeoConf.Value != "" {
+		cmName := nux.Name + "-" + nodeSet.Name + "-nuxeo-conf"
+		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
+			Items: []corev1.KeyToPath{{
+				Key:  "nuxeo.conf",
+				Path: "nuxeo.conf",
+			}},
+		}
+	} else {
+		// configurer is responsible to ensure that nuxeo.conf key is present in the config map volume
+		// source or secret volume source.
+		vol.VolumeSource = nodeSet.NuxeoConfig.NuxeoConf.ValueFrom
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+	return nil
 }
 
 // configureJvmPki adds a new - or appends to an existing - JAVA_OPTS env var in the passed container's env var
@@ -195,14 +215,21 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: jvmPkiSecret.Name,
-					Items: []corev1.KeyToPath{{
-						Key:  "trustStore",
-						Path: trustStoreName,
-					}, {
-						Key:  "keyStore",
-						Path: keyStoreName,
-					}},
 				}},
+		}
+		if trustStoreName != "" {
+			jvmPkiVol.VolumeSource.Secret.Items = append(jvmPkiVol.VolumeSource.Secret.Items,
+				corev1.KeyToPath{
+					Key:  "trustStore",
+					Path: trustStoreName,
+				})
+		}
+		if keyStoreName != "" {
+			jvmPkiVol.VolumeSource.Secret.Items = append(jvmPkiVol.VolumeSource.Secret.Items,
+				corev1.KeyToPath{
+					Key:  "keyStore",
+					Path: keyStoreName,
+				})
 		}
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, jvmPkiVol)
 	}
@@ -222,10 +249,10 @@ func storeTypeToFileExtension(storeType string) string {
 	return lower
 }
 
-// mergeOrAdd searches the environment variable array in the passed container for an environment variable
-// whose name matches the name of the passed environment variable struct. If found in the container array,
-// the value of the passed variable is appended to the value of the existing environment variable in the array.
-// Otherwise the passed environment variable is appended to the container env var array.
+// mergeOrAdd searches the environment variable array in the passed container for an entry whose name matches
+// the name of the passed environment variable struct. If found in the container array, the value of the passed
+// variable is appended to the value of the existing variable. Otherwise the passed environment variable is appended
+// to the array.
 func mergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string) error {
 	if env.ValueFrom != nil {
 		return goerrors.New("mergeOrAdd cannot be used for 'ValueFrom' environment variables")
@@ -237,6 +264,47 @@ func mergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string
 			return goerrors.New("mergeOrAdd cannot be used for 'ValueFrom' environment variables")
 		}
 		existingEnv.Value += separator + env.Value
+	}
+	return nil
+}
+
+// configureOfflinePackages creates a volume and volume mount for each marketplace package in the list of
+// offline packages. The results is that each ZIP file is projected into /docker-entrypoint-initnuxeo.d in the Nuxeo
+// container, causing Nuxeo to
+func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Container,	nodeSet v1alpha1.NodeSet) error {
+	for i, pkg := range nodeSet.NuxeoConfig.OfflinePackages {
+		if pkg.ValueFrom.ConfigMap == nil && pkg.ValueFrom.Secret == nil {
+			return goerrors.New("only ConfigMaps and Secrets are currently supported for offline packages")
+		}
+		mntName := "offline-package-"+strconv.Itoa(i)
+		volMnt := corev1.VolumeMount{
+			Name:      mntName,
+			ReadOnly:  true,
+			MountPath: "/docker-entrypoint-initnuxeo.d/"+ pkg.PackageName,
+			SubPath:   pkg.PackageName,
+		}
+		nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+		vol := corev1.Volume{
+			Name: mntName,
+		}
+		if pkg.ValueFrom.ConfigMap != nil {
+			vol.ConfigMap = &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: pkg.ValueFrom.ConfigMap.Name},
+				Items: []corev1.KeyToPath{{
+					Key:  pkg.PackageName,
+					Path: pkg.PackageName,
+				}},
+			}
+		} else {
+			vol.Secret = &corev1.SecretVolumeSource{
+				SecretName: pkg.ValueFrom.Secret.SecretName,
+				Items: []corev1.KeyToPath{{
+					Key:  pkg.PackageName,
+					Path: pkg.PackageName,
+				}},
+			}
+		}
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
 	}
 	return nil
 }

@@ -20,9 +20,10 @@ func (suite *probeSuite) TestProbes() {
 	err := addProbes(&dep, nux.Spec.NodeSets[0], false)
 	require.Nil(suite.T(), err, "addProbes failed with err: %v\n", err)
 	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].LivenessProbe, defaultProbe(false),
-		"Incorrect LivenessProbe\n")
+		"No explicit LivenessProbe was defined so a default should have been generated - but it was not. Or, it was generated incorrectly\n")
+	// explicit probe - should match
 	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].ReadinessProbe, nux.Spec.NodeSets[0].ReadinessProbe,
-		"Incorrect ReadinessProbe\n")
+		"Explicit ReadinessProbe was defined. Actual ReadinessProbe should have been identical but was not\n")
 }
 
 func (suite *probeSuite) TestProbesHttps() {

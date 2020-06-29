@@ -85,7 +85,7 @@ Version 0.5.0 incorporates some more advanced features into the Operator and ext
 | Support a Secret with payload for TLS termination in the Route/Ingress. Previously, TLS passthrough was the only tested functionality |        |
 | Support the ability to terminate TLS directly in Nuxeo, rather than requiring a sidecar. | complete  |
 | Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA. This would require a CA bundle+cert and passwords | complete |
-| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster |        |
+| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster | complete |
 | Ability to configure *Interactive* nodes and *Worker* nodes differently. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI |        |
 
 
@@ -292,7 +292,7 @@ To review what happened so far:
 3. The Operator saw the Nuxeo CR you generated, and created a Route/Ingress, a Service, a Service Account, and a Deployment. The Operator passed the `NUXEO_PACKAGES` environment variable from the Nuxeo CR into the Deployment
 4. The cluster reconciled the Deployment into a ReplicaSet and a Pod. The Pod also got the `NUXEO_PACKAGES` environment variable. The Pod runs under the generated `nuxeo` Service Account
 5. The Pod started the Nuxeo Container
-6. The Nuxeo Container saw the environment variable `NUXEO_PACKAGES=nuxeo-web-ui` and so Nuxeo reached out over the Internet to a hard-coded Marketplace URL, got the package, and installed it into the Nuxeo Container
+6. The Nuxeo Container saw the environment variable `NUXEO_PACKAGES=nuxeo-web-ui` and so it installed that package into the Nuxeo Container
 7. You should now be able to log into this unlicensed development version of Nuxeo as `Administrator/Administrator` (make sure cookies are enabled)
 
 ##### **Next, test TLS access using an Nginx sidecar**

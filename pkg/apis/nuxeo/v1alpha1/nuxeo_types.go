@@ -212,8 +212,31 @@ type NuxeoConfigSetting struct {
 
 	// +kubebuilder:validation:Optional
 	// Source for the configuration settings's value. Either this, or the value must be specified, but not
-	// both.
+	// both. Only Secrets and Config maps are supported at the present time. Any other type of volume source
+	// will cause the operator to error. A later release may support the other volume sources.
 	// +optional
+	ValueFrom corev1.VolumeSource `json:"valueFrom,omitempty"`
+}
+
+// OfflinePackage supports installing Marketplace packages in a Kubernetes cluster without connectivity
+// to the Nuxeo Marketplace. A configurer creates or downloads a marketplace package ZIP, and
+// configures a storage resource containing the ZIP for that package. A Nuxeo CR is configured that references
+// that resource. The Operator configures Nuxeo so that - on startup - Nuxeo installs the package into
+// the running Nuxeo instance. In the current version, only ConfigMaps and Secrets can be used to hold the
+// package binaries. And only one package ZIP per ConfigMap/Secret is supported. The reason for this is
+// the the Nuxeo container init shell script only supports installing packages from a single directory level.
+// In order to support a persistent volume and claim, the Nuxeo script needs to be modified to support sub-directories.
+// If that change is made by Nuxeo, then this Operator will be updated to support mounting a volume into a
+// subdirectory of the Nuxeo container init directory. This will make it possible to do offline installation from
+// a single volume containing multiple packages.
+type OfflinePackage struct {
+	// For Secret and ConfigMap volume sources (currently the only two supported) this is the key in the
+	// object that contains the package ZIP. This becomes the file name of the ZIP in the Nuxeo container.
+	// E.g.: nuxeo-sample-2.5.3.zip
+	PackageName string `json:"packageName,omitempty"`
+
+	// Source for ZIP binary data. Only Secrets and Config maps are supported at the present time. Any other type
+	// of volume source will cause the operator to error. A later release may support the other volume sources.
 	ValueFrom corev1.VolumeSource `json:"valueFrom,omitempty"`
 }
 
@@ -231,8 +254,10 @@ type NuxeoConfig struct {
 	NuxeoTemplates []string `json:"nuxeoTemplates,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// NuxeoPackages defines a list of packages to install when starting Nuxeo
-	// +optional
+	// NuxeoPackages defines a list of packages to install when starting Nuxeo. These packages can only
+	// be installed if the Nuxeo cluster has internet access to Nuxeo Connect.
+	// todo-me consider ConnectPackages
+	//+optional
 	NuxeoPackages []string `json:"nuxeoPackages,omitempty"`
 
 	// +kubebuilder:validation:Optional
@@ -258,13 +283,20 @@ type NuxeoConfig struct {
 	TlsSecret string `json:"tlsSecret,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// JvmPKISecret names a secret containing six keys that are used to establish the JVM-wide keystore/truststore.
-	// The operator mounts the keystore and truststore files into the Nuxeo container, and sets environment
-	// variables which the Nuxeo loader passes through into the JVM. All of the following keys will be configured
-	// from the secret into JVM keystore/truststore properties: keyStore, keyStorePassword, keyStoreType,
+	// JvmPKISecret names a secret containing six keys that are used to configure the JVM-wide keystore/truststore
+	// for teh Nuxeo container. The operator mounts the keystore and truststore files into the Nuxeo container, and
+	// sets environment variables which the Nuxeo loader passes through into the JVM. All of the following keys will
+	// be configured from the secret into JVM keystore/truststore properties: keyStore, keyStorePassword, keyStoreType,
 	// trustStore, trustStorePassword, and trustStoreType.
 	// +optional
 	JvmPKISecret string `json:"jvmPKISecret,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// offlinePackages configures a list of Nuxeo marketplace packages (ZIP files) that have been made available to
+	// the Operator as externally configured storage resources. In the current version, only ConfigMaps and Secrets
+	// can be used to hold offline packages. And only one ZIP per ConfigMap/Secret is supported.
+	// +optional
+	OfflinePackages[]OfflinePackage `json:"offlinePackages,omitempty"`
 }
 
 // Defines the desired state of a Nuxeo cluster

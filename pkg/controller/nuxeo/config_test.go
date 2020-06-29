@@ -43,13 +43,13 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	}
 	require.Equal(suite.T(), 5, validActualEnvCnt,
 		"Configuration environment variables were not created correctly\n")
-	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
+	require.Equal(suite.T(), 4, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
 		"Volume Mounts not correctly defined")
-	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Volumes),
+	require.Equal(suite.T(), 4, len(dep.Spec.Template.Spec.Volumes),
 		"Volumes not correctly defined")
 	actualCmName := dep.Spec.Template.Spec.Volumes[0].ConfigMap.Name
 	expectedCmName := suite.nuxeoName + "-" + suite.deploymentName + "-nuxeo-conf"
-	require.Equal(suite.T(), expectedCmName, actualCmName, "Nuxeo conf molume mount not correctly defined")
+	require.Equal(suite.T(), expectedCmName, actualCmName, "Nuxeo conf volume mount not correctly defined")
 }
 
 // nuxeoConfigSuite is the NuxeoConfig test suite structure
@@ -117,6 +117,18 @@ func (suite *nuxeoConfigSuite) nuxeoConfigSuiteNewNuxeo() *v1alpha1.Nuxeo {
 					// looked at by the operator but it seems better to init the struct the way it would actually
 					// be used
 					JvmPKISecret: "jvm-pki-secret",
+
+					OfflinePackages: []v1alpha1.OfflinePackage{{
+						PackageName: "test-package1-4.5.6.zip",
+						ValueFrom: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "test-package1-configmap"},
+						}},
+					}, {
+						PackageName: "test-package2-1.2.3.zip",
+						ValueFrom: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+							SecretName: "test-package2-secret",
+						}},
+					}},
 				},
 			}},
 		},

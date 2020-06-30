@@ -147,6 +147,7 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 						}},
 						VolumeMounts: []corev1.VolumeMount{},
 						Env:          nodeSet.Env,
+						Resources:    nodeSet.Resources,
 					}},
 					Volumes: []corev1.Volume{},
 				},
@@ -174,7 +175,7 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 		// a lot of cluster I/O and can instead be focused on basic struct initialization
 		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: nodeSet.NuxeoConfig.JvmPKISecret,
 			Namespace: nux.ObjectMeta.Namespace}, &jvmPkiSecret); err != nil {
-			return nil, goerrors.New("Nuxeo configuration specifies JVM PKI secret that does not exist: "+nodeSet.NuxeoConfig.JvmPKISecret)
+			return nil, goerrors.New("Nuxeo configuration specifies JVM PKI secret that does not exist: " + nodeSet.NuxeoConfig.JvmPKISecret)
 		}
 	}
 	if err := handleConfig(nux, dep, nodeSet, jvmPkiSecret); err != nil {
@@ -272,7 +273,7 @@ func configureClustering(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error
 
 // binaryStorageIsDefined returns true if the passed nodeset defines a 'Binaries' storage type, otherwise
 // returns false
-func binaryStorageIsDefined(nodeSet v1alpha1.NodeSet) bool{
+func binaryStorageIsDefined(nodeSet v1alpha1.NodeSet) bool {
 	for _, storage := range nodeSet.Storage {
 		if storage.StorageType == v1alpha1.NuxeoStorageBinaries {
 			return true

@@ -271,16 +271,16 @@ func mergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string
 // configureOfflinePackages creates a volume and volume mount for each marketplace package in the list of
 // offline packages. The results is that each ZIP file is projected into /docker-entrypoint-initnuxeo.d in the Nuxeo
 // container, causing Nuxeo to
-func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Container,	nodeSet v1alpha1.NodeSet) error {
+func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) error {
 	for i, pkg := range nodeSet.NuxeoConfig.OfflinePackages {
 		if pkg.ValueFrom.ConfigMap == nil && pkg.ValueFrom.Secret == nil {
 			return goerrors.New("only ConfigMaps and Secrets are currently supported for offline packages")
 		}
-		mntName := "offline-package-"+strconv.Itoa(i)
+		mntName := "offline-package-" + strconv.Itoa(i)
 		volMnt := corev1.VolumeMount{
 			Name:      mntName,
 			ReadOnly:  true,
-			MountPath: "/docker-entrypoint-initnuxeo.d/"+ pkg.PackageName,
+			MountPath: "/docker-entrypoint-initnuxeo.d/" + pkg.PackageName,
 			SubPath:   pkg.PackageName,
 		}
 		nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)

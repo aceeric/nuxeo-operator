@@ -88,6 +88,15 @@ type NodeSet struct {
 	Interactive bool `json:"interactive,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// Turns on repository clustering per https://doc.nuxeo.com/nxdoc/next/nuxeo-clustering-configuration/.
+	// Sets nuxeo.conf properties: repository.binary.store=/var/lib/nuxeo/binaries/binaries. Sets
+	// nuxeo.cluster.enabled=true and nuxeo.cluster.nodeid={env:POD_UID}. Sets POD_UID env var using the
+	// downward API. Requires the configurer to specify storage.storageType.Binaries and errors if this is not
+	// the configured.
+	// +optional
+	ClusterEnabled bool `json:"clusterEnabled,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// Supports adding environment variables into the Nuxeo container created by the Operator for this NodeSet. If
 	// the PodTemplate is specified, these environment variables are ignored and the environment variables from the
 	// PodTemplate - whether they are explicitly defined or not - are used.
@@ -121,6 +130,7 @@ type NodeSet struct {
 	// +kubebuilder:validation:Optional
 	// Provides the ability to override hard-coded pod defaults, enabling fine-grained control over the
 	// configuration of the Pods in the Deployment.
+	// todo-me given the complexity of configuring a pod maybe this just be removed
 	// +optional
 	PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
 }

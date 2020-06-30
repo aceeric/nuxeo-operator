@@ -86,6 +86,14 @@ spec:
                     to define different configurations for a Deployment of interactive
                     Nuxeo nodes vs a Deployment of worker Nuxeo nodes.
                   properties:
+                    clusterEnabled:
+                      description: 'Turns on repository clustering per https://doc.nuxeo.com/nxdoc/next/nuxeo-clustering-configuration/.
+                        Sets nuxeo.conf properties: repository.binary.store=/var/lib/nuxeo/binaries/binaries.
+                        Sets nuxeo.cluster.enabled=true and nuxeo.cluster.nodeid={env:POD_UID}.
+                        Sets POD_UID env var using the downward API. Requires the
+                        configurer to specify storage.storageType.Binaries and errors
+                        if this is not the configured.'
+                      type: boolean
                     env:
                       description: Supports adding environment variables into the
                         Nuxeo container created by the Operator for this NodeSet.
@@ -1764,7 +1772,16 @@ spec:
                               installs the package into the running Nuxeo instance.
                               In the current version, only ConfigMaps and Secrets
                               can be used to hold the package binaries. And only one
-                              package ZIP per ConfigMap/Secret is supported.
+                              package ZIP per ConfigMap/Secret is supported. The reason
+                              for this is the the Nuxeo container init shell script
+                              only supports installing packages from a single directory
+                              level. In order to support a persistent volume and claim,
+                              the Nuxeo script needs to be modified to support sub-directories.
+                              If that change is made by Nuxeo, then this Operator
+                              will be updated to support mounting a volume into a
+                              subdirectory of the Nuxeo container init directory.
+                              This will make it possible to do offline installation
+                              from a single volume containing multiple packages.
                             properties:
                               packageName:
                                 description: 'For Secret and ConfigMap volume sources
@@ -3168,7 +3185,8 @@ spec:
                     podTemplate:
                       description: Provides the ability to override hard-coded pod
                         defaults, enabling fine-grained control over the configuration
-                        of the Pods in the Deployment.
+                        of the Pods in the Deployment. todo-me given the complexity
+                        of configuring a pod maybe this just be removed
                       properties:
                         metadata:
                           description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'

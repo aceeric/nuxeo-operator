@@ -42,7 +42,7 @@ func createEnvVarForStorage(storageType v1alpha1.NuxeoStorage, mountPath string)
 	case v1alpha1.NuxeoStorageBinaries:
 		return corev1.EnvVar{
 			Name:  "NUXEO_BINARY_STORE",
-			Value: mountPath,
+			Value: mountPath + "/binaries", // per https://doc.nuxeo.com/nxdoc/next/nuxeo-clustering-configuration/
 		}
 	case v1alpha1.NuxeoStorageTransientStore:
 		return corev1.EnvVar{
@@ -63,7 +63,7 @@ func createEnvVarForStorage(storageType v1alpha1.NuxeoStorage, mountPath string)
 // createVolumeMountForStorage creates and returns a VolumeMount struct for the passed storage and volume. Caller
 // must add the struct to the Deployment.
 func createVolumeMountForStorage(storageType v1alpha1.NuxeoStorage, volumeName string) corev1.VolumeMount {
-	mountPath := getPathForStorageType(storageType)
+	mountPath := getMountPathForStorageType(storageType)
 	// todo-me I think this probably gets removed from the spec
 	//if storage.MountPath != "" {
 	//	mountPath = storage.MountPath
@@ -76,9 +76,9 @@ func createVolumeMountForStorage(storageType v1alpha1.NuxeoStorage, volumeName s
 	return volMnt
 }
 
-// getPathForStorageType returns a Nuxeo-standard filesystem path for the passed storage type. E.g. 'NuxeoStorageBinaries'
+// getMountPathForStorageType returns a Nuxeo-standard filesystem path for the passed storage type. E.g. 'NuxeoStorageBinaries'
 // go in /var/lib/nuxeo/binaries, etc.
-func getPathForStorageType(storageType v1alpha1.NuxeoStorage) string {
+func getMountPathForStorageType(storageType v1alpha1.NuxeoStorage) string {
 	switch storageType {
 	case v1alpha1.NuxeoStorageBinaries:
 		return "/var/lib/nuxeo/binaries"

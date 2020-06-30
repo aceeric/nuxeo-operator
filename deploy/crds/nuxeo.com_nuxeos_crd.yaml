@@ -67,6 +67,9 @@ spec:
                 required:
                 - hostname
                 type: object
+              clid:
+                description: Nuxeo CLID
+                type: string
               imagePullPolicy:
                 description: Image pull policy. If not specified, then if 'nuxeoImage'
                   is specified with the :latest tag, then this is 'Always', otherwise

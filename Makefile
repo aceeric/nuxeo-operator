@@ -105,6 +105,11 @@ index-add:
 index-push:
 	$(OCICLI) push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(INDEX_IMAGE_NAME):$(OPERATOR_VERSION)
 
+.PHONY : apply-crd
+apply-crd:
+	kubectl delete crd/nuxeos.nuxeo.com
+	cat $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml | kubectl create -f -
+
 .PHONY : help
 help:
 	echo "$$HELPTEXT"

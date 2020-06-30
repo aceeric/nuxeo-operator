@@ -104,6 +104,11 @@ type NodeSet struct {
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// Compute Resources required by containers. Cannot be updated.
+	// +optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// Supports a custom readiness probe. If not explicitly specified in the CR then a default httpGet readiness
 	// probe on /nuxeo/runningstatus:8080 will be defined by the operator. To disable a probe, define an exec
 	// probe that invokes the command 'true'

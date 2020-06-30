@@ -88,8 +88,8 @@ Version 0.5.0 incorporates some more advanced features into the Operator and ext
 | Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster | complete |
 | Ability to configure *Interactive* nodes and *Worker* nodes differently. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI |        |
 | Support clustering - use Pod UID as `nuxeo.cluster.nodeid` via the downward API | complete |
-| Support defining resource request/limit in the Nuxeo CR |          |
-| Support Nuxeo CLID |          |
+| Support defining resource request/limit in the Nuxeo CR | complete |
+| Support Nuxeo CLID | complete |
 
 
 

@@ -87,6 +87,9 @@ Version 0.5.0 incorporates some more advanced features into the Operator and ext
 | Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA. This would require a CA bundle+cert and passwords | complete |
 | Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster | complete |
 | Ability to configure *Interactive* nodes and *Worker* nodes differently. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI |        |
+| Support clustering - use Pod UID as `nuxeo.cluster.nodeid` via the downward API | complete |
+| Support defining resource request/limit in the Nuxeo CR |          |
+| Support Nuxeo CLID |          |
 
 
 

@@ -14,16 +14,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// reconcileNuxeoConf inspects the Nuxeo CR to see if it contains an inline nuxeo.conf. If it does, then the function
-// creates a ConfigMap struct to hold the contents. The inlined content is placed into the ConfigMap identified by
-// the key 'nuxeo.conf'. The function then reconciles this with the cluster. The caller must have defined a Volume and
-// VolumeMount elsewhere to reference the ConfigMap. (See the handleConfig function for details.) If the Nuxeo CR
-// indicates that an inline nuxeo.conf should not exist, then the function makes sure a ConfigMap does not exist
-// in the cluster. The ConfigMap is given a hard-coded name: nuxeo cluster name + "-" + node set name + "-nuxeo-conf".
+// reconcileNuxeoConf inspects the Nuxeo CR to see if it contains an inline nuxeo.conf, or, clustering is
+// enabled. If true, then the function creates a ConfigMap struct to hold the inlined nuxeo.conf and/or the
+// clustering config. The content is placed into the ConfigMap identified by the key 'nuxeo.conf'. The function
+// then reconciles this with the cluster. The caller must have defined a Volume and VolumeMount elsewhere to
+// reference the ConfigMap. (See the handleConfig function for details.) If the Nuxeo CR indicates that an
+// inline nuxeo.conf should not exist, then the function makes sure a ConfigMap does not exist in the cluster.
+// The ConfigMap is given a hard-coded name: nuxeo cluster name + "-" + node set name + "-nuxeo-conf".
 // E.g.: 'my-nuxeo-cluster-nuxeo-conf'.
 func reconcileNuxeoConf(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet,
 	reqLogger logr.Logger) (reconcile.Result, error) {
-	if nodeSet.NuxeoConfig.NuxeoConf.Value != "" {
+	if nodeSet.NuxeoConfig.NuxeoConf.Value != "" || nodeSet.ClusterEnabled {
 		return addOrUpdate(r, instance, nodeSet, reqLogger)
 	} else {
 		return removeIfPresent(r, instance, nodeSet, reqLogger)
@@ -61,10 +62,10 @@ func removeIfPresent(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alph
 }
 
 // addOrUpdate reconciles an expected nuxeo.conf ConfigMap into the cluster. Expectation is the caller only calls
-// this if the passed NodeSet contains an inlined nuxeo.conf.
+// this if the passed NodeSet contains an inlined nuxeo.conf, or clustering is enabled.
 func addOrUpdate(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet,
 	reqLogger logr.Logger) (reconcile.Result, error) {
-	expected := r.defaultNuxeoConfCM(instance, nodeSet.Name, nodeSet.NuxeoConfig.NuxeoConf.Value)
+	expected := r.defaultNuxeoConfCM(instance, nodeSet.Name, nodeSet.NuxeoConfig.NuxeoConf.Value, nodeSet.ClusterEnabled)
 	found := &corev1.ConfigMap{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
@@ -91,10 +92,24 @@ func addOrUpdate(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alpha1.N
 }
 
 // defaultNuxeoConfCM generates a ConfigMap struct in a standard internally-defined form to hold the passed
-// inline nuxeo conf string data. The generated struct is configured to be owned by the passed 'nux'. A ref to the
-// generated struct is returned.
-func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName string, nuxeoConf string) *corev1.ConfigMap {
+// inline nuxeo conf string data, and/or clustering config settings. The generated struct is configured to be
+// owned by the passed 'nux'. A ref to the generated struct is returned.
+func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName string,
+	nuxeoConf string, clusterEnabled bool) *corev1.ConfigMap {
 	cmName := nux.Name + "-" + nodeSetName + "-nuxeo-conf"
+	if clusterEnabled {
+		if nuxeoConf != "" {
+			nuxeoConf += "\n"
+		}
+		// configureClustering() creates POD_UID. configureClustering will also ensure that a binary
+		// storage is configured. The binary storage will create env var NUXEO_BINARY_STORE.
+		// See storage.go
+		nuxeoConf +=
+			"repository.binary.store=${env:NUXEO_BINARY_STORE}\n" +
+			"nuxeo.cluster.enabled=true\n" +
+			"nuxeo.cluster.nodeid=${env:POD_UID}\n"
+	}
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,

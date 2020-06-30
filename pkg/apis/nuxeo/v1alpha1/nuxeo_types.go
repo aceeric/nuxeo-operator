@@ -351,6 +351,11 @@ type NuxeoSpec struct {
 	// Each nodeSet causes a Deployment to be created with the specified number of replicas, and other
 	// characteristics specified within the nodeSet spec. At least one nodeSet is required
 	NodeSets []NodeSet `json:"nodeSets"`
+
+	// +kubebuilder:validation:Optional
+	// Nuxeo CLID
+	// +optional
+	Clid string `json:"clid,omitempty"`
 }
 
 // NuxeoStatus defines the observed state of a Nuxeo cluster. This is preliminary and will be expanded in later

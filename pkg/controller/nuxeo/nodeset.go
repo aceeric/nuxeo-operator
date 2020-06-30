@@ -180,6 +180,9 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 	if err := handleConfig(nux, dep, nodeSet, jvmPkiSecret); err != nil {
 		return nil, err
 	}
+	if err := handleClid(nux, dep); err != nil {
+		return nil, err
+	}
 	if err := configureClustering(dep, nodeSet); err != nil {
 		return nil, err
 	}

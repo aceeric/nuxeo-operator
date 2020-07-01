@@ -31,6 +31,10 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 		reqLogger.Error(err, "Error attempting to create default Deployment for NodeSet: "+nodeSet.Name)
 		return reconcile.Result{}, err
 	}
+	if err = configureContributions(r, instance, expected, nodeSet);err != nil {
+		reqLogger.Error(err, "Error attempting to configure contributions for NodeSet: "+nodeSet.Name)
+		return reconcile.Result{}, err
+	}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: depName, Namespace: instance.Namespace}, actual)
 	if err != nil && errors.IsNotFound(err) {
 		// Add any custom labels from NodeSet > PodTemplate > Metadata > Labels into Deployment > Spec > template >

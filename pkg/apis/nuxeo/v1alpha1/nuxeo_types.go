@@ -66,6 +66,31 @@ type NuxeoStorageSpec struct {
 	VolumeSource corev1.VolumeSource `json:"volumeSource,omitempty"`
 }
 
+// Contributions allow you to add ad-hoc or persistent contributions to the Nuxeo server. Two scenarios are
+// envisioned. For an ad-hoc contribution, you define a ConfigMap or Secret with the contribution contents, and define
+// the name of the contribution in the templates list. The operator configures that single contribution into Nuxeo by
+// mounting the files, and adding one entry into the nuxeo templates.
+//
+// For persistent contributions, you configure a persistent storage resource in the cluster that can contain multiple
+// contributions, each in its own sub-directory. You then configure the templates list with the contributions from
+// the store that you want configured into Nuxeo. The operator mounts the entire store, but only adds the specified
+// contributions into the nuxeo templates.
+type Contribution struct {
+	// For a ConfigMap or Secret contribution, only one entry is supported: the name that you want assigned to this
+	// contribution. E.g. if you specify '["my-contrib"]', then the operator mounts files into /etc/nuxeo/nuxeo-operator-config/my-contrib
+	// and sets NUXEO_TEMPLATES=...,/etc/nuxeo/nuxeo-operator-config/my-contrib. For other volume sources, this
+	// is a list of directories in the storage resource, and each one is added to NUXEO_TEMPLATES, but the entire
+	// volume is mounted into /etc/nuxeo/nuxeo-operator-config
+	Templates []string  `json:"templates"`
+
+	// For a ConfigMap or Secret, a key 'nuxeo.defaults' causes they value to be mounted as
+	// /etc/nuxeo/nuxeo-operator-config/<your contrib>/nuxeo.defaults. For all other keys, they are mounted as
+	// files in /etc/nuxeo/nuxeo-operator-config/<your contrib>/nxserver/config. For other volume sources, the
+	// entire volume is mounted under /etc/nuxeo/nuxeo-operator-config with the assumption that the tree structure
+	// is valid for a nuxeo contribution. See the documentation for additional details.
+	VolumeSource corev1.VolumeSource `json:"volumeSource"`
+}
+
 // NodeSet defines the structure of the Nuxeo cluster. Each NodeSet results in a Deployment. This supports the
 // capability to define different configurations for a Deployment of interactive Nuxeo nodes vs a Deployment
 // of worker Nuxeo nodes.
@@ -131,6 +156,11 @@ type NodeSet struct {
 	// NuxeoConfig defines some common configuration settings to customize Nuxeo
 	// +optional
 	NuxeoConfig NuxeoConfig `json:"nuxeoConfig,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Provides the ability to add custom or ad-hoc contributions directly into the Nuxeo server
+	// +optional
+	Contributions []Contribution `json:"contribs,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Provides the ability to override hard-coded pod defaults, enabling fine-grained control over the

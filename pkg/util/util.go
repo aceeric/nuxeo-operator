@@ -76,3 +76,25 @@ func GetEnv(container *corev1.Container, envName string) *corev1.EnvVar {
 	return nil
 }
 
+// MergeOrAdd searches the environment variable array in the passed container for an entry whose name matches
+// the name of the passed environment variable struct. If found in the container array, the value of the passed
+// variable is appended to the value of the existing variable, separated by the passed separator. Otherwise
+// the passed environment variable struct is appended to the container env var array. E.g. given a container
+// with an existing env var corev1.EnvVar{Name: "Z", Value "abc,123"}, then:
+//   MergeOrAdd(someContainer, corev1.EnvVar{Name: "Z", Value "xyz,456"}, ",")
+// updates the container's variable value to: "abc,123,xyz,456"
+func MergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string) error {
+	if env.ValueFrom != nil {
+		return goerrors.New("MergeOrAdd cannot be used for 'ValueFrom' environment variables")
+	}
+	if existingEnv := GetEnv(container, env.Name); existingEnv == nil {
+		container.Env = append(container.Env, env)
+	} else {
+		if existingEnv.ValueFrom != nil {
+			return goerrors.New("MergeOrAdd cannot be used for 'ValueFrom' environment variables")
+		}
+		existingEnv.Value += separator + env.Value
+	}
+	return nil
+}
+

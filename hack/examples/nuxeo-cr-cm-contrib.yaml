@@ -1,0 +1,35 @@
+apiVersion: nuxeo.com/v1alpha1
+kind: Nuxeo
+metadata:
+  name: my-nuxeo
+spec:
+  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:10.10
+  access:
+    hostname: nuxeo-server.apps-crc.testing
+  nodeSets:
+  - name: cluster
+    replicas: 1
+    interactive: true
+    nuxeoConfig:
+      nuxeoPackages:
+      - nuxeo-jsf-ui
+    contribs:
+    - volumeSource:
+        configMap:
+          name: my-contrib-configmap
+      templates:
+      - my-contrib
+    livenessProbe:
+      exec:
+        command:
+          - "true"
+    readinessProbe:
+      exec:
+        command:
+          - "true"
+#    - volumeSource:
+#        persistentVolumeClaim:
+#          claimName: my-contrib-pvc
+#      templates:
+#        - my-contrib1
+#        - my-contrib2

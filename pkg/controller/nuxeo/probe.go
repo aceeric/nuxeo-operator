@@ -14,7 +14,7 @@ import (
 //    path: /nuxeo/runningstatus
 //    port: 8080 (or 8443)
 //    scheme: HTTP (or HTTPS)
-//  initialDelaySeconds: 5
+//  initialDelaySeconds: 15
 //  timeoutSeconds: 3
 //  periodSeconds: 10
 //  successThreshold: 1
@@ -57,7 +57,7 @@ func defaultProbe(useHttps bool) *corev1.Probe {
 				Scheme: scheme,
 			},
 		},
-		InitialDelaySeconds: 5,
+		InitialDelaySeconds: 15,
 		TimeoutSeconds:      3,
 		PeriodSeconds:       10,
 		SuccessThreshold:    1,

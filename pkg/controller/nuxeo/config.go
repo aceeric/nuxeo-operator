@@ -51,7 +51,7 @@ func configureJavaOpts(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSe
 	if nodeSet.NuxeoConfig.JavaOpts != "" {
 		env.Value = nodeSet.NuxeoConfig.JavaOpts
 	}
-	if err := mergeOrAdd(nuxeoContainer, env, " "); err != nil {
+	if err := util.MergeOrAdd(nuxeoContainer, env, " "); err != nil {
 		return err
 	}
 	return nil
@@ -148,6 +148,7 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nuxeoContai
 				Path: "nuxeo.conf",
 			}},
 		}
+	// todo-me else handle secret
 	} else {
 		// configurer is responsible to ensure that nuxeo.conf key is present in the config map volume
 		// source or secret volume source.
@@ -199,7 +200,7 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 		Name:  "JAVA_OPTS",
 		Value: optVal,
 	}
-	if err := mergeOrAdd(nuxeoContainer, env, " "); err != nil {
+	if err := util.MergeOrAdd(nuxeoContainer, env, " "); err != nil {
 		return err
 	}
 	// create a volume and volume mount for the keystore/truststore if defined
@@ -247,25 +248,6 @@ func storeTypeToFileExtension(storeType string) string {
 		return "." + lower
 	}
 	return lower
-}
-
-// mergeOrAdd searches the environment variable array in the passed container for an entry whose name matches
-// the name of the passed environment variable struct. If found in the container array, the value of the passed
-// variable is appended to the value of the existing variable. Otherwise the passed environment variable is appended
-// to the array.
-func mergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string) error {
-	if env.ValueFrom != nil {
-		return goerrors.New("mergeOrAdd cannot be used for 'ValueFrom' environment variables")
-	}
-	if existingEnv := util.GetEnv(container, env.Name); existingEnv == nil {
-		container.Env = append(container.Env, env)
-	} else {
-		if existingEnv.ValueFrom != nil {
-			return goerrors.New("mergeOrAdd cannot be used for 'ValueFrom' environment variables")
-		}
-		existingEnv.Value += separator + env.Value
-	}
-	return nil
 }
 
 // configureOfflinePackages creates a volume and volume mount for each marketplace package in the list of

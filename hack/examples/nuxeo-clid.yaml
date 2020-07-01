@@ -1,3 +1,4 @@
+# export CLID=...
 # sed "s|CLID|$CLID|" hack/examples/nuxeo-clid.yaml | oc apply -f -
 apiVersion: nuxeo.com/v1alpha1
 kind: Nuxeo

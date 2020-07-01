@@ -14,7 +14,5 @@ spec:
       nuxeoPackages:
       - nuxeo-web-ui
     resources:
-      limits:
-        cpu: 500m
       requests:
-        cpu: "0.3"
+        cpu: 300m

@@ -37,6 +37,22 @@ func (suite *contributionSuite) TestSecretConfigMapContribution() {
 		"Templates incorrectly added to NUXEO_TEMPLATES env var")
 }
 
+// Same as TestSecretConfigMapContribution except the contribution comes from a PVC
+func (suite *contributionSuite) TestPVCContribution() {
+	var err error
+	nux := suite.contributionSuitePvcNewNuxeo()
+	dep := genTestDeploymentForContributionSuite()
+	err = configureContributions(&suite.r, nux, &dep, nux.Spec.NodeSets[0])
+	require.Nil(suite.T(), err, "handleConfig failed with err: %v\n", err)
+	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes),
+		"incorrect volume configuration")
+	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
+		"incorrect volume mount configuration")
+	expectedTemplates := "test,/etc/nuxeo/nuxeo-operator-config/" + suite.pvcContribName
+	require.Equal(suite.T(), expectedTemplates, dep.Spec.Template.Spec.Containers[0].Env[0].Value,
+		"Templates incorrectly added to NUXEO_TEMPLATES env var")
+}
+
 // contributionSuite is the Contribution test suite structure
 type contributionSuite struct {
 	suite.Suite
@@ -46,8 +62,11 @@ type contributionSuite struct {
 	deploymentName    string
 	cmContribName     string
 	secretContribName string
+	pvcContribName    string
 	configMapName     string
 	secretName        string
+	pvName            string
+	pvcName           string
 }
 
 // SetupSuite initializes the Fake client, a ReconcileNuxeo struct, and various test suite constants
@@ -58,14 +77,23 @@ func (suite *contributionSuite) SetupSuite() {
 	suite.deploymentName = "testclust"
 	suite.cmContribName = "test-contrib-from-cm"
 	suite.secretContribName = "test-contrib-from-secret"
+	suite.pvcContribName = "test-contrib-from-pvc"
 	suite.configMapName = "my-cm"
 	suite.secretName = "my-secret"
+	suite.pvName = "test-pv"
+	suite.pvcName = "test-pvc"
 }
 
 // AfterTest removes objects of the type being tested in this suite after each test
 func (suite *contributionSuite) AfterTest(_, _ string) {
 	obj := corev1.ConfigMap{}
 	_ = suite.r.client.DeleteAllOf(context.TODO(), &obj)
+	objSecret := corev1.Secret{}
+	_ = suite.r.client.DeleteAllOf(context.TODO(), &objSecret)
+	objPv := corev1.PersistentVolume{}
+	_ = suite.r.client.DeleteAllOf(context.TODO(), &objPv)
+	objPvc := corev1.PersistentVolumeClaim{}
+	_ = suite.r.client.DeleteAllOf(context.TODO(), &objPvc)
 }
 
 // This function runs the Contribution unit test suite. It is called by 'go test' and will call every
@@ -74,7 +102,8 @@ func TestContributionUnitTestSuite(t *testing.T) {
 	suite.Run(t, new(contributionSuite))
 }
 
-// contributionSuiteNewNuxeo creates a test Nuxeo struct suitable for the test cases in this suite.
+// contributionSuiteNewNuxeo creates a test Nuxeo struct with a Secret and a ConfigMap as two
+// contribution sources
 func (suite *contributionSuite) contributionSuiteNewNuxeo() *v1alpha1.Nuxeo {
 	return &v1alpha1.Nuxeo{
 		ObjectMeta: metav1.ObjectMeta{
@@ -98,6 +127,32 @@ func (suite *contributionSuite) contributionSuiteNewNuxeo() *v1alpha1.Nuxeo {
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
 							SecretName: suite.secretName,
+						},
+					},
+				}},
+			}},
+		},
+	}
+}
+
+// contributionSuiteNewNuxeo creates a test Nuxeo struct with a PVC as the contribution source
+func (suite *contributionSuite) contributionSuitePvcNewNuxeo() *v1alpha1.Nuxeo {
+	return &v1alpha1.Nuxeo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      suite.nuxeoName,
+			Namespace: suite.namespace,
+		},
+		// whatever else is needed for the suite
+		Spec: v1alpha1.NuxeoSpec{
+			NodeSets: []v1alpha1.NodeSet{{
+				Name:     suite.deploymentName,
+				Replicas: 1,
+				Contributions: []v1alpha1.Contribution{{
+					Templates: []string{suite.pvcContribName},
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: suite.pvcName,
+							ReadOnly:  true,
 						},
 					},
 				}},

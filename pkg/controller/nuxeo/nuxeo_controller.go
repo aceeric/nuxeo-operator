@@ -115,6 +115,8 @@ type ReconcileNuxeo struct {
 // cluster state based on the state of the Nuxeo object Spec. Note: The Controller will requeue the Request
 // to be processed again if the returned error is non-nil or Result.Requeue is true, otherwise upon
 // completion it will remove the work from the queue.
+//
+// todo-me reconcile the nodeset last since the deployment depends on many other assets
 func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Nuxeo")

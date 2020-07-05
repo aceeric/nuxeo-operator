@@ -9,18 +9,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// see IsOpenShift() / SetIsOpenShift()
-var isOpenShift = false
+type clusterType int
+
+const (
+	openShift  clusterType = 1
+	kubernetes clusterType = 2
+)
+
+var cluster = kubernetes
 
 // Returns true if the operator is running in an OpenShift cluster. Else false = Kubernetes. False
 // by default, unless SetIsOpenShift() was called prior to this call
 func IsOpenShift() bool {
-	return isOpenShift
+	return cluster == openShift
 }
 
 // Sets operator state indicating that the operator believes it is running in an OpenShift cluster.
 func SetIsOpenShift(_isOpenShift bool) {
-	isOpenShift = _isOpenShift
+	cluster = openShift
 }
 
 var NuxeoServiceAccountName = "nuxeo"
@@ -39,12 +45,12 @@ func ObjectsDiffer(expected interface{}, actual interface{}) (bool, error) {
 	var err error
 	var bytes []byte
 
-	if bytes, err = yaml.Marshal(expected); err != nil{
+	if bytes, err = yaml.Marshal(expected); err != nil {
 		return false, err
 	}
 	debugExp := string(bytes)
 	expMd5 = md5.Sum(bytes)
-	if bytes, err = yaml.Marshal(actual); err != nil{
+	if bytes, err = yaml.Marshal(actual); err != nil {
 		return false, err
 	}
 	debugAct := string(bytes)
@@ -56,7 +62,7 @@ func ObjectsDiffer(expected interface{}, actual interface{}) (bool, error) {
 
 // GetNuxeoContainer walks the container array in the passed deployment and returns a ref to the container
 // named "nuxeo". If not found, returns a nil container ref and an error.
-func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error){
+func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error) {
 	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
 		if dep.Spec.Template.Spec.Containers[i].Name == "nuxeo" {
 			return &dep.Spec.Template.Spec.Containers[i], nil
@@ -97,4 +103,3 @@ func MergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string
 	}
 	return nil
 }
-

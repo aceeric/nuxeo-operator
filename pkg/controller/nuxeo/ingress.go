@@ -43,11 +43,6 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePasst
 		return reconcile.Result{}, err
 	}
 	shouldUpdate := false
-	//if !equality.Semantic.DeepDerivative(expected.Spec, found.Spec) || tlsSpecChanged(expected.Spec.TLS, found.Spec.TLS) {
-	//	expected.Spec.DeepCopyInto(&found.Spec)
-	//	shouldUpdate = true
-	//}
-	// experiment
 	if different, err := util.ObjectsDiffer(expected.Spec, found.Spec); err == nil && different {
 		expected.Spec.DeepCopyInto(&found.Spec)
 		shouldUpdate = true
@@ -66,16 +61,6 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePasst
 	}
 	return reconcile.Result{}, nil
 }
-
-//// returns true if the passed expected and actual IngressTLS's are different, else false
-//func tlsSpecChanged(expected []v1beta1.IngressTLS, found []v1beta1.IngressTLS) bool {
-//	if expected == nil && found == nil {
-//		return false
-//	} else if expected == nil || found == nil {
-//		return true
-//	}
-//	return reflect.DeepEqual(expected, found)
-//}
 
 // checks the annotations in the Ingress from the cluster. If the SSL passthrough annotations are different then
 // add/remove the passthrough annotation in the cluster copy and return the modified copy. Caller must update
@@ -98,21 +83,9 @@ func updatedAnnotations(expected map[string]string, found map[string]string) map
 	return nil
 }
 
-// defaultIngress generates and returns an Ingress struct from the passed params. The generated Ingress spec
-// is illustrated below:
-//  spec:
-//    rules:
-//    - host: <access.Hostname>
-//      http:
-//        paths:
-//        - backend:
-//            serviceName: <see serviceName function>
-//            servicePort: web
-//    tls: (if access.Termination specified)
-//    - hosts:
-//      - <access.Hostname>
-// If the passed 'access' struct indicates TLS termination then an annotation is included in the
-// returned object's metadata
+// defaultIngress generates and returns an Ingress struct from the passed params. If the passed 'access' struct
+// indicates TLS termination, or forcePassthrough==true, then an annotation is included in the returned object's
+// metadata
 func (r *ReconcileNuxeo) defaultIngress(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, ingressName string,
 	nodeSet v1alpha1.NodeSet) (*v1beta1.Ingress, error) {
 	targetPort := intstr.IntOrString{
@@ -144,13 +117,23 @@ func (r *ReconcileNuxeo) defaultIngress(nux *v1alpha1.Nuxeo, access v1alpha1.Nux
 		},
 	}
 	if access.Termination != "" || forcePassthrough {
-		if access.Termination != "" && access.Termination != routev1.TLSTerminationPassthrough {
-			return nil, goerrors.New("current operator version only supports TLS passthrough")
+		if access.Termination != "" && access.Termination != routev1.TLSTerminationPassthrough &&
+		    access.Termination != routev1.TLSTerminationEdge {
+			return nil, goerrors.New("only passthrough and edge termination are supported")
 		}
 		ingress.Spec.TLS = []v1beta1.IngressTLS{{
 			Hosts: []string{access.Hostname},
 		}}
-		ingress.ObjectMeta.Annotations = map[string]string{nginxPassthroughAnnotation: "true"}
+		if access.Termination == routev1.TLSTerminationPassthrough || forcePassthrough {
+			ingress.ObjectMeta.Annotations = map[string]string{nginxPassthroughAnnotation: "true"}
+		} else {
+			// the Ingress will terminate TLS
+			if access.TLSSecret == "" {
+				return nil, goerrors.New("the Ingress was configured for TLS termination but no secret was provided")
+			}
+			// secret needs keys 'tls.crt' and 'tls.key' and cert must have CN=<access.Hostname>
+			ingress.Spec.TLS[0].SecretName  = access.TLSSecret
+		}
 	}
 	_ = controllerutil.SetControllerReference(nux, &ingress, r.scheme)
 	return &ingress, nil

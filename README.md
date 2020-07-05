@@ -1,6 +1,6 @@
 # Nuxeo Operator
 
-This project is a very early - **0.4.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
+This project is a very early - **0.5.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
 
 Presently, I'm doing this development on a Ubuntu 18.04 desktop with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
 
@@ -76,26 +76,26 @@ Version 0.4.0 incorporates additional basic features into the Operator.
 
 
 
-#### Version 0.5.0 *(in progress)*
+#### Version 0.5.0 *(complete)*
 
 Version 0.5.0 incorporates some more advanced features into the Operator and extends the unit testing.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Support a Secret with payload for TLS termination in the Route/Ingress. Previously, TLS passthrough was the only tested functionality |        |
-| Support the ability to terminate TLS directly in Nuxeo, rather than requiring a sidecar. | complete  |
-| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled Corporate micro-services that use an internal corporate CA. This would require a CA bundle+cert and passwords | complete |
-| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster | complete |
-| Ability to configure *Interactive* nodes and *Worker* nodes differently. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI | complete |
+| Support passthrough and edge termination in Kubernetes Ingress, and all Route termination types for OpenShift. Only tested passthrough and edge so far | complete |
+| Support the ability to terminate TLS directly in Nuxeo, rather than requiring a sidecar. See `test-nuxeo-tls.md` in the docs folder | complete  |
+| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled corporate services that use an internal corporate CA. See `test-jvm-pki.md` in the docs folder. | complete |
+| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster. See `test-offline-packages.md` in the docs folder. | complete |
+| Ability to configure *Interactive* nodes and *Worker* nodes differently by configuring contributions via cluster resources. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI. See `test-contribution.md` in the docs folder. | complete |
 | Support clustering - use Pod UID as `nuxeo.cluster.nodeid` via the downward API | complete |
 | Support defining resource request/limit in the Nuxeo CR | complete |
-| Support Nuxeo CLID | complete |
+| Support Nuxeo CLID. See `nuxeo-cr-clid-ex.yaml` in hack/examples | complete |
 
 
 
-#### Version 0.6.0
+#### Version 0.6.0 *(in progress)*
 
-Version 0.6.0 supports the *Service Binding Operator* to facilitate integration of a Nuxeo Cluster with backing services such as PostgreSQL, Kafka, and ElasticSearch.
+Support integration of a Nuxeo Cluster with backing services.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -616,7 +616,7 @@ Create a `CatalogSource` in the `nuxeo-test` namespace to serve the OLM registry
 $ REGISTRY=$(make print-IMAGE_REGISTRY_CLUST);\
   VERSION=$(make print-OPERATOR_VERSION);\
   echo $REGISTRY $VERSION
-# e.g. image-registry.openshift-image-registry.svc.cluster.local:5000 0.4.0
+# e.g. image-registry.openshift-image-registry.svc.cluster.local:5000 0.5.0
 $ SHA=$(kubectl get is nuxeo-operator-index -n custom-operators -o\
   jsonpath='{@.status.tags[0].items[0].image}')
 
@@ -624,7 +624,7 @@ $ SHA=$(kubectl get is nuxeo-operator-index -n custom-operators -o\
 $ REGISTRY=$(TARGET_CLUSTER=MICROK8S make print-IMAGE_REGISTRY_CLUST);\
   VERSION=$(TARGET_CLUSTER=MICROK8S make print-OPERATOR_VERSION);\
   echo $REGISTRY $VERSION
-# e.g. localhost:32000 0.4.0
+# e.g. localhost:32000 0.5.0
 $ SHA=$(curl -vH "Accept: application/vnd.docker.distribution.manifest.v2+json"\
   http://$REGISTRY/v2/custom-operators/nuxeo-operator-index/manifests/$VERSION 2>&1\
   | grep Docker-Content-Digest | awk '{print $3}')

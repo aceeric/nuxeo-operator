@@ -3,13 +3,8 @@ package v1alpha1
 import (
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes/scheme"
-	"nuxeo-operator/pkg/util"
 )
 
 // NuxeoStorage defines a type of persistent storage
@@ -201,8 +196,10 @@ type NuxeoAccess struct {
 
 	// +kubebuilder:validation:Optional
 	// Specifies the name of a secret with fields required to configure ingress for TLS, as determined by
-	// the termination field. Example fields expected in such a secret are - 'key', 'certificate', and
-	// 'caCertificate'. This is ignored, unless 'termination' is specified
+	// the termination field. For OpenShift (Route) supported fields are 'key'/'tls.key', 'certificate'/'tls.crt',
+	// 'caCertificate', 'destinationCACertificate', and 'insecureEdgeTerminationPolicy'. These map to Route properties.
+	// For Kubernetes (Ingress) supported fields are: 'tls.crt' and 'tls.key'. These are required by Kubernetes.
+	// This setting is ignored unless 'termination' is specified
 	// +optional
 	TLSSecret string `json:"tlsSecret,omitempty"`
 
@@ -224,7 +221,7 @@ type NginxRevProxySpec struct {
 	Secret string `json:"secret"`
 
 	// +kubebuilder:validation:Optional
-	// Specifies the Nginx image
+	// Specifies the Nginx image. If not provided, defaults to "nginx:latest"
 	// +optional
 	Image string `json:"image,omitempty"`
 
@@ -329,7 +326,7 @@ type NuxeoConfig struct {
 
 	// +kubebuilder:validation:Optional
 	// JvmPKISecret names a secret containing six keys that are used to configure the JVM-wide keystore/truststore
-	// for teh Nuxeo container. The operator mounts the keystore and truststore files into the Nuxeo container, and
+	// for the Nuxeo container. The operator mounts the keystore and truststore files into the Nuxeo container, and
 	// sets environment variables which the Nuxeo loader passes through into the JVM. All of the following keys will
 	// be configured from the secret into JVM keystore/truststore properties: keyStore, keyStorePassword, keyStoreType,
 	// trustStore, trustStorePassword, and trustStoreType.
@@ -421,56 +418,4 @@ type NuxeoList struct {
 
 func init() {
 	SchemeBuilder.Register(&Nuxeo{}, &NuxeoList{})
-	if registerOpenShiftRoute() {
-		// by default: not OpenShift
-		util.SetIsOpenShift(true)
-	} else if !registerKubernetesIngress() {
-		panic("Unable to register either an OpenShift Route or a Kubernetes Ingress to the SchemaBuilder")
-	}
-}
-
-// registerOpenShiftRoute registers OpenShift Route types with the Scheme Builder. Returns true if
-// success (e.g. running on OpenShift), else false
-func registerOpenShiftRoute() bool {
-	const GroupName = "route.openshift.io"
-	const GroupVersion = "v1"
-	SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
-	addKnownTypes := func(scheme *runtime.Scheme) error {
-		scheme.AddKnownTypes(SchemeGroupVersion,
-			&routev1.Route{},
-			&routev1.RouteList{},
-		)
-		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
-		return nil
-	}
-	SchemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
-	AddToScheme := SchemeBuilder.AddToScheme
-	if err := AddToScheme(scheme.Scheme); err != nil {
-		return false
-	}
-	return true
-}
-
-// registerKubernetesIngress registers Kubernetes Ingress types with the Scheme Builder. Returns true if
-// success (e.g. running on Kubernetes), else false.
-// Note: https://kubernetes.io/blog/2019/07/18/api-deprecations-in-1-16/ says:
-// Migrate to use the networking.k8s.io/v1beta1 API version, available since v1.14
-func registerKubernetesIngress() bool {
-	const GroupName = "networking.k8s.io"
-	const GroupVersion = "v1beta1"
-	SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
-	addKnownTypes := func(scheme *runtime.Scheme) error {
-		scheme.AddKnownTypes(SchemeGroupVersion,
-			&v1beta1.Ingress{},
-			&v1beta1.IngressList{},
-		)
-		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
-		return nil
-	}
-	SchemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
-	AddToScheme := SchemeBuilder.AddToScheme
-	if err := AddToScheme(scheme.Scheme); err != nil {
-		return false
-	}
-	return true
 }

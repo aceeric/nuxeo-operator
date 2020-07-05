@@ -58,11 +58,14 @@ spec:
                       Type and associated constants rather than OpenShift
                     type: string
                   tlsSecret:
-                    description: Specifies the name of a secret with fields required
+                    description: 'Specifies the name of a secret with fields required
                       to configure ingress for TLS, as determined by the termination
-                      field. Example fields expected in such a secret are - 'key',
-                      'certificate', and 'caCertificate'. This is ignored, unless
-                      'termination' is specified
+                      field. For OpenShift (Route) supported fields are ''key''/''tls.key'',
+                      ''certificate''/''tls.crt'', ''caCertificate'', ''destinationCACertificate'',
+                      and ''insecureEdgeTerminationPolicy''. These map to Route properties.
+                      For Kubernetes (Ingress) supported fields are: ''tls.crt'' and
+                      ''tls.key''. These are required by Kubernetes. This setting
+                      is ignored unless ''termination'' is specified'
                     type: string
                 required:
                 - hostname
@@ -1726,7 +1729,7 @@ spec:
                         jvmPKISecret:
                           description: 'JvmPKISecret names a secret containing six
                             keys that are used to configure the JVM-wide keystore/truststore
-                            for teh Nuxeo container. The operator mounts the keystore
+                            for the Nuxeo container. The operator mounts the keystore
                             and truststore files into the Nuxeo container, and sets
                             environment variables which the Nuxeo loader passes through
                             into the JVM. All of the following keys will be configured
@@ -12651,7 +12654,8 @@ spec:
                           configuration to the Nginx container
                         type: string
                       image:
-                        description: Specifies the Nginx image
+                        description: Specifies the Nginx image. If not provided, defaults
+                          to "nginx:latest"
                         type: string
                       imagePullPolicy:
                         description: Image pull policy. If not specified, then if

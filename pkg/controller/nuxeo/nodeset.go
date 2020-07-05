@@ -63,14 +63,6 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 		reqLogger.Error(err, "Error attempting to get Deployment for NodeSet: "+nodeSet.Name)
 		return reconcile.Result{}, err
 	}
-	//if !equality.Semantic.DeepDerivative(expected.Spec, actual.Spec) {
-	//	reqLogger.Info("Updating Deployment", "Namespace", expected.Namespace, "Name", expected.Name)
-	//	expected.Spec.DeepCopyInto(&actual.Spec)
-	//	if err = r.client.Update(context.TODO(), actual); err != nil {
-	//		return reconcile.Result{}, err
-	//	}
-	//}
-	// experiment
 	if different, err := util.ObjectsDiffer(expected.Spec, actual.Spec); err == nil && different {
 		reqLogger.Info("Updating Deployment", "Namespace", expected.Namespace, "Name", expected.Name)
 		expected.Spec.DeepCopyInto(&actual.Spec)

@@ -130,7 +130,7 @@ For ConfigMap and Secret volume sources, only one template name is allowed per V
 custom-automation-chain.target=.
 ```
 
-Where the token `custom-automation-chain` matches the name of the `contribs.templates` item in the Nuxeo CR. This is used by the Nuxeo loader. Let's say you chose to call the template `foo` in the Nuxeo CR, rather than `custom-automation-chain`. Then the first line of your `nuxeo.defaults` would be:
+...where the token `custom-automation-chain` matches the name of the `contribs.templates` item in the Nuxeo CR. This is used by the Nuxeo loader. Let's say you chose to call the template `foo` in the Nuxeo CR, rather than `custom-automation-chain`. Then the first line of your `nuxeo.defaults` would be:
 
 ```shell
 foo.target=.

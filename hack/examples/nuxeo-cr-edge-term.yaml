@@ -1,0 +1,17 @@
+apiVersion: nuxeo.com/v1alpha1
+kind: Nuxeo
+metadata:
+  name: my-nuxeo
+spec:
+  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:10.10
+  access:
+    hostname: nuxeo-server.apps-crc.testing
+    termination: edge
+    tlsSecret: tls-secret
+  nodeSets:
+  - name: cluster
+    replicas: 1
+    interactive: true
+    env:
+      - name: NUXEO_PACKAGES
+        value: nuxeo-web-ui

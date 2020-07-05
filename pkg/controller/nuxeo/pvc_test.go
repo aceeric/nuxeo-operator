@@ -23,7 +23,7 @@ func (suite *persistentVolumeClaimSuite) TestBasicPVC() {
 	nux := suite.persistentVolumeClaimSuiteNewNuxeo()
 	err = createOrphanPVC(nux, suite.orphanPVCName, suite.r)
 	require.Nil(suite.T(), err, "Error creating orphaned PVC: %v\n", err)
-	result, err = reconcilePvc(&suite.r, nux, log)
+	result, err = reconcilePvc(&suite.r, nux)
 	require.Nil(suite.T(), err, "reconcilePvc failed with err: %v\n", err)
 	require.Equal(suite.T(), reconcile.Result{}, result, "reconcilePvc returned unexpected result: %v\n", result)
 	var pvcsInCluster corev1.PersistentVolumeClaimList

@@ -9,7 +9,6 @@ import (
 	"runtime"
 
 	"k8s.io/client-go/rest"
-
 	"nuxeo-operator/pkg/apis"
 	"nuxeo-operator/pkg/controller"
 	"nuxeo-operator/version"

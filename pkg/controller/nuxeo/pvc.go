@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,10 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// reconcilePvc examines the passed Nuxeo CR, gathers a list of PVCs from the CR, then conforms actual PVCs in
-// the cluster to those expected PVCs. If the Nuxeo CR changes the definition of a PVC, and there is an
-// existing PVC with the same name, then the existing PVC is deleted and re-created.
-func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
+// reconcilePvc examines the Storage definitions in each NodeSet of the passed Nuxeo CR, gathers a list of PVCs,
+// then conforms actual PVCs in the cluster to those expected PVCs. If the Nuxeo CR changes the definition of a PVC,
+// and there is an existing PVC with the same name, then the existing PVC is deleted and re-created.
+func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) (reconcile.Result, error) {
 	var expectedPvcs []corev1.PersistentVolumeClaim
 	for _, nodeSet := range instance.Spec.NodeSets {
 		for _, storage := range nodeSet.Storage {

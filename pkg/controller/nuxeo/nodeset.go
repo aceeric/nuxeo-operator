@@ -22,7 +22,8 @@ import (
 // Deployment exists and its state differs from the NodeSet, the Deployment is conformed to the NodeSet.
 // Otherwise, the fall-through case is that a Deployment exists that matches the NodeSet and so in this
 // case - cluster state is not modified.
-func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo, revProxy v1alpha1.RevProxySpec, reqLogger logr.Logger) (reconcile.Result, error) {
+func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo,
+	revProxy v1alpha1.RevProxySpec, reqLogger logr.Logger) (reconcile.Result, error) {
 	actual := &appsv1.Deployment{}
 	var expected *appsv1.Deployment
 	var err error

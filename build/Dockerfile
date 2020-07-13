@@ -1,6 +1,11 @@
 ARG BASE_IMAGE=registry.access.redhat.com/ubi8/ubi-minimal:latest
 FROM ${BASE_IMAGE}
 
+ARG OPENSSL_INSTALL="microdnf install openssl"
+RUN ${OPENSSL_INSTALL}
+
+# todo-me settle on one base image and avoid these build args
+
 ENV OPERATOR=/usr/local/bin/nuxeo-operator \
     USER_UID=1001 \
     USER_NAME=nuxeo-operator

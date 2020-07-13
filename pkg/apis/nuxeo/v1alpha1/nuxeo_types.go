@@ -76,7 +76,7 @@ type Contribution struct {
 	// and sets NUXEO_TEMPLATES=...,/etc/nuxeo/nuxeo-operator-config/my-contrib. For other volume sources, this
 	// is a list of directories in the storage resource, and each one is added to NUXEO_TEMPLATES, but the entire
 	// volume is mounted into /etc/nuxeo/nuxeo-operator-config
-	Templates []string  `json:"templates"`
+	Templates []string `json:"templates"`
 
 	// For a ConfigMap or Secret, a key 'nuxeo.defaults' causes they value to be mounted as
 	// /etc/nuxeo/nuxeo-operator-config/<your contrib>/nuxeo.defaults. For all other keys, they are mounted as
@@ -245,6 +245,7 @@ type RevProxySpec struct {
 
 // NuxeoConfigSetting Supports configuration settings that can be specified with inline values, or from
 // Secrets or ConfigMaps
+// todo-me inline should either be a secret, or, configurer should have the option of specifying secret or cfgmap
 type NuxeoConfigSetting struct {
 	// +kubebuilder:validation:Optional
 	// Specifies an inline value for the setting. Either this, or the valueFrom must be specified, but not
@@ -338,7 +339,158 @@ type NuxeoConfig struct {
 	// the Operator as externally configured storage resources. In the current version, only ConfigMaps and Secrets
 	// can be used to hold offline packages. And only one ZIP per ConfigMap/Secret is supported.
 	// +optional
-	OfflinePackages[]OfflinePackage `json:"offlinePackages,omitempty"`
+	OfflinePackages []OfflinePackage `json:"offlinePackages,omitempty"`
+}
+
+// CertTransformType defines a type of certificate transformation that the Nuxeo Operator can perform
+type CertTransformType string
+
+const (
+	// Convert a CRT to a P12 trust store containing certs only - no keys. Assuming the CRT contains a root CA, then
+	// the resulting trust store can be used by Nuxeo and the JVM to validate a backing service certificate during
+	// a one-way SSL handshake
+	CrtToTrustStore CertTransformType = "CrtToTrustStore"
+)
+
+// CertTransform supports the Operator's requirement to take incoming PKI assets in the form of CRTs/PEMs etc.
+// and to transform those into Java key stores and trust stores for the Nuxeo server. The Operator creates a
+// secondary secret and puts the resulting key store / trust store into that secondary secret. The Operator
+// also generates a store password, places that password into the secondary secret, and projects that
+// password into the Nuxeo Pod. The secondary secret name is derived from the nuxeo CR name, and the backing service
+// name. E.g.: If nuxeo.name == my-nuxeo and backingService.name == elastic then secondary secret name is
+// my-nuxeo-binding-elastic. If multiple transformations are specified within a single binding then all the
+// keys are created within the same secondary binding secret.
+type CertTransform struct {
+	// +kubebuilder:validation:Enum=CrtToTrustStore
+	// certTransformType establishes the type of certificate transform to apply.
+	Type CertTransformType `json:"type"`
+
+	// store defines the name of the trust store. This becomes a key in the secondary secret and also a mounted file
+	// on the file system. Ensure this is unique across all transformations defined in the backing service.
+	Store string `json:"store"`
+
+	// When the Operator creates the store, it generates a random store password and places that password into the
+	// secondary secret's data identified by this key.  Ensure this is unique across all transformations defined in
+	// the backing service.
+	Password string `json:"password"`
+
+	// passEnv defines the name of an environment variable for the Operator to project into the Nuxeo Pod, with the
+	// source of that env var being the secondary secret password. This password can then be referenced in nuxeo.conf
+	// using the following form. E.g.: elasticsearch.restClient.truststore.password=${env:ENV_YOU_SPECIFY_HERE}.
+	PassEnv string `json:"passEnv"`
+}
+
+// resourceProjection determines how a value from a backing service resource is projected into the Nuxeo Pod. If
+// the backing service resource is a Secret or ConfigMap and the resource contains a value can be used as is, then
+// the key field specifies the key in the Secret or ConfigMap. If the backing service resource is *not* a Secret or
+// ConfigMap but the resource value can still be used without transformation, then the 'path' field is used to locate
+// the resource value. E.g.: assume the following expression returns a value that is needed for the backing service
+// connection configuration:
+//   kubectl get elasticsearch my-elastic-cluster -ojsonpath='{.spec.nodeSets[0].config.node\.data}'
+// Then in this case, the path field in the resource projection would specify "{.spec.nodeSets[0].config.node\.data}"
+//
+// Having used the path or key fields to obtain the value from the resource, there are three options to project
+// the value into the Nuxeo Pod. If the backing service resource is a Secret or ConfigMap then the env field specifies
+// an environment variable for the operator to project into the Nuxeo Pod. The environment variable will be defined
+// as a 'valueFrom' environment variable. E.g. the Operator will project something like:
+//   env:
+//   - name: USER_PASSWORD
+//     valueFrom:
+//       secretKeyRef:
+//         name: backing-service-secret-name
+//         key: user.password (for example)
+//
+// If the backing service resource is not a Secret or ConfigMap but the resource value can still be used without
+// transformation, then the mount field is used to mount the resource value into the Pod. The mount field
+// specifies the name of the file to mount. All files are mounted by the Operator under
+// /etc/nuxeo-operator/binding/<backing service name>. Mount is also a valid option for Secrets and ConfigMaps if,
+// for example, a backing service secret contains a P12 key store and the goal is to simply mount that key store.
+//
+// Finally, the certTransform field supports transforming a backing service PKI resource such as a PEM into a key
+// Store or trust store. This results in the creation of a secondary secret whose keys can be projected via
+// mounts or environment variables.
+type ResourceProjection struct {
+	// If the backing service resource is a Secret or ConfigMap, this is the key of the resource value of interest.
+	// Specify this, or path, but not both.
+	Key string `json:"key"`
+
+	// If the backing service resource is not a Secret or ConfigMap, this is a JSON Path expression that finds
+	// the value of interest in the resource. Specify this, or key, but not both.
+	Path string `json:"path"`
+
+	// If the backing service resource is a Secret or ConfigMap, and the desire is to project it as an environment
+	// variable, then this is the name of the environment variable to project. The Operator will define an valueFrom
+	// environment variable. Specify only one of env, certTransform, or mount.
+	Env string `json:"env"`
+
+	// If the backing service resource can be used without transformation, and the desire is to mount it as a file,
+	// then provide the name of a file for the Operator to mount the resource value as. Specify only one of env,
+	// certTransform, or mount.
+	Mount string `json:"mount"`
+
+	// If the backing service resource requires transformation - e.g. from PEM to P12 - specify the transformation
+	// using the transform field
+	Transform CertTransform `json:"transform"`
+}
+
+// A BackingServiceResource provides the ability to extract values from a Kubernetes cluster resource, and to
+// project those values into the Nuxeo Pod. For example, a password can be obtained from a backing service secret
+// and projected into the Nuxeo Pod as an environment variable or mount. This design is intended to be compatible
+// with
+type BackingServiceResource struct {
+	// name is the name of the cluster resource from which to obtain a value or values.
+	Group   string `json:"group"`
+	Version string `json:"version"`
+	Kind    string `json:"kind"`
+	Name    string `json:"name"`
+
+	// Each projection defines one value to get from the resource specified by GVK+Name, and how to project
+	// that one value into the Nuxeo Pod.
+	Projections []ResourceProjection `json:"projections"`
+}
+
+// A backing service specifies three things: 1) a list of cluster resources from which to obtain connection
+// configuration values like passwords and certificates, and the corresponding projections of those values into
+// the Nuxeo Pod. 2) A nuxeo.conf string that can reference the projected resource values. 3) A name. The name
+// is important because it is used by the operator as a base directory into which to mount files. Files are
+// mounted under /etc/nuxeo-operator/binding/<the name you assign>. E.g. if a backing service is defined thus:
+//   spec:
+//     backingServices:
+//     - name: elastic
+//       ...
+//
+// then all files mounted by the operator will mount under: /etc/nuxeo-operator/binding/elastic. If a nuxeo.conf
+// entry references a mounted file, then it will reference it relative to that path.
+//
+// Once the operator is finished configuring all of the backing service bindings, all of the nuxeo.conf entries are
+// concatenated and appended to the operator-managed nuxeo.conf ConfigMap. Note the Nuxeo CR offers the ability
+// to specify inline nuxeo.conf values in the Nuxeo CR:
+//   spec:
+//     nodeSets:
+//     - name: my-nuxeo
+//       nuxeoConfig:
+//         nuxeoConf:
+//           value: |
+//             # inline
+//             a.b.c=test1
+//             p.d.q=test2
+// The nuxeo.conf entries specified in the backing services are appended to any inline content. The Nuxeo CR also
+// offers the ability to define nuxeo.conf content in an externally provisioned ConfigMap or Secret and to reference
+// that in the Nuxeo CR:
+//   spec:
+//     nodeSets:
+//     - name: my-nuxeo
+//       nuxeoConfig:
+//         nuxeoConf:
+//           valueFrom:
+//             configMap:
+//               name: my-externally-provisioned-nuxeo-conf-config-map
+// An externally provisioned nuxeo.conf ConfigMap or Secret is not compatible with backing services and will result
+// in a reconciliation error. Only inlind nuxeo.conf content is supported with backing services.
+type BackingService struct {
+	Name      string                   `json:"name"`
+	Resources []BackingServiceResource `json:"resources"`
+	NuxeoConf string                   `json:"nuxeoConf"`
 }
 
 // Defines the desired state of a Nuxeo cluster
@@ -388,6 +540,12 @@ type NuxeoSpec struct {
 	// Nuxeo CLID
 	// +optional
 	Clid string `json:"clid,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// Backing Services are used to bind Nuxeo to cluster backing services like Kafka, MongoDB, ElasticSearch,
+	// and Postgres
+	// +optional
+	BackingServices []BackingService `json:"backingServices,omitempty"`
 }
 
 // NuxeoStatus defines the observed state of a Nuxeo cluster. This is preliminary and will be expanded in later

@@ -16,6 +16,7 @@ OPERATOR_SDK_SUPPORTED := v0.18.0
 OPERATOR_SDK_INSTALLED := $(shell operator-sdk version | cut -d, -f1 | cut -d: -f2 | sed "s/[[:blank:]]*\"//g")
 # operator base image differs for OpenShift/Kubernetes. See build/Dockerfile
 BASE_IMAGE_ARG         :=
+OPENSSL_INSTALL_ARG    :=
 UNIT_TEST_ARGS         ?= -v -coverprofile cp.out
 E2E_TEST_ARGS          ?= --verbose
 # used for e2e tests
@@ -29,6 +30,7 @@ endif
 # set Make variables for MicroK8s
 ifeq ($(TARGET_CLUSTER),MICROK8S)
     BASE_IMAGE_ARG       := --build-arg BASE_IMAGE=alpine
+    OPENSSL_INSTALL_ARG  := --build-arg OPENSSL_INSTALL="apk add --no-cache openssl"
     IMAGE_REGISTRY       := localhost:32000
     IMAGE_REGISTRY_CLUST := localhost:32000
     E2E_KUBE_CONFIG_ARG  := --kubeconfig=/var/snap/microk8s/current/credentials/kubelet.config
@@ -59,7 +61,7 @@ operator-build:
 .PHONY : operator-image-build
 operator-image-build:
 	$(OCICLI) build --tag $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
-		--file $(ROOT)/build/Dockerfile $(BASE_IMAGE_ARG)\
+		--file $(ROOT)/build/Dockerfile $(BASE_IMAGE_ARG) $(OPENSSL_INSTALL_ARG)\
 		$(ROOT)/build
 
 .PHONY : operator-image-push

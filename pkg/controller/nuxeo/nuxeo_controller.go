@@ -134,6 +134,7 @@ type ReconcileNuxeo struct {
 // cluster state based on the state of the Nuxeo object Spec. Note: The Controller will requeue the Request
 // to be processed again if the returned error is non-nil or Result.Requeue is true, otherwise upon
 // completion it will remove the work from the queue.
+// todo-me investigate whether/when to return non-nil err. Resulting stack trace is essentially useless
 func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Nuxeo")
@@ -168,6 +169,8 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	if _, err = reconcileClid(r, instance, reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
+	// todo-me nuxeo.conf is valid for all node sets therefore should move to reconcileNodeSets once per NodeSet
+	//  and has to be after inline nuxeo conf and after backing services so that both can co-exist
 	if _, err = reconcileNuxeoConf(r, instance, interactiveNodeSet, reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}

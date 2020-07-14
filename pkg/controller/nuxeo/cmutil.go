@@ -34,7 +34,7 @@ func addOrUpdateConfigMap(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected 
 	}
 	if !reflect.DeepEqual(expected.Data, found.Data) {
 		reqLogger.Info("Updating ConfigMap", "Namespace", expected.Namespace, "Name", expected.Name)
-		expected.Data = found.Data
+		found.Data = expected.Data
 		if err = r.client.Update(context.TODO(), found); err != nil {
 			return reconcile.Result{}, err
 		}

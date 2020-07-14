@@ -365,18 +365,19 @@ type CertTransform struct {
 	// certTransformType establishes the type of certificate transform to apply.
 	Type CertTransformType `json:"type"`
 
-	// store defines the name of the trust store. This becomes a key in the secondary secret and also a mounted file
-	// on the file system. Ensure this is unique across all transformations defined in the backing service.
+	// store defines the name of the key/trust store to create from a source PEM. This becomes a key in the secondary
+	// secret and also a mounted file on the file system. Ensure this is unique across all transformations defined
+	// in the backing service.
 	Store string `json:"store"`
 
 	// When the Operator creates the store, it generates a random store password and places that password into the
-	// secondary secret's data identified by this key.  Ensure this is unique across all transformations defined in
-	// the backing service.
+	// secondary secret's data identified by this key.  Ensure this key is unique across all transformations defined
+	// in the backing service.
 	Password string `json:"password"`
 
 	// passEnv defines the name of an environment variable for the Operator to project into the Nuxeo Pod, with the
-	// source of that env var being the secondary secret password. This password can then be referenced in nuxeo.conf
-	// using the following form. E.g.: elasticsearch.restClient.truststore.password=${env:ENV_YOU_SPECIFY_HERE}.
+	// source of that env var being the secondary secret password. This password can then be referenced in nuxeo.conf.
+	// E.g.: elasticsearch.restClient.truststore.password=${env:ENV_YOU_SPECIFY_HERE}.
 	PassEnv string `json:"passEnv"`
 }
 
@@ -418,9 +419,14 @@ type ResourceProjection struct {
 	// the value of interest in the resource. Specify this, or key, but not both.
 	Path string `json:"path"`
 
-	// If the backing service resource is a Secret or ConfigMap, and the desire is to project it as an environment
-	// variable, then this is the name of the environment variable to project. The Operator will define an valueFrom
-	// environment variable. Specify only one of env, certTransform, or mount.
+	// todo-me consider this to make explicit the key in the secondary secret that will hold the result of a jsonPath
+	//  projection otherwise the operator has to take JSONPath like .spec.backingServices[0].resources[0].name and
+	//  turn it into secondary secret key .spec.backingServices0.resources0.name
+	//  NewKey string `json:"newKey"`
+
+	// If the backing service resource is a Secret or ConfigMap, and the desire is to project the key value as an
+	// environment variable, then this is the name of the environment variable to project. The Operator will define
+	// a valueFrom environment variable. Specify only one of env, certTransform, or mount.
 	Env string `json:"env"`
 
 	// If the backing service resource can be used without transformation, and the desire is to mount it as a file,
@@ -438,10 +444,8 @@ type ResourceProjection struct {
 // and projected into the Nuxeo Pod as an environment variable or mount. This design is intended to be compatible
 // with
 type BackingServiceResource struct {
+	metav1.GroupVersionKind
 	// name is the name of the cluster resource from which to obtain a value or values.
-	Group   string `json:"group"`
-	Version string `json:"version"`
-	Kind    string `json:"kind"`
 	Name    string `json:"name"`
 
 	// Each projection defines one value to get from the resource specified by GVK+Name, and how to project

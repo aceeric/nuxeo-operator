@@ -163,14 +163,14 @@ $ curl --cacert tls.crt -u elastic:$PASSWORD https://elastic-es-http:9200/
 }
 ```
 
-Port-forwarding simulates an in-cluster connection. To review, it has been shown above that in order to connect to ECK from within the cluster using TLS the following is required:
+Port-forwarding simulates an in-cluster connection. To review, it was demonstrated above that in order to connect to ECK from within the cluster using TLS the following is required:
 
 1. A service name - which is *cluster name*-es-http. So in our case: `elastic-es-http`
 2. A user name - which is always `elastic`
 3. A password, which is in a secret named *cluster name*-es-elastic-user. In our case: `elastic-es-elastic-user`. The secret key that contains the password is `elastic`.
 4. A CA certificate, which is also in a secret. In this case, the secret is *cluster name*-es-http-certs-public. So: `elastic-es-http-certs-public`. The certificate is stored in the key `tls.crt`.
 
-Next we will configure a Nuxeo CR to bring up a Nuxeo cluster with ECK rather than the internal ElasticSearch that it comes up with in development mode.
+Next we will configure a Nuxeo CR to bring up a Nuxeo cluster with ECK rather than the internal ElasticSearch that Nuxeo starts up with in development mode.
 
 #### Configure Nuxeo
 
@@ -192,7 +192,41 @@ Summarize
 
 
 
+Nuxeo CR `backingServices` stanza specifying ECK:
 
+```shell
+apiVersion: nuxeo.com/v1alpha1
+kind: Nuxeo
+...
+  backingServices:
+  - name: elastic
+    resources:
+    - version: v1
+      kind: secret
+      name: elastic-es-http-certs-public
+      projections:
+      - key: tls.crt
+        transform:
+          type: CrtToTrustStore
+          store: elastic.ca.p12
+          password: elastic.truststore.pass
+          passEnv: ELASTIC_TS_PASS
+    - version: v1
+      kind: secret
+      name: elastic-es-elastic-user
+      projections:
+      - key: elastic
+        env: ELASTIC_PASSWORD
+    nuxeoConf: |
+      elasticsearch.client=RestClient
+      elasticsearch.restClient.username=elastic
+      elasticsearch.restClient.password=${env:ELASTIC_PASSWORD}
+      elasticsearch.addressList=https://elastic-es-http:9200
+      elasticsearch.restClient.truststore.path=/etc/nuxeo-operator/binding/elastic/elastic.ca.p12
+      elasticsearch.restClient.truststore.password=${env:ELASTIC_TS_PASS}
+      elasticsearch.restClient.truststore.type=p12
+
+```
 
 
 

@@ -13,3 +13,13 @@ func (nux *Nuxeo) IsOwner(objMeta metav1.ObjectMeta) bool {
 	}
 	return false
 }
+
+// same as IsOwner except takes an array of UIDs
+func (nux *Nuxeo) IsOwnerUids(uids []string) bool {
+	for _, uid := range uids {
+		if uid == string(nux.UID) {
+			return true
+		}
+	}
+	return false
+}

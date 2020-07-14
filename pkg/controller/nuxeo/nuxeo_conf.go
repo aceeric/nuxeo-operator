@@ -33,7 +33,7 @@ func reconcileNuxeoConf(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1a
 // owned by the passed 'nux'. A ref to the generated struct is returned.
 func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName string,
 	nuxeoConf string, clusterEnabled bool) *corev1.ConfigMap {
-	cmName := nux.Name + "-" + nodeSetName + "-nuxeo-conf"
+	cmName := nuxeoConfCMName(nux, nodeSetName)
 	if clusterEnabled {
 		if nuxeoConf != "" {
 			nuxeoConf += "\n"
@@ -56,3 +56,10 @@ func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName str
 	_ = controllerutil.SetControllerReference(nux, cm, r.scheme)
 	return cm
 }
+
+// standardizes the generation of name for the operator-managed nuxeo.conf ConfigMap
+// todo-me future needs to support secret or cm
+func nuxeoConfCMName(nux *v1alpha1.Nuxeo, nodeSetName string) string {
+	return nux.Name + "-" + nodeSetName + "-nuxeo-conf"
+}
+

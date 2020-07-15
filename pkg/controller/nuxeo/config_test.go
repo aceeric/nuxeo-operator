@@ -43,13 +43,10 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	}
 	require.Equal(suite.T(), 5, validActualEnvCnt,
 		"Configuration environment variables were not created correctly\n")
-	require.Equal(suite.T(), 4, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
+	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
 		"Volume Mounts not correctly defined")
-	require.Equal(suite.T(), 4, len(dep.Spec.Template.Spec.Volumes),
+	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes),
 		"Volumes not correctly defined")
-	actualCmName := dep.Spec.Template.Spec.Volumes[0].ConfigMap.Name
-	expectedCmName := suite.nuxeoName + "-" + suite.deploymentName + "-nuxeo-conf"
-	require.Equal(suite.T(), expectedCmName, actualCmName, "Nuxeo conf volume mount not correctly defined")
 }
 
 // nuxeoConfigSuite is the NuxeoConfig test suite structure

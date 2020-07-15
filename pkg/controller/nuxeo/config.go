@@ -11,6 +11,10 @@ import (
 	"nuxeo-operator/pkg/util"
 )
 
+const (
+	nuxeoConfVolumeName = "nuxeo-conf"
+	nuxeoConfName = "nuxeo.conf"
+)
 // handleConfig examines the NuxeoConfig field of the passed NodeSet and configures the passed Deployment accordingly
 // by updating the Nuxeo container and Deployment. This injects configuration settings to support things like
 // Java Opts, nuxeo.conf, etc. See 'NuxeoConfig' in the NodeSet for more info.
@@ -29,9 +33,6 @@ func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.
 	configureNuxeoPackages(nuxeoContainer, nodeSet)
 	configureNuxeoURL(nuxeoContainer, nodeSet)
 	configureNuxeoEnvName(nuxeoContainer, nodeSet)
-	if err := configureNuxeoConf(nux, dep, nuxeoContainer, nodeSet); err != nil {
-		return err
-	}
 	if err := configureJvmPki(dep, nuxeoContainer, jvmPkiSecret); err != nil {
 		return err
 	}
@@ -105,24 +106,20 @@ func configureNuxeoEnvName(nuxeoContainer *corev1.Container, nodeSet v1alpha1.No
 	}
 }
 
-// configureNuxeoConf handles the nuxeo.conf configuration from the Nuxeo CR. If the nodeSet.NuxeoConfig
-// .NuxeoConf.Value is defined then this represents an inlined nuxeo.conf. E.g.:
-//   nuxeoConf:
-//     value: |
-//       nuxeo.force.generation=true
-//       repository.clustering.enabled=true
-// The function initializes a volume mount, and a config map volume to reference a ConfigMap holding
-// the inlined nuxeo.conf content from the CR. This function only configures the volume and volume mount.
-// See the reconcileNuxeoConf function for the code that reconciles the actual ConfigMap. If the nodeSet
-// .NuxeoConfig.NuxeoConf.ValueFrom field is initialized rather than nodeSet.NuxeoConfig.NuxeoConf.Value then
-// the volume and mount are still initialized here, but the volume source is expected to have been provided
-// by the configurer, external to the operator.
-// todo-me need to completely replace nuxeo.conf? How to reconcile user-provided nuxeo.conf with
-//  auto-generated '### BEGIN - DO NOT EDIT BETWEEN BEGIN AND END ###' in the generated nuxeo.conf?
-func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nuxeoContainer *corev1.Container,
-	nodeSet v1alpha1.NodeSet) error {
-	if nodeSet.NuxeoConfig.NuxeoConf == (v1alpha1.NuxeoConfigSetting{}) {
+// configureNuxeoConf handles the nuxeo.conf configuration from the Nuxeo CR. The function initializes a
+// volume mount, and a config map volume to reference a cluster resource holding nuxeo.conf content. This function
+// only configures the volume and volume mount in the deployment. See the reconcileNuxeoConf function for the
+// code that reconciles the actual ConfigMap resource. If the nodeSet.NuxeoConfig.NuxeoConf.ValueFrom
+// field is initialized then the volume and mount are still initialized here, but the volume source is
+// expected to have been provided by the configurer, external to the operator.
+func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet,
+	backingNuxeoConf string) error {
+	if !shouldReconNuxeoConf(nodeSet, backingNuxeoConf) && nodeSet.NuxeoConfig.NuxeoConf.ValueFrom == (corev1.VolumeSource{}) {
+		// there is no nuxeo.conf configuration anywhere in the CR
 		return nil
+	}
+	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf) && nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) {
+		return goerrors.New("external nuxeo.conf volume source clashes with operator-managed nuxeo.conf configuration")
 	}
 	if nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom.ConfigMap == nil &&
@@ -130,25 +127,28 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nuxeoContai
 		return goerrors.New("only ConfigMap and Secret volume sources are currently supported")
 	}
 	volMnt := corev1.VolumeMount{
-		Name:      "nuxeoconf",
+		Name:      nuxeoConfVolumeName,
 		ReadOnly:  false,
 		MountPath: "/docker-entrypoint-initnuxeo.d/nuxeo.conf",
-		SubPath:   "nuxeo.conf",
+		SubPath:   nuxeoConfName,
 	}
-	nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
+		return  err
+	} else if err := addVolMnt(nuxeoContainer, volMnt); err != nil {
+		return err
+	}
 	vol := corev1.Volume{
-		Name: "nuxeoconf",
+		Name: nuxeoConfVolumeName,
 	}
-	if nodeSet.NuxeoConfig.NuxeoConf.Value != "" {
-		cmName := nux.Name + "-" + nodeSet.Name + "-nuxeo-conf"
+	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf) {
+		cmName := nuxeoConfCMName(nux, nodeSet.Name)
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
 			LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
 			Items: []corev1.KeyToPath{{
-				Key:  "nuxeo.conf",
-				Path: "nuxeo.conf",
+				Key:  nuxeoConfName,
+				Path: nuxeoConfName,
 			}},
 		}
-	// todo-me else handle secret
 	} else {
 		// configurer is responsible to ensure that nuxeo.conf key is present in the config map volume
 		// source or secret volume source.

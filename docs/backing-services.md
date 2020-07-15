@@ -203,6 +203,12 @@ kind: Nuxeo
     resources:
     - version: v1
       kind: secret
+      name: elastic-es-elastic-user
+      projections:
+      - key: elastic
+        env: ELASTIC_PASSWORD
+    - version: v1
+      kind: secret
       name: elastic-es-http-certs-public
       projections:
       - key: tls.crt
@@ -211,12 +217,6 @@ kind: Nuxeo
           store: elastic.ca.p12
           password: elastic.truststore.pass
           passEnv: ELASTIC_TS_PASS
-    - version: v1
-      kind: secret
-      name: elastic-es-elastic-user
-      projections:
-      - key: elastic
-        env: ELASTIC_PASSWORD
     nuxeoConf: |
       elasticsearch.client=RestClient
       elasticsearch.restClient.username=elastic
@@ -230,3 +230,4 @@ kind: Nuxeo
 
 
 
+​					

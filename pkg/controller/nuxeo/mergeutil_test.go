@@ -10,6 +10,7 @@ import (
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 )
 
+// Tests the addVolumeAndItems function
 func (suite *mergeUtilSuite) TestVolumeMerge() {
 	vol := corev1.Volume{
 		Name: suite.volName,

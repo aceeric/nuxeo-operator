@@ -58,6 +58,9 @@ func (suite *accessSuite) AfterTest(_, _ string) {
 // This function runs the Access unit test suite. It is called by 'go test' and will call every
 // function in this file with a accessSuite receiver that begins with "Test..."
 func TestAccessUnitTestSuite(t *testing.T) {
+	if err := registerOpenShiftRoute(); err != nil {
+		t.Fatal("could not register openshift Route schema")
+	}
 	suite.Run(t, new(accessSuite))
 }
 

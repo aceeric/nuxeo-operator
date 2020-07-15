@@ -115,6 +115,7 @@ Version 0.7.0 makes the Operator available as a Community Operator.
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
+| Consider sidecar array for  flexible sidecar configuration |  |
 | Address all "todo-me" in the code |  |
 | Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with those production environments |        |
 | Build out the Status field in the Nuxeo CR to be comparable with other resources available on OperatorHub | |

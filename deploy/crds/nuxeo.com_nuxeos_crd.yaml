@@ -74,7 +74,8 @@ spec:
                 description: Backing Services are used to bind Nuxeo to cluster backing
                   services like Kafka, MongoDB, ElasticSearch, and Postgres
                 items:
-                  description: "A backing service specifies three things: 1) a list
+                  description: "todo-me /etc/nuxeo-operator/binding/ or /etc/nuxeo-operator/backing/
+                    NEED A CONST! A backing service specifies three things: 1) a list
                     of cluster resources from which to obtain connection configuration
                     values like passwords and certificates, and the corresponding
                     projections of those values into the Nuxeo Pod. 2) A nuxeo.conf
@@ -101,29 +102,49 @@ spec:
                     \            configMap:               name: my-externally-provisioned-nuxeo-conf-config-map
                     An externally provisioned nuxeo.conf ConfigMap or Secret is not
                     compatible with backing services and will result in a reconciliation
-                    error. Only inlind nuxeo.conf content is supported with backing
-                    services."
+                    error. Only inlined nuxeo.conf content is supported with backing
+                    services - because the Operator has to have ownership of the cluster
+                    resource holding the nuxeo.conf content and it can't do that if
+                    the resource is provisioned by the configurer."
                   properties:
                     name:
+                      description: The name of the backing service, as well as the
+                        directory under which to mount any files
                       type: string
                     nuxeoConf:
+                      description: nuxeo.conf entries - some of which will be static,
+                        and some of which will reference resource projections via
+                        environment variables or filesystem mounts
                       type: string
                     resources:
+                      description: Resources and projections control how backing service
+                        cluster resources are referenced within the Nuxeo Pod
                       items:
                         description: A BackingServiceResource provides the ability
                           to extract values from a Kubernetes cluster resource, and
                           to project those values into the Nuxeo Pod. For example,
                           a password can be obtained from a backing service secret
                           and projected into the Nuxeo Pod as an environment variable
-                          or mount. This design is intended to be compatible with
+                          or mount.
                         properties:
-                          group:
+                          kind:
+                            description: name is GVK of the cluster resource from
+                              which to obtain a value or values.
+                            properties:
+                              group:
+                                type: string
+                              kind:
+                                type: string
+                              version:
+                                type: string
+                            required:
+                            - group
+                            - kind
+                            - version
+                            type: object
+                          name:
                             description: name is the name of the cluster resource
                               from which to obtain a value or values.
-                            type: string
-                          kind:
-                            type: string
-                          name:
                             type: string
                           projections:
                             description: Each projection defines one value to get
@@ -175,11 +196,11 @@ spec:
                                 env:
                                   description: If the backing service resource is
                                     a Secret or ConfigMap, and the desire is to project
-                                    it as an environment variable, then this is the
-                                    name of the environment variable to project. The
-                                    Operator will define an valueFrom environment
-                                    variable. Specify only one of env, certTransform,
-                                    or mount.
+                                    the key value as an environment variable, then
+                                    this is the name of the environment variable to
+                                    project. The Operator will define a valueFrom
+                                    environment variable. Specify only one of env,
+                                    certTransform, or mount.
                                   type: string
                                 key:
                                   description: If the backing service resource is
@@ -211,23 +232,24 @@ spec:
                                         environment variable for the Operator to project
                                         into the Nuxeo Pod, with the source of that
                                         env var being the secondary secret password.
-                                        This password can then be referenced in nuxeo.conf
-                                        using the following form. E.g.: elasticsearch.restClient.truststore.password=${env:ENV_YOU_SPECIFY_HERE}.'
+                                        This password can then be referenced in nuxeo.conf.
+                                        E.g.: elasticsearch.restClient.truststore.password=${env:ENV_YOU_SPECIFY_HERE}.'
                                       type: string
                                     password:
                                       description: When the Operator creates the store,
                                         it generates a random store password and places
                                         that password into the secondary secret's
                                         data identified by this key.  Ensure this
-                                        is unique across all transformations defined
+                                        key is unique across all transformations defined
                                         in the backing service.
                                       type: string
                                     store:
-                                      description: store defines the name of the trust
-                                        store. This becomes a key in the secondary
-                                        secret and also a mounted file on the file
-                                        system. Ensure this is unique across all transformations
-                                        defined in the backing service.
+                                      description: store defines the name of the key/trust
+                                        store to create from a source PEM. This becomes
+                                        a key in the secondary secret and also a mounted
+                                        file on the file system. Ensure this is unique
+                                        across all transformations defined in the
+                                        backing service.
                                       type: string
                                     type:
                                       description: certTransformType establishes the
@@ -249,14 +271,10 @@ spec:
                               - transform
                               type: object
                             type: array
-                          version:
-                            type: string
                         required:
-                        - group
                         - kind
                         - name
                         - projections
-                        - version
                         type: object
                       type: array
                   required:
@@ -299,20 +317,20 @@ spec:
                       description: Provides the ability to add custom or ad-hoc contributions
                         directly into the Nuxeo server
                       items:
-                        description: "Contributions allow you to add ad-hoc or persistent
-                          contributions to the Nuxeo server. Two scenarios are envisioned.
-                          For an ad-hoc contribution, you define a ConfigMap or Secret
-                          with the contribution contents, and define the name of the
-                          contribution in the templates list. The operator configures
-                          that single contribution into Nuxeo by mounting the files,
-                          and adding one entry into the nuxeo templates. \n For persistent
-                          contributions, you configure a persistent storage resource
-                          in the cluster that can contain multiple contributions,
-                          each in its own sub-directory. You then configure the templates
-                          list with the contributions from the store that you want
-                          configured into Nuxeo. The operator mounts the entire store,
-                          but only adds the specified contributions into the nuxeo
-                          templates."
+                        description: "Contributions allow a configurer to add ad-hoc
+                          or persistent contributions to the Nuxeo server. Two scenarios
+                          are envisioned. For an ad-hoc contribution, you define a
+                          ConfigMap or Secret with the contribution contents, and
+                          define the name of the contribution in the templates list.
+                          The operator configures that single contribution into Nuxeo
+                          by mounting the files, and adding one entry into the nuxeo
+                          templates. \n For persistent contributions, you configure
+                          a persistent storage resource in the cluster that can contain
+                          multiple contributions, each in its own sub-directory. You
+                          then configure the templates list with the contributions
+                          from the store that you want configured into Nuxeo. The
+                          operator mounts the entire store, but only adds the specified
+                          contributions into the nuxeo templates."
                         properties:
                           templates:
                             description: 'For a ConfigMap or Secret contribution,
@@ -1933,8 +1951,9 @@ spec:
                             trustStorePassword, and trustStoreType.'
                           type: string
                         nuxeoConf:
-                          description: NuxeoConf specifies values to append to nuxeo.conf.
-                            Values can be provided inline, or from a Secret or ConfigMap
+                          description: todo-me raise up a level NuxeoConf specifies
+                            values to append to nuxeo.conf. Values can be provided
+                            inline, or from a Secret or ConfigMap
                           properties:
                             value:
                               description: Specifies an inline value for the setting.
@@ -4748,7 +4767,7 @@ spec:
                           description: tlsSecret enables TLS termination by the Nuxeo
                             Pod. The field specifies the name of a secret containing
                             keys keystore.jks and keystorePass. As of Nuxeo 10.10,
-                            only JKS is supported.
+                            only JKS is supported. (This is a Nuxeo constraint.)
                           type: string
                       type: object
                     podTemplate:

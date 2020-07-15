@@ -54,7 +54,7 @@ func (suite *routeSuite) TestRouteFromTLS() {
 }
 
 func (suite *ingressSuite) TestRouteForcePassthrough() {
-	// todo-me code this
+	// todo-me test force passthrough
 }
 
 // routeSuite is the Route test suite structure

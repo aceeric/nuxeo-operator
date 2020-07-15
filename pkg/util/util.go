@@ -7,6 +7,7 @@ import (
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type clusterType int
@@ -60,6 +61,16 @@ func ObjectsDiffer(expected interface{}, actual interface{}) (bool, error) {
 	return expMd5 != actMd5, nil
 }
 
+// DebugDumpObj is used for debugging as needed. It dumps the YAML to the console for the passed object
+func DebugDumpObj(obj runtime.Object) {
+	if bytes, err := yaml.Marshal(obj); err != nil {
+		return
+	} else {
+		manifest := string(bytes)
+		println(manifest)
+	}
+}
+
 // GetNuxeoContainer walks the container array in the passed deployment and returns a ref to the container
 // named "nuxeo". If not found, returns a nil container ref and an error.
 func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error) {
@@ -101,5 +112,15 @@ func MergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string
 		}
 		existingEnv.Value += separator + env.Value
 	}
+	return nil
+}
+
+// Adds the passed environment variable to the passed container only if not already present. If already present
+// in the container, returns an error
+func OnlyAdd(container *corev1.Container, env corev1.EnvVar) error {
+	if existingEnv := GetEnv(container, env.Name); existingEnv != nil {
+		return goerrors.New("duplicate environment variable: "+env.Name)
+	}
+	container.Env = append(container.Env, env)
 	return nil
 }

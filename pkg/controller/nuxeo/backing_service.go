@@ -1,17 +1,22 @@
 package nuxeo
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	goerrors "errors"
 	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,24 +26,10 @@ import (
 	"nuxeo-operator/pkg/util"
 )
 
-// config map resource
-//   note     - the inline handler and this need to cooperate on the contents of the configmap!
-//              right now, reconcileNuxeoConf replaces it every time!
-//   solution - CM should look like:
-//              data
-//                inline:
-//                backingSvc:
-//                nuxeo.conf
-//              Each entity only touches their own then - the reconciler creates nuxeo.conf by concatenating
-//               inline and backingSvc!
-//              Therefore, reconcileNuxeoConf has to be called last after deployment is configured AND backing
-//               services are configured,
-//              reconcileNuxeoConf has to move inside node set reconciler
-// volume and mounts in deployment
-// secondary secret
-// env vars
-// volume and mounts for secondary secret
-// returns nuxeo conf to caller!
+// Configures all backing services, resulting in volumes, mounts, secondary secrets, environment variables,
+// and nuxeo.conf entries as needed to configure Nuxeo to connect to a backing service. Caller must handle
+// the nuxeo.conf returned from the function by storing it the Operator-owned nuxeo.conf ConfigMap. The returned
+// nuxeo.conf is a concatenation of all backing service nuxeo.conf entries (so it could be an empty string.)
 func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *appsv1.Deployment,
 	reqLogger logr.Logger) (string, error) {
 	nuxeoConf := ""
@@ -47,21 +38,23 @@ func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *
 			return "", err
 		}
 		// accumulate each backing service's nuxeo.conf settings
-		nuxeoConf = strings.TrimSpace(strings.Join([]string{nuxeoConf, backingService.NuxeoConf}, "\n"))
+		nuxeoConf = joinCompact("\n", nuxeoConf, backingService.NuxeoConf)
 	}
 	return nuxeoConf, nil
 }
 
-// configures one backing service. Iterates all resources and bindings, calls helpers to add environment variables
-// and mounts into the nuxeo container in the passed deployment. May create a secondary secret if needed. Coalesces
-// nuxeo.conf settings and reconciles those settings to the nuxeo.conf ConfigMap or Secret.
+// Configures one backing service. Iterates all resources and bindings, calls helpers to add environment variables
+// and mounts into the nuxeo container, and volumes in the passed deployment. May create a secondary secret if
+// needed.
 func configureBackingService(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, backingService v1alpha1.BackingService,
 	dep *appsv1.Deployment, reqLogger logr.Logger) error {
+	// 0-1 secondary secret  per backing service
 	secondarySecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-backing-" + backingService.Name,
+			Name:      instance.Name + "-secondary-" + backingService.Name,
 			Namespace: instance.Namespace,
 		},
+		Data: map[string][]byte{},
 		Type: corev1.SecretTypeOpaque,
 	}
 	for _, resource := range backingService.Resources {
@@ -79,7 +72,7 @@ func configureBackingService(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, backin
 			case projection.Mount != "":
 				err = projectMount(r, instance.Namespace, backingService.Name, resource, i, dep, &secondarySecret)
 			case projection.Transform != (v1alpha1.CertTransform{}):
-				err = projectTransform(backingService.Name, resource, i, dep, &secondarySecret)
+				err = projectTransform(r, instance.Namespace, backingService.Name, resource, i, dep, &secondarySecret, reqLogger)
 			default:
 				err = goerrors.New(fmt.Sprintf("no handler for projection at ordinal position %v in resource %s", i, resource.Name))
 			}
@@ -133,22 +126,106 @@ func projectEnvFrom(resource v1alpha1.BackingServiceResource, idx int, dep *apps
 	return nil
 }
 
-// READY TO TEST!
-// secret/cm  mount       add volume and vol mnt for upstream secret or cm key
-// other      mount       create/update secondary secret, add value as key, add
-// If the passed resource is a Secret or ConfigMap, then a volume is created with a volume source of that
-// resource. If the passed resource is any other kind of resource, then the resource value is copied to the secondary
-// secret and a volume is created with the volume source of the secondary secret.
-//
-// Since all mounts are from secrets or CMs all mounts will use items:
-//   items:
-//   - key: SOME_KEY
-//     path: as-some-file.txt
-//
-// And all volume mounts will be relative to /etc/nuxeo-operator/binding/<backing service name>
-//
-func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string, resource v1alpha1.BackingServiceResource, idx int,
-	dep *appsv1.Deployment, secondarySecret *corev1.Secret) error {
+// Handles mount projections for resources by creating/appending to a volume with a projection source like so:
+//   volumes:
+//   - name: backing-elastic
+//     projected:
+//       sources:
+//       - secret:
+//           name: tls-secret
+//           items:
+//           - key: ca.crt
+//             path: ca.crt
+// There will be one such volume and corresponding vol mount for each backing service specifying any mount
+// projection in the Nuxeo CR like so:
+//   backingServices:
+//   - name: elastic # Nuxeo Operator creates volume "backing-elastic"
+//     resources:
+//     - version: v1
+//       kind: secret
+//       name: some-secret
+//       projections:
+//       - key: ca.crt
+//         mount: ca.crt # becomes path in projection
+// This function supports projecting certificates and similar values onto the filesystem so nuxeo.conf can reference
+// them with explicit filesystem paths.
+func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string,
+	resource v1alpha1.BackingServiceResource, idx int, dep *appsv1.Deployment, secondarySecret *corev1.Secret) error {
+	var nuxeoContainer *corev1.Container
+	var err error
+	if nuxeoContainer, err = util.GetNuxeoContainer(dep); err != nil {
+		return err
+	}
+	vol := corev1.Volume{
+		Name: strings.ToLower("backing-" + backingServiceName),
+		VolumeSource: corev1.VolumeSource{
+			Projected: &corev1.ProjectedVolumeSource{
+				Sources: []corev1.VolumeProjection{},
+			},
+		},
+	}
+	var src corev1.VolumeProjection
+	if isSecret(resource) {
+		src = corev1.VolumeProjection{
+			Secret: &corev1.SecretProjection{
+				LocalObjectReference: corev1.LocalObjectReference{Name: resource.Name},
+				Items: []corev1.KeyToPath{{
+					Key:  resource.Projections[idx].Key,
+					Path: resource.Projections[idx].Mount,
+				}},
+			},
+		}
+	} else if isConfigMap(resource) {
+		src = corev1.VolumeProjection{
+			ConfigMap: &corev1.ConfigMapProjection{
+				LocalObjectReference: corev1.LocalObjectReference{Name: resource.Name},
+				Items: []corev1.KeyToPath{{
+					Key:  resource.Projections[idx].Key,
+					Path: resource.Projections[idx].Mount,
+				}},
+			},
+		}
+	} else {
+		// configurer wants value from non-Secret/non-CM which isn't a supported Kubernetes projection type. So
+		// copy the value into the secondary secret and use the secondary secret as the source of the mount
+		var val []byte
+		var newKey string
+		if val, err = getValueFromResource(r, resource, namespace, idx); err != nil {
+			return err
+		}
+		if newKey, err = pathToKey(resource.Projections[idx].Path); err != nil {
+			return err
+		}
+		if _, ok := secondarySecret.Data[newKey]; ok {
+			return goerrors.New("secondary secret " + secondarySecret.Name + " already contains key " + newKey)
+		}
+		// caller must reconcile
+		secondarySecret.Data[newKey] = []byte(val)
+		src = corev1.VolumeProjection{
+			Secret: &corev1.SecretProjection{
+				LocalObjectReference: corev1.LocalObjectReference{Name: secondarySecret.Name},
+				Items: []corev1.KeyToPath{{
+					Key:  newKey,
+					Path: resource.Projections[idx].Mount,
+				}},
+			},
+		}
+	}
+	vol.VolumeSource.Projected.Sources = append(vol.VolumeSource.Projected.Sources, src)
+	if err = addVolumeProjectionAndItems(dep, vol); err != nil {
+		return err
+	}
+	volMnt := corev1.VolumeMount{
+		Name:      vol.Name,
+		ReadOnly:  true,
+		MountPath: "/etc/nuxeo-operator/binding/" + backingServiceName,
+	}
+	return addVolMnt(nuxeoContainer, volMnt)
+}
+
+// first try - probably delete this
+func projectMountSAVE(r *ReconcileNuxeo, namespace string, backingServiceName string,
+	resource v1alpha1.BackingServiceResource, idx int, dep *appsv1.Deployment, secondarySecret *corev1.Secret) error {
 	var nuxeoContainer *corev1.Container
 	var err error
 	if nuxeoContainer, err = util.GetNuxeoContainer(dep); err != nil {
@@ -159,7 +236,7 @@ func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string
 	if isSecret(resource) {
 		// mount Secret
 		vol = corev1.Volume{
-			Name: resource.Kind + "-" + resource.Name,
+			Name: strings.ToLower(resource.Kind + "-" + resource.Name),
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: resource.Name,
@@ -173,7 +250,7 @@ func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string
 	} else if isConfigMap(resource) {
 		// mount ConfigMap
 		vol = corev1.Volume{
-			Name: resource.Kind + "-" + resource.Name,
+			Name: strings.ToLower(resource.Kind + "-" + resource.Name),
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{Name: resource.Name},
@@ -185,8 +262,11 @@ func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string
 			},
 		}
 	} else {
-		var val, newKey string
-		val, err = getValueFromResource(r, resource, namespace, resource.Projections[idx].Path)
+		// configurer wants value from non-Secret non-CM so copy the value into the secondary secret
+		// and use the secondary secret as the source
+		var val []byte
+		var newKey string
+		val, err = getValueFromResource(r, resource, namespace, idx)
 		if err != nil {
 			return err
 		}
@@ -194,13 +274,13 @@ func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string
 		if err != nil {
 			return err
 		}
-		if _, ok := secondarySecret.Data[newKey]; !ok {
+		if _, ok := secondarySecret.Data[newKey]; ok {
 			return goerrors.New("secondary secret " + secondarySecret.Name + " already contains key " + newKey)
 		}
 		secondarySecret.Data[newKey] = []byte(val)
 
 		vol = corev1.Volume{
-			Name: resource.Kind + "-" + secondarySecret.Name,
+			Name: strings.ToLower(resource.Kind + "-" + secondarySecret.Name),
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: secondarySecret.Name,
@@ -223,14 +303,138 @@ func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string
 	return addVolMnt(nuxeoContainer, volMnt)
 }
 
+// todo-me this will have to be refactored once the keystore transform is added...
 // secret/cm  transform   create/update secondary secret, add transformed value as key, add
 // other      transform   " along with transformation
-func projectTransform(backingServiceName string, resource v1alpha1.BackingServiceResource, idx int,
-	dep *appsv1.Deployment, secondarySecret *corev1.Secret) error {
-	return nil
+func projectTransform(r *ReconcileNuxeo, namespace string, backingServiceName string,
+	resource v1alpha1.BackingServiceResource, idx int, dep *appsv1.Deployment, secondarySecret *corev1.Secret,
+	reqLogger logr.Logger) error {
+	var dir string
+	var err error
+	var val, store []byte
+	var nuxeoContainer *corev1.Container
+
+	storeKey := resource.Projections[idx].Transform.Store
+	passKey := resource.Projections[idx].Transform.Password
+	if _, ok := secondarySecret.Data[storeKey]; ok {
+		return goerrors.New("key " + storeKey + " already defined in secret " + secondarySecret.Name)
+	} else if _, ok := secondarySecret.Data[passKey]; ok {
+		return goerrors.New("key " + passKey + " already defined in secret " + secondarySecret.Name)
+	}
+
+	if dir, err = ioutil.TempDir("/tmp", "nuxop"); err != nil {
+		return err
+	}
+	defer func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			reqLogger.Info("Ignoring error removing work directory", "Directory", dir, "Error", err)
+		}
+	}()
+	if val, err = getValueFromResource(r, resource, namespace, idx); err != nil {
+		return err
+	}
+	inFile := dir + "/" + resource.Projections[idx].Key
+	if err = ioutil.WriteFile(inFile, []byte(val), 0644); err != nil {
+		return err
+	}
+	storePass := "pass:" + genPass()
+	outFile := dir + "/" + resource.Projections[idx].Transform.Store
+	cmd := exec.Command("openssl", "pkcs12", "-export", "-in", inFile, "-out", outFile, "-nokeys", "-passout", storePass)
+	var stdout, stderr bytes.Buffer
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err = cmd.Run(); err != nil {
+		return err
+	}
+	if store, err = readFile(outFile); err != nil {
+		return err
+	}
+	// todo-me confirm this is automatically encoded by Kubernetes
+	secondarySecret.Data[storeKey] = store
+	secondarySecret.Data[passKey] = []byte(storePass)
+
+	vol := corev1.Volume{
+		Name: strings.ToLower("backing-" + backingServiceName),
+		VolumeSource: corev1.VolumeSource{
+			Projected: &corev1.ProjectedVolumeSource{
+				Sources: []corev1.VolumeProjection{{
+					Secret: &corev1.SecretProjection{
+						LocalObjectReference: corev1.LocalObjectReference{Name: secondarySecret.Name},
+						Items: []corev1.KeyToPath{{
+							Key:  storeKey,
+							Path: storeKey, // for now the path is the key maybe in future provide an override
+						}, {
+							Key:  passKey,
+							Path: passKey,
+						}},
+					},
+				}},
+			},
+		},
+	}
+	if err = addVolumeProjectionAndItems(dep, vol); err != nil {
+		return err
+	}
+	volMnt := corev1.VolumeMount{
+		Name:      vol.Name,
+		ReadOnly:  true,
+		MountPath: "/etc/nuxeo-operator/binding/" + backingServiceName,
+	}
+	if nuxeoContainer, err = util.GetNuxeoContainer(dep); err != nil {
+		return err
+	}
+	if err = addVolMnt(nuxeoContainer, volMnt); err != nil {
+		return err
+	}
+	env := corev1.EnvVar{
+		Name: resource.Projections[idx].Transform.PassEnv,
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: secondarySecret.Name},
+				Key:                  passKey,
+			},
+		},
+	}
+	return util.OnlyAdd(nuxeoContainer, env)
 }
 
-// Converts a JSONPath expression to a valid Secret Key name
+// reads the passed file and returns the results as a byte array. Courtesy of @djhworld
+// https://stackoverflow.com/questions/14514201/how-to-read-a-binary-file-in-go
+func readFile(filename string) ([]byte, error) {
+	var file *os.File
+	var err error
+	var stats os.FileInfo
+	if file, err = os.Open(filename); err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+	if stats, err = file.Stat(); err != nil {
+		return nil, err
+	}
+	contents := make([]byte, stats.Size())
+	rdr := bufio.NewReader(file)
+	if _, err = rdr.Read(contents); err != nil {
+		return nil, err
+	}
+	return contents, nil
+}
+
+// 12-position random password generator. Courtesy of https://yourbasic.org/golang/generate-random-string/
+func genPass() string {
+	rand.Seed(time.Now().UnixNano())
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+	var b strings.Builder
+	for i := 0; i < 12; i++ {
+		b.WriteRune(chars[rand.Intn(len(chars))])
+	}
+	return b.String()
+}
+
+// Converts a JSONPath expression to a valid Secret Key name by removing invalid characters
 func pathToKey(jsonPath string) (string, error) {
 	reg, err := regexp.Compile("[^-._a-zA-Z0-9]+")
 	if err != nil {
@@ -239,18 +443,22 @@ func pathToKey(jsonPath string) (string, error) {
 	return reg.ReplaceAllString(jsonPath, ""), nil
 }
 
-// Validates projections for the passed resource based on resource GVK. These are the currentlyt supported
-// projections:
+// Validates projections for the passed backing service resource based on resource GVK. These are the
+// currently supported projections:
+//
+// Secrets and ConfigMaps
 //
 // Secret and ConfigMap resources 1) must specify .key, 2) must not specify .path, and 3) must specify one of: .mount,
 // .env, or .transform. This means that only the projection key can be used to get a value from the secret/cm. It
-// means that the resulting value can be projected as an environment variable, a mount, or transformed into
-// a (secondary) secret.
+// also means that the resulting value can be projected as an environment variable, a mount, or transformed into
+// a secondary secret value.
+//
+// All other (e.g. Service)
 //
 // All other resources 1) must specify .path, 2) must not specify .key or .env, and 3) must specify one of .mount
-// or .transform. This means that non-Secret and non-ConfigMap resources require JSONPath expressions to get the
-// value. And it means that the resulting value - which will ALWAYS be in a secondary secret - can only be projected
-// as a mount, or transformed.
+// or .transform. This means that resources *other than* Secrets and ConfigMaps require a JSONPath expressions to get
+// the resource value. And it means that the resulting value - which will ALWAYS be in a secondary secret - can only
+// be projected as a mount, or transformed.
 func projectionsAreValid(gvk string, projections []v1alpha1.ResourceProjection) bool {
 	for _, projection := range projections {
 		if gvk == ".v1.secret" || gvk == ".v1.configmap" {
@@ -276,7 +484,11 @@ func isConfigMap(resource v1alpha1.BackingServiceResource) bool {
 	return strings.ToLower(resource.Group+"."+resource.Version+"."+resource.Kind) == ".v1.configmap"
 }
 
-// Reconciles the passed secondary secret with the cluster
+// Reconciles the passed secondary secret with the cluster. A secondary secret is one that is created for
+// a backing service whenever a) a value is obtained from a backing service resouce other than a Secret or
+// ConfigMap, or b) a backing service value is transformed. In both cases, cluster storage is needed for the
+// value and so the Operator creates a "secondary secret" to hold such values. There is 0-1 ssecondary
+// secret per backing service.
 func reconcileSecondary(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, secondarySecret *corev1.Secret,
 	reqLogger logr.Logger) error {
 	if len(secondarySecret.Data)+len(secondarySecret.StringData) != 0 {
@@ -289,95 +501,86 @@ func reconcileSecondary(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, secondarySe
 	}
 }
 
-// The nuxeo.conf CM contains three keys: inline, bindings, and nuxeo.conf. The inline nuxeo conf code populates
-// the inline key. This code populates the binding key.
-// TODO-ME WHO POPULATES THE NUXEO.CONF KEY!!!???
-func reconcileNuxeoConfCM(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, bindings string, nodeSetName string,
-	reqLogger logr.Logger) error {
-	var nuxeoConfCM corev1.ConfigMap
-	cmName := nuxeoConfCMName(instance, nodeSetName)
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: instance.Namespace}, &nuxeoConfCM)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new nuxeo.conf ConfigMap " + cmName)
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      cmName,
-				Namespace: instance.Namespace,
-			},
-			Data: map[string]string{"bindings": bindings},
-		}
-		err = r.client.Create(context.TODO(), cm)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create nuxeo.conf ConfigMap "+cmName)
-			return err
-		}
-		return nil
-	} else if err != nil {
-		reqLogger.Error(err, "Error attempting to get nuxeo.conf ConfigMap "+cmName)
-		return err
-	}
-
-	// cm exists  have binding content  action
-	// ---------  --------------------  ----------
-	//    NO              NO            should delete
-	//    NO              YES           should create
-	//    YES             NO            remove binding and update
-	//    YES             YES           add binding and update
-	return nil
-}
-
 // getJsonPathValue applies the passed JSONPath expression to the passed runtime object and returns the
 // result of the parse. It's less friendly than the kubectl get -o=jsonpath= in that the passed JSON path
 // has to be included in curly braces. A variety of errors are returned but an empty return value and nil
 // error can also indicate that the provided JSON path didn't find anything in the passed resource.
-func getJsonPathValue(obj runtime.Object, jsonPath string) (string, error) {
+// todo-me clone RelaxedJSONPathExpression: https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/get/customcolumn.go
+func getJsonPathValue(obj runtime.Object, jsonPath string) ([]byte, error) {
 	if len(jsonPath) < 3 {
-		return "", goerrors.New("invalid JSONPath expression: " + jsonPath)
+		return nil, goerrors.New("invalid JSONPath expression: " + jsonPath)
 	}
 	if jsonPath[0:1]+jsonPath[len(jsonPath)-1:] != "{}" {
-		return "", goerrors.New("JSONPath expression must be curly-brace enclosed: " + jsonPath)
+		return nil, goerrors.New("JSONPath expression must be curly-brace enclosed: " + jsonPath)
 	}
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	j := jsonpath.New("jp")
 	// parse the JSON path expression
 	err = j.Parse(jsonPath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	result, err := j.FindResults(&unstructured)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	var buf bytes.Buffer
 	for ix := range result {
 		if err := j.PrintResults(&buf, result[ix]); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
-	return string(buf.Bytes()), nil
+	return buf.Bytes(), nil
 }
 
-// gets the GVK+Name from the passed backing service resource, obtains the resource from the clustrer, and
-// gets a value from the resource using the passed JSONPath expression. Any issue results in non-nil return
-// code. As with getJsonPathValue, an empty return value and nil error can also indicate that the provided
-// JSON path didn't find anything in the passed resource.
+// Gets the GVK+Name from the passed backing service resource struct, obtains the corresponding resource from
+// the cluster using that GVK+Name, and gets a value from the cluster resource using the passed JSONPath expression
+// if the object is not a Secret or ConfigMap, otherwise uses the projection key to get the value.
+//
+// Any issue results in non-nil return code. As with getJsonPathValue, an empty return value and nil error can
+// also indicate that the provided JSON path didn't find anything in the passed resource.
 func getValueFromResource(r *ReconcileNuxeo, resource v1alpha1.BackingServiceResource, namespace string,
-	jsonPath string) (string, error) {
-	schemaGvk := schema.GroupVersionKind{
-		Group:   resource.Group,
-		Version: resource.Version,
-		Kind:    resource.Kind,
+	idx int) ([]byte, error) {
+	gvk := strings.ToLower(resource.Group + "." + resource.Version + "." + resource.Kind)
+	if gvk == ".v1.secret" {
+		if resource.Projections[idx].Key == "" {
+			return nil, goerrors.New("no key provided in projection")
+		}
+		obj := corev1.Secret{}
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: resource.Name, Namespace: namespace}, &obj); err != nil {
+			return nil, err
+		}
+		return obj.Data[resource.Projections[idx].Key], nil
+	} else if gvk == ".v1.configmap" {
+		if resource.Projections[idx].Key == "" {
+			return nil, goerrors.New("no key provided in projection")
+		}
+		obj := corev1.ConfigMap{}
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: resource.Name, Namespace: namespace}, &obj); err != nil {
+			return nil, err
+		}
+		return []byte(obj.Data[resource.Projections[idx].Key]), nil
+
+	} else {
+		if resource.Projections[idx].Path == "" {
+			return nil, goerrors.New("no path provided in projection")
+		}
+		schemaGvk := schema.GroupVersionKind{
+			Group:   resource.Group,
+			Version: resource.Version,
+			Kind:    resource.Kind,
+		}
+		obj, err := r.scheme.New(schemaGvk)
+		if err != nil {
+			return nil, err
+		}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: resource.Name, Namespace: namespace}, obj)
+		if err != nil {
+			return nil, err
+		}
+		return getJsonPathValue(obj, resource.Projections[idx].Path)
 	}
-	obj, err := r.scheme.New(schemaGvk)
-	if err != nil {
-		return "", err
-	}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resource.Name, Namespace: namespace}, obj)
-	if err != nil {
-		return "", err
-	}
-	return getJsonPathValue(obj, jsonPath)
 }

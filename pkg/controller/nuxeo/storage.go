@@ -11,17 +11,16 @@ import (
 // Nuxeo stores document attachments as binary blobs on the file system. This function and the underlying configuration
 // structures allow these blobs to be stored persistently.
 func handleStorage(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
-	for _, storage := range nodeSet.Storage {
-		if volume, err := createVolumeForStorage(storage); err != nil {
-			return err
-		} else {
-			volMnt := createVolumeMountForStorage(storage.StorageType, volume.Name)
-			envVar := createEnvVarForStorage(storage.StorageType, volMnt.MountPath)
-			dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, volume)
-			// todo-me move GetNuxeoContainer outside the for
-			if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
+	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
+		return err
+	} else {
+		for _, storage := range nodeSet.Storage {
+			if volume, err := createVolumeForStorage(storage); err != nil {
 				return err
 			} else {
+				volMnt := createVolumeMountForStorage(storage.StorageType, volume.Name)
+				envVar := createEnvVarForStorage(storage.StorageType, volMnt.MountPath)
+				dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, volume)
 				nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
 				if envVar != (corev1.EnvVar{}) {
 					nuxeoContainer.Env = append(nuxeoContainer.Env, envVar)

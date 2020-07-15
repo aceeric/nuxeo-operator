@@ -8,7 +8,6 @@ import (
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -52,7 +51,7 @@ func handleClid(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 // reconcileClid creates, updates, or deletes the CLID ConfigMap. If the Clid is specified in the CR, then the
 // corresponding CM is added/updated in the cluster. If Clid is not specified, then it is removed from the
 // cluster if present
-func reconcileClid(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
+func reconcileClid(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
 	if instance.Spec.Clid != "" {
 		expected := r.defaultClidCM(instance, instance.Spec.Clid)
 		return addOrUpdateConfigMap(r, instance, expected, reqLogger)

@@ -93,7 +93,6 @@ rules:
   - patch
   - update
   - watch
-# todo-me delete this?
 - apiGroups:
   - extensions
   resources:

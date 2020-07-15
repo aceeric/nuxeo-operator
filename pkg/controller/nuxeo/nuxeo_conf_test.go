@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // Tests the basic functionality to create a nuxeo.conf ConfigMap from inlined data in the Nuxeo CR. Defines
@@ -18,19 +17,20 @@ import (
 // created that contains the matching nuxeo.conf content.
 func (suite *nuxeoConfSuite) TestBasicInlineNuxeoConf() {
 	nux := suite.nuxeoConfSuiteNewNuxeo()
-	result, err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], log)
+	err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "",log)
 	require.Nil(suite.T(), err, "reconcileNuxeoConf failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileNuxeoConf returned unexpected result: %v\n", result)
 	found := &corev1.ConfigMap{}
-	cmName := nux.Name + "-" + nux.Spec.NodeSets[0].Name + "-nuxeo-conf"
+	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: suite.namespace}, found)
 	require.Nil(suite.T(), err, "Nuxeo conf ConfigMap creation failed with err: %v\n", err)
 	require.Equal(suite.T(), suite.nuxeoConfContent, found.Data[suite.nuxeoConfKey],
 		"ConfigMap has incorrect nuxeo.conf content: %v\n", found.Data)
 }
 
-func (suite *nuxeoConfSuite) TestExplicitNuxeoConf() {
-	// todo-me test when a nuxeo conf ConfigMap is defined by the configurer and the operator should not overwrite
+func (suite *nuxeoConfSuite) TestExternalNuxeoConf() {
+	// todo-me test when a nuxeo conf ConfigMap is defined by the configurer and so the operator should not reconcile
+	//  but other settings (backing services and clustering) require the Operator to be able to take ownership
+	//  of the nuxeo.conf ConfigMap
 }
 
 // nuxeoConfSuite is the NuxeoConf test suite structure
@@ -50,7 +50,7 @@ func (suite *nuxeoConfSuite) SetupSuite() {
 	suite.nuxeoName = "testnux"
 	suite.deploymentName = "testclust"
 	suite.namespace = "testns"
-	suite.nuxeoConfContent = "test.test.test=100"
+	suite.nuxeoConfContent = "test.test.test=100\n"
 	suite.nuxeoConfKey = "nuxeo.conf"
 }
 

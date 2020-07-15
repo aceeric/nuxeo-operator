@@ -61,7 +61,7 @@ type NuxeoStorageSpec struct {
 	VolumeSource corev1.VolumeSource `json:"volumeSource,omitempty"`
 }
 
-// Contributions allow you to add ad-hoc or persistent contributions to the Nuxeo server. Two scenarios are
+// Contributions allow a configurer to add ad-hoc or persistent contributions to the Nuxeo server. Two scenarios are
 // envisioned. For an ad-hoc contribution, you define a ConfigMap or Secret with the contribution contents, and define
 // the name of the contribution in the templates list. The operator configures that single contribution into Nuxeo by
 // mounting the files, and adding one entry into the nuxeo templates.
@@ -283,7 +283,7 @@ type OfflinePackage struct {
 	ValueFrom corev1.VolumeSource `json:"valueFrom,omitempty"`
 }
 
-// NuxeoConfig provides the ability to configure the Nuxeo cluster. These settings are added to each Deployment
+// NuxeoConfig provides the ability to configure the Nuxeo server. These settings are added to each Deployment
 // generated from the NodeSet.
 type NuxeoConfig struct {
 	// +kubebuilder:validation:Optional
@@ -313,6 +313,7 @@ type NuxeoConfig struct {
 	// +optional
 	NuxeoName string `json:"nuxeoName,omitempty"`
 
+	// todo-me raise up a level
 	// +kubebuilder:validation:Optional
 	// NuxeoConf specifies values to append to nuxeo.conf. Values can be provided inline, or from a Secret
 	// or ConfigMap
@@ -321,7 +322,7 @@ type NuxeoConfig struct {
 
 	// +kubebuilder:validation:Optional
 	// tlsSecret enables TLS termination by the Nuxeo Pod. The field specifies the name of a secret containing
-	// keys keystore.jks and keystorePass. As of Nuxeo 10.10, only JKS is supported.
+	// keys keystore.jks and keystorePass. As of Nuxeo 10.10, only JKS is supported. (This is a Nuxeo constraint.)
 	// +optional
 	TlsSecret string `json:"tlsSecret,omitempty"`
 
@@ -350,6 +351,8 @@ const (
 	// the resulting trust store can be used by Nuxeo and the JVM to validate a backing service certificate during
 	// a one-way SSL handshake
 	CrtToTrustStore CertTransformType = "CrtToTrustStore"
+
+	// todo-me ???ToKeyStore CERT AND KEY? CERT OR KEY?
 )
 
 // CertTransform supports the Operator's requirement to take incoming PKI assets in the form of CRTs/PEMs etc.
@@ -441,18 +444,20 @@ type ResourceProjection struct {
 
 // A BackingServiceResource provides the ability to extract values from a Kubernetes cluster resource, and to
 // project those values into the Nuxeo Pod. For example, a password can be obtained from a backing service secret
-// and projected into the Nuxeo Pod as an environment variable or mount. This design is intended to be compatible
-// with
+// and projected into the Nuxeo Pod as an environment variable or mount.
 type BackingServiceResource struct {
-	metav1.GroupVersionKind
+	// name is GVK of the cluster resource from which to obtain a value or values.
+	metav1.GroupVersionKind `json:"kind"`
+
 	// name is the name of the cluster resource from which to obtain a value or values.
-	Name    string `json:"name"`
+	Name string `json:"name"`
 
 	// Each projection defines one value to get from the resource specified by GVK+Name, and how to project
 	// that one value into the Nuxeo Pod.
 	Projections []ResourceProjection `json:"projections"`
 }
 
+// todo-me /etc/nuxeo-operator/binding/ or /etc/nuxeo-operator/backing/ NEED A CONST!
 // A backing service specifies three things: 1) a list of cluster resources from which to obtain connection
 // configuration values like passwords and certificates, and the corresponding projections of those values into
 // the Nuxeo Pod. 2) A nuxeo.conf string that can reference the projected resource values. 3) A name. The name
@@ -490,11 +495,19 @@ type BackingServiceResource struct {
 //             configMap:
 //               name: my-externally-provisioned-nuxeo-conf-config-map
 // An externally provisioned nuxeo.conf ConfigMap or Secret is not compatible with backing services and will result
-// in a reconciliation error. Only inlind nuxeo.conf content is supported with backing services.
+// in a reconciliation error. Only inlined nuxeo.conf content is supported with backing services - because the
+// Operator has to have ownership of the cluster resource holding the nuxeo.conf content and it can't do that if
+// the resource is provisioned by the configurer.
 type BackingService struct {
-	Name      string                   `json:"name"`
+	// The name of the backing service, as well as the directory under which to mount any files
+	Name string `json:"name"`
+
+	// Resources and projections control how backing service cluster resources are referenced within the Nuxeo Pod
 	Resources []BackingServiceResource `json:"resources"`
-	NuxeoConf string                   `json:"nuxeoConf"`
+
+	// nuxeo.conf entries - some of which will be static, and some of which will reference resource projections
+	// via environment variables or filesystem mounts
+	NuxeoConf string `json:"nuxeoConf"`
 }
 
 // Defines the desired state of a Nuxeo cluster

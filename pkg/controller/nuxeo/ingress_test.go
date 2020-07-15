@@ -54,7 +54,7 @@ func (suite *ingressSuite) TestIngressFromTLS() {
 }
 
 func (suite *ingressSuite) TestIngressForcePassthrough() {
-	// todo-me code this
+	// todo-me test force passthrough
 }
 
 // ingressSuite is the Ingress test suite structure

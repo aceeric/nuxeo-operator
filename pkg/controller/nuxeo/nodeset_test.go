@@ -64,10 +64,10 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 		}
 	}
 	require.Equal(suite.T(), 2, envCount, "Environment incorrectly defined\n")
-	_, err = reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], log)
+	err = reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", log)
 	require.Nil(suite.T(), err, "reconcileNuxeoConf failed with err: %v\n", err)
 	foundCMap := &corev1.ConfigMap{}
-	cmName := nux.Name + "-" + nux.Spec.NodeSets[0].Name + "-nuxeo-conf"
+	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: suite.namespace}, foundCMap)
 	nuxeoConfExpected := suite.nuxeoConfContent +
 		"\nrepository.binary.store=${env:NUXEO_BINARY_STORE}\n" +
@@ -77,13 +77,12 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 		foundCMap.Data)
 }
 
-func (suite *nodeSetSuite) TestDeploymentClusteringnoBinaries() {
-	// todo-me test clustering when binaries not defined - should err
+func (suite *nodeSetSuite) TestDeploymentClusteringNoBinaries() {
+	// todo-me test clustering when binaries not defined - should err b/c binaries myst be shared in cluster config
 }
 
-// TestInteractiveChanged tests when a nodeset is changed from interactive true to false and vice versa
 func (suite *nodeSetSuite) TestInteractiveChanged() {
-	// todo-me code this test
+	// todo-me test when a nodeset is changed from interactive true to false and back
 }
 
 // TestRevProxyDeploymentCreation is the same as TestBasicDeploymentCreation except it includes an Nginx rev proxy

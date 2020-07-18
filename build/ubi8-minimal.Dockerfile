@@ -1,7 +1,4 @@
-FROM foo
-
-# operator-sdk expects this file but my project does not use it
-# todo-me refactor Makefile as described in: https://github.com/operator-framework/operator-sdk/issues/1804#issuecomment-542329479
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.2
 
 ENV OPERATOR=/usr/local/bin/nuxeo-operator \
     USER_UID=1001 \

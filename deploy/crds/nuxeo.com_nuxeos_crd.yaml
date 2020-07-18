@@ -74,8 +74,7 @@ spec:
                 description: Backing Services are used to bind Nuxeo to cluster backing
                   services like Kafka, MongoDB, ElasticSearch, and Postgres
                 items:
-                  description: "todo-me /etc/nuxeo-operator/binding/ or /etc/nuxeo-operator/backing/
-                    NEED A CONST! A backing service specifies three things: 1) a list
+                  description: "A backing service specifies three things: 1) a list
                     of cluster resources from which to obtain connection configuration
                     values like passwords and certificates, and the corresponding
                     projections of those values into the Nuxeo Pod. 2) A nuxeo.conf
@@ -109,16 +108,59 @@ spec:
                   properties:
                     name:
                       description: The name of the backing service, as well as the
-                        directory under which to mount any files
+                        directory under which to mount any files. Required if preConfigured
+                        is empty. If name is specified, then resources and nuxeoConf
+                        must also be specified, and preConfigured is ignored.
                       type: string
                     nuxeoConf:
                       description: nuxeo.conf entries - some of which will be static,
                         and some of which will reference resource projections via
-                        environment variables or filesystem mounts
+                        environment variables or filesystem mounts. Required if name
+                        is specified. Ignored if preConfigured is specified.
                       type: string
+                    preConfigured:
+                      description: For a set of known backing service (e.g. Strimzi
+                        Kafka) the configuration can be tersely specified using a
+                        preConfigured entry. The Nuxeo Operator will perform all the
+                        configuration using just a couple of additional settings.
+                        If this is specified, then name, resources, and nuxeoConf
+                        are all ignored.
+                      properties:
+                        resource:
+                          description: 'resource identifies the name of primary backing
+                            service resource. For example, for Elastic Cloud on Kubernetes,
+                            this is the cluster resource that would be returned if
+                            one executed: ''kubectl get elasticsearch''. The Nuxeo
+                            Operator already knows the GVK, so all the configurer
+                            needs to provide is the resource name in the same namespace
+                            as the Nuxeo CR.'
+                          type: string
+                        settings:
+                          additionalProperties:
+                            type: string
+                          description: Optional configuration settings that tune the
+                            backing service binding, depending on how the backing
+                            service was configured. For example, with Strimzi, it
+                            is possible to allow both plain text and tls connections.
+                            If you Nuxeo to connect one way or the other, then specify
+                            that here. See the documentation for which settings are
+                            valid for the various pre-configured backing services.
+                          type: object
+                        type:
+                          description: type identifies the preconfigured backing service
+                          enum:
+                          - ECK
+                          - Strimzi
+                          - Crunchy
+                          type: string
+                      required:
+                      - resource
+                      - type
+                      type: object
                     resources:
                       description: Resources and projections control how backing service
-                        cluster resources are referenced within the Nuxeo Pod
+                        cluster resources are referenced within the Nuxeo Pod. Required
+                        if name is specified. Ignored if preConfigured is specified.
                       items:
                         description: A BackingServiceResource provides the ability
                           to extract values from a Kubernetes cluster resource, and
@@ -127,21 +169,10 @@ spec:
                           and projected into the Nuxeo Pod as an environment variable
                           or mount.
                         properties:
+                          group:
+                            type: string
                           kind:
-                            description: name is GVK of the cluster resource from
-                              which to obtain a value or values.
-                            properties:
-                              group:
-                                type: string
-                              kind:
-                                type: string
-                              version:
-                                type: string
-                            required:
-                            - group
-                            - kind
-                            - version
-                            type: object
+                            type: string
                           name:
                             description: name is the name of the cluster resource
                               from which to obtain a value or values.
@@ -255,7 +286,7 @@ spec:
                                       description: certTransformType establishes the
                                         type of certificate transform to apply.
                                       enum:
-                                      - CrtToTrustStore
+                                      - TrustStore
                                       type: string
                                   required:
                                   - passEnv
@@ -263,24 +294,18 @@ spec:
                                   - store
                                   - type
                                   type: object
-                              required:
-                              - env
-                              - key
-                              - mount
-                              - path
-                              - transform
                               type: object
                             type: array
+                          version:
+                            type: string
                         required:
+                        - group
                         - kind
                         - name
                         - projections
+                        - version
                         type: object
                       type: array
-                  required:
-                  - name
-                  - nuxeoConf
-                  - resources
                   type: object
                 type: array
               clid:

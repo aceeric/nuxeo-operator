@@ -17,8 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const nginxPassthroughAnnotation = "nginx.ingress.kubernetes.io/ssl-passthrough"
-
 // reconcileIngress configures access to the Nuxeo cluster via a Kubernetes Ingress
 func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
@@ -42,19 +40,7 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePasst
 		reqLogger.Error(err, "Error attempting to get Ingress for Nuxeo cluster: "+ingressName)
 		return reconcile.Result{}, err
 	}
-	shouldUpdate := false
-	if different, err := util.ObjectsDiffer(expected.Spec, found.Spec); err == nil && different {
-		expected.Spec.DeepCopyInto(&found.Spec)
-		shouldUpdate = true
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-	// ingress tls termination behavior is affected by annotations rather than the ingress spec
-	if a := updatedAnnotations(expected.ObjectMeta.Annotations, found.ObjectMeta.Annotations); a != nil {
-		found.ObjectMeta.Annotations = a
-		shouldUpdate = true
-	}
-	if shouldUpdate {
+	if !util.IngressComparer(expected, found) {
 		reqLogger.Info("Updating Ingress", "Namespace", expected.Namespace, "Name", expected.Name)
 		err = r.client.Update(context.TODO(), found)
 		return reconcile.Result{}, err
@@ -62,32 +48,12 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePasst
 	return reconcile.Result{}, nil
 }
 
-// checks the annotations in the Ingress from the cluster. If the SSL passthrough annotations are different then
-// add/remove the passthrough annotation in the cluster copy and return the modified copy. Caller must update
-// the cluster from the return value. Returns nil if no change. The use case is: the watched Nuxeo CR was changed
-// and TLS termination was added/removed and so the Ingress annotations that control this must be updated
-// accordingly.
-func updatedAnnotations(expected map[string]string, found map[string]string) map[string]string {
-	if found != nil {
-		if _, ok := found[nginxPassthroughAnnotation]; ok {
-			if expected == nil {
-				// Nuxeo CR was updated: change Ingress from passthrough TLS to normal HTTP
-				delete(found, nginxPassthroughAnnotation)
-				return found
-			}
-		}
-	} else if expected != nil {
-		// Nuxeo CR was updated: change Ingress from normal HTTP to passthrough TLS
-		return map[string]string{nginxPassthroughAnnotation: "true"}
-	}
-	return nil
-}
-
 // defaultIngress generates and returns an Ingress struct from the passed params. If the passed 'access' struct
 // indicates TLS termination, or forcePassthrough==true, then an annotation is included in the returned object's
 // metadata
 func (r *ReconcileNuxeo) defaultIngress(nux *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, ingressName string,
 	nodeSet v1alpha1.NodeSet) (*v1beta1.Ingress, error) {
+	const nginxPassthroughAnnotation = "nginx.ingress.kubernetes.io/ssl-passthrough"
 	targetPort := intstr.IntOrString{
 		Type:   intstr.String,
 		StrVal: "web",

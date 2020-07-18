@@ -9,7 +9,8 @@ import (
 )
 
 // addProbes adds liveness and readiness probes to the Nuxeo container spec in the passed deployment. If probes are
-// defined in the passed NodeSet spec then they are used in their entirety. Otherwise they are defaulted:
+// defined in the passed NodeSet spec then they are used. (If thresholds in the provided probes are not specified
+// they are defaulted. If no explicit probe in the Nuxeo CR, then probes are defaulted:
 //  httpGet:
 //    path: /nuxeo/runningstatus
 //    port: 8080 (or 8443)
@@ -26,10 +27,12 @@ func addProbes(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet, useHttps bool) 
 		nuxeoContainer.LivenessProbe = defaultProbe(useHttps)
 		if nodeSet.LivenessProbe != nil {
 			nodeSet.LivenessProbe.DeepCopyInto(nuxeoContainer.LivenessProbe)
+			setProbeDefaults(nuxeoContainer.LivenessProbe)
 		}
 		nuxeoContainer.ReadinessProbe = defaultProbe(useHttps)
 		if nodeSet.ReadinessProbe != nil {
 			nodeSet.ReadinessProbe.DeepCopyInto(nuxeoContainer.ReadinessProbe)
+			setProbeDefaults(nuxeoContainer.ReadinessProbe)
 		}
 		return nil
 	}
@@ -63,4 +66,16 @@ func defaultProbe(useHttps bool) *corev1.Probe {
 		SuccessThreshold:    1,
 		FailureThreshold:    3,
 	}
+}
+
+// Simplifies reconciliation since the probes are embedded in the Deployment. If nothing is provided for these
+// thresholds then Kubernetes will assign defaults (another case where Kubernetes takes partial ownership of the
+// resource spec.) That adds complexity to the reconciliation so - explicit values are assigned here so Kubernetes
+// will leave them alone.
+func setProbeDefaults(probe *corev1.Probe) {
+	util.SetInt32If(&probe.InitialDelaySeconds, 0, 15)
+	util.SetInt32If(&probe.TimeoutSeconds, 0, 3)
+	util.SetInt32If(&probe.PeriodSeconds, 0, 10)
+	util.SetInt32If(&probe.SuccessThreshold, 0, 1)
+	util.SetInt32If(&probe.FailureThreshold, 0, 3)
 }

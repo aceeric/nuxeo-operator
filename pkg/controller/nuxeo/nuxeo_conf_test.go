@@ -27,6 +27,20 @@ func (suite *nuxeoConfSuite) TestBasicInlineNuxeoConf() {
 		"ConfigMap has incorrect nuxeo.conf content: %v\n", found.Data)
 }
 
+// joinCompact is used to build the combined nuxeo.conf ConfigMap
+func (suite *nuxeoConfSuite) TestJoinCompact() {
+	s0 := ""
+	s1 := "Good morning,\n"
+	s2 := "\n\nand in case I don't see ya,\n\n\n\n"
+	s3 := "Good afternoon,\n\n\n\n"
+	s4 := "\n\n\n\ngood evening,"
+	s5 := "and"
+	s6 := "goodnight!\n\n\n\n"
+	act := joinCompact("\n", s0, s1, s2, s3, s4, s5, s6)
+	exp := "Good morning,\nand in case I don't see ya,\nGood afternoon,\ngood evening,\nand\ngoodnight!\n"
+	require.Equal(suite.T(), exp, act,"joinCompact Failed")
+}
+
 func (suite *nuxeoConfSuite) TestExternalNuxeoConf() {
 	// todo-me test when a nuxeo conf ConfigMap is defined by the configurer and so the operator should not reconcile
 	//  but other settings (backing services and clustering) require the Operator to be able to take ownership

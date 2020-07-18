@@ -66,7 +66,7 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 
 // Similar to TestBackingServiceECK except uses reconcileNodeSets, which creates an actual deployment, and a
 // nuxeo.conf ConfigMap. The test verifies that the nuxeo.conf ConfigMap is poperly generated
-func (suite *backingServiceSuite) TestFoo() {
+func (suite *backingServiceSuite) TestReconcileNodeSetsWithBackingSvc() {
 	nux := suite.backingServiceSuiteNewNuxeoES()
 	_ = createECKSecrets(suite)
 	result, err := suite.r.reconcileNodeSets(nux, log)
@@ -97,13 +97,13 @@ func (suite *backingServiceSuite) TestJSONPathParse() {
 	var err error
 	var replicasInt int
 	dep := genTestDeploymentForBackingSvc()
-	replicas, err = getJsonPathValue(&dep, "{.spec.replicas}")
+	replicas, err = util.GetJsonPathValue(&dep, "{.spec.replicas}")
 	require.Nil(suite.T(), err, "Error parsing replicas")
 	replicasInt, err = strconv.Atoi(string(replicas))
 	require.Nil(suite.T(), err, "Invalid replicas value")
 	require.Equal(suite.T(), *dep.Spec.Replicas, int32(replicasInt), "Invalid replicas value")
 	nux := suite.backingServiceSuiteNewNuxeoES()
-	resName, err = getJsonPathValue(nux, "{.spec.backingServices[0].resources[0].name}")
+	resName, err = util.GetJsonPathValue(nux, "{.spec.backingServices[0].resources[0].name}")
 	require.Nil(suite.T(), err, "Error parsing nuxeo")
 	require.Equal(suite.T(), nux.Spec.BackingServices[0].Resources[0].Name, string(resName), "Nuxeo not parsed")
 }
@@ -127,7 +127,7 @@ func (suite *backingServiceSuite) TestValueFromResource() {
 		}},
 		Name: suite.nuxeoName,
 	}
-	val, err = getValueFromResource(&suite.r, bsr, suite.namespace, 0)
+	val, _, err = getValueFromResource(&suite.r, bsr, suite.namespace, 0)
 	require.Nil(suite.T(), err, "JSONPath parse error")
 	require.Equal(suite.T(), nux.Spec.BackingServices[0].Resources[0].Name, string(val), "Nuxeo not parsed")
 }
@@ -268,6 +268,48 @@ func (suite *backingServiceSuite) TestProjectionMount2() {
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Volumes[0].Projected.Sources), "Projection was not added")
 }
 
+// Same as TestReconcileNodeSetsWithBackingSvc excepts using a pre-configured backing service rather than
+// explicit (verbose) resources and projections.
+func (suite *backingServiceSuite) TestPreConfig() {
+	nux := &v1alpha1.Nuxeo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      suite.nuxeoName,
+			Namespace: suite.namespace,
+		},
+		Spec: v1alpha1.NuxeoSpec{
+			NodeSets: []v1alpha1.NodeSet{{
+				Name:     suite.nodeSetName,
+				Replicas: 1,
+			}},
+			BackingServices: []v1alpha1.BackingService{{
+				Preconfigured: v1alpha1.PreconfiguredBackingService{
+					Type:     "ECK",
+					Resource: "elastic",
+				},
+			}},
+		},
+	}
+	_ = createECKSecrets(suite)
+	result, err := suite.r.reconcileNodeSets(nux, log)
+	require.Nil(suite.T(), err, "reconcileNodeSets returned non-nil")
+	require.Equal(suite.T(), reconcile.Result{Requeue:true}, result, "reconcileNodeSets returned unexpected result")
+	dep := appsv1.Deployment{}
+	depName := deploymentName(nux, nux.Spec.NodeSets[0])
+	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: depName, Namespace: suite.namespace}, &dep)
+	require.Nil(suite.T(), err, "addOrUpdate did not create secret")
+	// one for backing services and one for /docker-entrypoint-initnuxeo.d/nuxeo.conf
+	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
+		"should be one vol mount for backing secrets and one for the nuxeo.conf ConfigMap")
+	// one for backing service secrets and one for nuxeo.conf ConfigMap
+	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Volumes),
+		"should be one volume for backing secrets and one for the nuxeo.conf ConfigMap")
+	nuxeoConf := corev1.ConfigMap{}
+	cmName := nuxeoConfCMName(nux, suite.nodeSetName)
+	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: suite.namespace}, &nuxeoConf)
+	require.Nil(suite.T(), err, "nuxeo.conf ConfigMap not created")
+	require.Equal(suite.T(), suite.nuxeoConf, nuxeoConf.Data["nuxeo.conf"], "nuxeo.conf data incorrect")
+}
+
 // backingServiceSuite is the BackingService test suite structure
 type backingServiceSuite struct {
 	suite.Suite
@@ -301,12 +343,13 @@ func (suite *backingServiceSuite) SetupSuite() {
 	suite.configVal = "abc123"
 	suite.targetPort = 987
 	suite.backing = "elastic"
-	suite.nuxeoConf = "elasticsearch.restClient.username=elastic\n" +
+	suite.nuxeoConf = "elasticsearch.client=RestClient\n" +
+		"elasticsearch.restClient.username=elastic\n" +
 		"elasticsearch.restClient.password=${env:ELASTIC_PASSWORD}\n" +
 		"elasticsearch.addressList=https://elastic-es-http:9200\n" +
-		"elasticsearch.restClient.truststore.path=/etc/nuxeo-operator/binding/elastic/elastic.ca.p12\n" +
+		"elasticsearch.restClient.truststore.path="+backingMountBase+"elastic/elastic.ca.p12\n" +
 		"elasticsearch.restClient.truststore.password=${env:ELASTIC_TS_PASS}\n" +
-		"elasticsearch.restClient.truststore.type=p12\n"
+		"elasticsearch.restClient.truststore.type=JKS\n"
 	suite.nodeSetName = "test123"
 }
 
@@ -316,6 +359,8 @@ func (suite *backingServiceSuite) AfterTest(_, _ string) {
 	_ = suite.r.client.DeleteAllOf(context.TODO(), &obj)
 	objSecret := corev1.Secret{}
 	_ = suite.r.client.DeleteAllOf(context.TODO(), &objSecret)
+	objDep := appsv1.Deployment{}
+	_ = suite.r.client.DeleteAllOf(context.TODO(), &objDep)
 }
 
 // This function runs the BackingService unit test suite. It is called by 'go test' and will call every
@@ -345,9 +390,9 @@ func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoES() *v1alpha1.Nuxe
 					},
 					Name: suite.caSecret,
 					Projections: []v1alpha1.ResourceProjection{{
-						Key: "tls.crt",
 						Transform: v1alpha1.CertTransform{
-							Type:     v1alpha1.CrtToTrustStore,
+							Type:     v1alpha1.TrustStore,
+							Cert:     "tls.crt",
 							Store:    "elastic.ca.p12",
 							Password: "elastic.truststore.pass",
 							PassEnv:  "ELASTIC_TS_PASS",

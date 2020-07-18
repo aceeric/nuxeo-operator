@@ -44,7 +44,7 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 		reqLogger.Error(err, "Error attempting to get Service for Nuxeo cluster: "+svcName)
 		return reconcile.Result{}, err
 	}
-	if different, err := util.ObjectsDiffer(expected.Spec, found.Spec); err == nil && different {
+	if !util.ServiceComparer(expected, found) {
 		reqLogger.Info("Updating Service", "Namespace", expected.Namespace, "Name", expected.Name)
 		if expected.Spec.Type == corev1.ServiceTypeClusterIP && expected.Spec.Type == found.Spec.Type {
 			expected.Spec.ClusterIP = found.Spec.ClusterIP
@@ -53,8 +53,6 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 		if err = r.client.Update(context.TODO(), found); err != nil {
 			return reconcile.Result{}, err
 		}
-	} else if err != nil {
-		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
 }

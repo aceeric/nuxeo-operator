@@ -23,7 +23,10 @@ type comparer func (expected runtime.Object, found runtime.Object) bool
 // of expected exists in the cluster, then expected is created in the cluster. If an instance of expected (i.e. found)
 // exists and differs, then the cluster is updated from expected. Otherwise cluster is not altered. The comparer
 // function is called to do two things: 1) determine logical equality of expected and found, and 2) if unequal
-// to set the state of found from expected so this function can write found back into the cluster
+// to set the state of found from expected so this function can write found back into the cluster.
+//
+// Caller is expected to have set the Nuxeo CR as the owner of 'expected' if that is the intent (this function
+// performs no modifications to 'expected')
 func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runtime.Object, found runtime.Object,
 	comparer comparer, reqLogger logr.Logger) error  {
 	var kind string
@@ -31,22 +34,22 @@ func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runt
 	if kind, err = getKind(r.scheme, expected); err != nil {
 		return err
 	}
-	knv := []string{"Namespace", namespace, "Name", name}
+	knv := []interface{}{"Namespace", namespace, "Name", name}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new "+kind, knv)
+		reqLogger.Info("Creating a new "+kind, knv...)
 		err = r.client.Create(context.TODO(), expected)
 		if err != nil {
-			reqLogger.Error(err, "Failed to create "+kind, knv)
+			reqLogger.Error(err, "Failed to create "+kind, knv...)
 			return err
 		}
 		return nil
 	} else if err != nil {
-		reqLogger.Error(err, "Error attempting to get "+kind, knv)
+		reqLogger.Error(err, "Error attempting to get "+kind, knv...)
 		return err
 	}
 	if !comparer(expected, found) {
-		reqLogger.Info("Updating "+kind, knv)
+		reqLogger.Info("Updating "+kind, knv...)
 		if err = r.client.Update(context.TODO(), found); err != nil {
 			return err
 		}
@@ -62,22 +65,22 @@ func removeIfPresent(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, name string, n
 	var kind string
 	var err error
 	var uids []string
-	knv := []string{"Namespace", namespace, "Name", name}
+	knv := []interface{}{"Namespace", namespace, "Name", name}
 	if kind, err = getKind(r.scheme, found); err != nil {
 		return err
 	}
 	if err = r.client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, found); err == nil {
 		if uids, err = getOwnerRefs(found); err != nil {
-			reqLogger.Error(err, "Error attempting to get owner refs for "+kind, knv)
+			reqLogger.Error(err, "Error attempting to get owner refs for "+kind, knv...)
 			return err
 		} else if instance.IsOwnerUids(uids) {
 			if err := r.client.Delete(context.TODO(), found); err != nil {
-				reqLogger.Error(err, "Error attempting to delete "+kind, knv)
+				reqLogger.Error(err, "Error attempting to delete "+kind, knv...)
 				return err
 			}
 		}
 	} else if !errors.IsNotFound(err) {
-		reqLogger.Error(err, "Error attempting to get "+kind, knv)
+		reqLogger.Error(err, "Error attempting to get "+kind, knv...)
 		return err
 	}
 	return nil

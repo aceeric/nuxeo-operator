@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"crypto/md5"
 	goerrors "errors"
 
@@ -8,6 +9,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/jsonpath"
 )
 
 type clusterType int
@@ -123,4 +125,53 @@ func OnlyAdd(container *corev1.Container, env corev1.EnvVar) error {
 	}
 	container.Env = append(container.Env, env)
 	return nil
+}
+
+// GetJsonPathValue applies the passed JSONPath expression to the passed runtime object and returns the
+// result of the parse. It's less friendly than the kubectl get -o=jsonpath= in that the passed JSON path
+// has to be included in curly braces. A variety of errors are returned but an empty return value and nil
+// error can also indicate that the provided JSON path didn't find anything in the passed resource.
+// todo-me clone RelaxedJSONPathExpression: https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/get/customcolumn.go
+func GetJsonPathValue(obj runtime.Object, jsonPath string) ([]byte, error) {
+	if len(jsonPath) < 3 {
+		return nil, goerrors.New("invalid JSONPath expression: " + jsonPath)
+	}
+	if jsonPath[0:1]+jsonPath[len(jsonPath)-1:] != "{}" {
+		return nil, goerrors.New("JSONPath expression must be curly-brace enclosed: " + jsonPath)
+	}
+	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	j := jsonpath.New("jp")
+	// parse the JSON path expression
+	err = j.Parse(jsonPath)
+	if err != nil {
+		return nil, err
+	}
+	result, err := j.FindResults(&unstructured)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	for ix := range result {
+		if err := j.PrintResults(&buf, result[ix]); err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+func Int32Ptr(i int32) *int32 {
+	return &i
+}
+
+func Int64Ptr(i int64) *int64 {
+	return &i
+}
+
+func SetInt32If(v *int32, ifVal int32, thenVal int32) {
+	if *v == ifVal {
+		*v = thenVal
+	}
 }

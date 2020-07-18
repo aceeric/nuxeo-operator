@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/fullstorydev/grpcurl v1.6.0 // indirect
+	github.com/pavel-v-chernykh/keystore-go v2.1.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.1.0
 	github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87

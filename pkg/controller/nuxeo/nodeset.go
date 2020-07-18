@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -33,7 +34,7 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 		reqLogger.Error(err, "Error attempting to create default Deployment for NodeSet: "+nodeSet.Name)
 		return reconcile.Result{}, err
 	}
-	if err = configureContributions(r, instance, expected, nodeSet);err != nil {
+	if err = configureContributions(r, instance, expected, nodeSet); err != nil {
 		reqLogger.Error(err, "Error attempting to configure contributions for NodeSet: "+nodeSet.Name)
 		return reconcile.Result{}, err
 	}
@@ -88,10 +89,10 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 
 // defaultDeployment returns a nuxeo Deployment object with hard-coded default values, and the passed arg
 // values. If the revProxy arg indicates that a reverse proxy is to be included in the deployment, then that results
-// in another (TLS sidecar) container being added to the deployment
+// in another (TLS sidecar) container being added to the deployment. Note - many cluster defaults are explicitly
+// specified here because it simplifies reconciliation
 func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, nodeSet v1alpha1.NodeSet,
 	revProxy v1alpha1.RevProxySpec) (*appsv1.Deployment, error) {
-	replicas := nodeSet.Replicas
 	nuxeoImage := "nuxeo:latest"
 	if nux.Spec.NuxeoImage != "" {
 		nuxeoImage = nux.Spec.NuxeoImage
@@ -113,20 +114,44 @@ func (r *ReconcileNuxeo) defaultDeployment(nux *v1alpha1.Nuxeo, depName string, 
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labelsForNuxeo(nux, nodeSet.Interactive),
 			},
-			Replicas: &replicas,
+			Replicas:                util.Int32Ptr(nodeSet.Replicas),
+			ProgressDeadlineSeconds: util.Int32Ptr(600),
+			RevisionHistoryLimit:    util.Int32Ptr(10),
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &appsv1.RollingUpdateDeployment{
+					MaxUnavailable: &intstr.IntOrString{
+						Type:   intstr.String,
+						StrVal: "25%",
+					},
+					MaxSurge: &intstr.IntOrString{
+						Type:   intstr.String,
+						StrVal: "25%",
+					},
+				},
+			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labelsForNuxeo(nux, nodeSet.Interactive),
 				},
 				Spec: corev1.PodSpec{
+					DeprecatedServiceAccount: util.NuxeoServiceAccountName, // comes back from the cluster anyway...
 					ServiceAccountName: util.NuxeoServiceAccountName,
+					TerminationGracePeriodSeconds: util.Int64Ptr(30),
+					DNSPolicy: corev1.DNSClusterFirst,
+					RestartPolicy: corev1.RestartPolicyAlways,
+					SchedulerName: corev1.DefaultSchedulerName,
+					SecurityContext: &corev1.PodSecurityContext{},
 					Containers: []corev1.Container{{
 						Image:           nuxeoImage,
 						ImagePullPolicy: pullPolicy,
 						Name:            "nuxeo",
 						Ports: []corev1.ContainerPort{{
 							ContainerPort: 8080,
+							Protocol: corev1.ProtocolTCP,
 						}},
+						TerminationMessagePath: "/dev/termination-log",
+						TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 						VolumeMounts: []corev1.VolumeMount{},
 						Env:          nodeSet.Env,
 						Resources:    nodeSet.Resources,

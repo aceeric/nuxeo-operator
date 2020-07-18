@@ -143,6 +143,7 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1a
 	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf) {
 		cmName := nuxeoConfCMName(nux, nodeSet.Name)
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
+			DefaultMode: util.Int32Ptr(420),
 			LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
 			Items: []corev1.KeyToPath{{
 				Key:  nuxeoConfName,
@@ -215,6 +216,7 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 			Name: "jvm-pki",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
+					DefaultMode: util.Int32Ptr(420),
 					SecretName: jvmPkiSecret.Name,
 				}},
 		}
@@ -272,6 +274,7 @@ func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Con
 		if pkg.ValueFrom.ConfigMap != nil {
 			vol.ConfigMap = &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: pkg.ValueFrom.ConfigMap.Name},
+				DefaultMode: util.Int32Ptr(420),
 				Items: []corev1.KeyToPath{{
 					Key:  pkg.PackageName,
 					Path: pkg.PackageName,
@@ -280,6 +283,7 @@ func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Con
 		} else {
 			vol.Secret = &corev1.SecretVolumeSource{
 				SecretName: pkg.ValueFrom.Secret.SecretName,
+				DefaultMode: util.Int32Ptr(420),
 				Items: []corev1.KeyToPath{{
 					Key:  pkg.PackageName,
 					Path: pkg.PackageName,

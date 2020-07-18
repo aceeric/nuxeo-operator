@@ -28,6 +28,7 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) error {
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: tlsSecret,
+				DefaultMode: util.Int32Ptr(420),
 				Items: []corev1.KeyToPath{{
 					Key:  "keystore.jks",
 					Path: "keystore.jks",

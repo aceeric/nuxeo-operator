@@ -50,12 +50,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	if HasRoute(mgr) {
+	if clusterHasRoute(mgr) {
 		util.SetIsOpenShift(true)
 		if err := registerOpenShiftRoute(); err != nil {
 			return err
 		}
-	} else if !HasIngress(mgr) {
+	} else if !clusterHasIngress(mgr) {
 		return goerrors.New("unable to determine cluster type")
 	} else if err := registerKubernetesIngress(); err != nil {
 		return err
@@ -210,7 +210,7 @@ func getInteractiveNodeSet(nodeSets []v1alpha1.NodeSet, reqLogger logr.Logger) (
 }
 
 // returns true if the cluster contains an OpenShift Route type
-func HasRoute(mgr manager.Manager) bool {
+func clusterHasRoute(mgr manager.Manager) bool {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "route.openshift.io", Version: "v1", Kind: "Route"})
 	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{Name: "foo"}, obj)
@@ -223,7 +223,7 @@ func HasRoute(mgr manager.Manager) bool {
 }
 
 // returns true if the cluster contains a Kubernetes Ingress type
-func HasIngress(mgr manager.Manager) bool {
+func clusterHasIngress(mgr manager.Manager) bool {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "networking.k8s.io", Version: "v1beta1", Kind: "Ingress"})
 	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{Name: "foo"}, obj)

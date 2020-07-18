@@ -347,12 +347,11 @@ type NuxeoConfig struct {
 type CertTransformType string
 
 const (
-	// Convert a CRT to a P12 trust store containing certs only - no keys. Assuming the CRT contains a root CA, then
-	// the resulting trust store can be used by Nuxeo and the JVM to validate a backing service certificate during
-	// a one-way SSL handshake
-	CrtToTrustStore CertTransformType = "CrtToTrustStore"
+	// Convert a certificate to a P12 trust store containing certs only - no keys. Supports one-way TLS
+	TrustStore CertTransformType = "TrustStore"
 
-	// todo-me ???ToKeyStore CERT AND KEY? CERT OR KEY?
+	// Convert a certificate and private key to a P12 key store supporting mutual TLS
+	Keystore CertTransformType = "KeyStore"
 )
 
 // CertTransform supports the Operator's requirement to take incoming PKI assets in the form of CRTs/PEMs etc.
@@ -364,9 +363,18 @@ const (
 // my-nuxeo-binding-elastic. If multiple transformations are specified within a single binding then all the
 // keys are created within the same secondary binding secret.
 type CertTransform struct {
-	// +kubebuilder:validation:Enum=CrtToTrustStore
+	// +kubebuilder:validation:Enum=TrustStore
 	// certTransformType establishes the type of certificate transform to apply.
 	Type CertTransformType `json:"type"`
+
+	// PEM-encoded certificate for both truststore and keystore transforms. Configurer must ensure the correct cert
+	// (e.g. client or CA) is specified
+	Cert string `json:"cert"`
+
+	// +kubebuilder:validation:Optional
+	// For keystore transforms, this is the private key. Ignored for truststore transforms.
+	// +optional
+	PrivateKey string `json:"privateKey"`
 
 	// store defines the name of the key/trust store to create from a source PEM. This becomes a key in the secondary
 	// secret and also a mounted file on the file system. Ensure this is unique across all transformations defined
@@ -414,12 +422,16 @@ type CertTransform struct {
 // Store or trust store. This results in the creation of a secondary secret whose keys can be projected via
 // mounts or environment variables.
 type ResourceProjection struct {
+	// +kubebuilder:validation:Optional
 	// If the backing service resource is a Secret or ConfigMap, this is the key of the resource value of interest.
-	// Specify this, or path, but not both.
+	// Specify this, or path, but not both. Ignored for transforms.
+	// +optional
 	Key string `json:"key"`
 
+	// +kubebuilder:validation:Optional
 	// If the backing service resource is not a Secret or ConfigMap, this is a JSON Path expression that finds
 	// the value of interest in the resource. Specify this, or key, but not both.
+	// +optional
 	Path string `json:"path"`
 
 	// todo-me consider this to make explicit the key in the secondary secret that will hold the result of a jsonPath
@@ -427,27 +439,67 @@ type ResourceProjection struct {
 	//  turn it into secondary secret key .spec.backingServices0.resources0.name
 	//  NewKey string `json:"newKey"`
 
+	// +kubebuilder:validation:Optional
 	// If the backing service resource is a Secret or ConfigMap, and the desire is to project the key value as an
 	// environment variable, then this is the name of the environment variable to project. The Operator will define
 	// a valueFrom environment variable. Specify only one of env, certTransform, or mount.
+	// +optional
 	Env string `json:"env"`
 
+	// +kubebuilder:validation:Optional
 	// If the backing service resource can be used without transformation, and the desire is to mount it as a file,
 	// then provide the name of a file for the Operator to mount the resource value as. Specify only one of env,
 	// certTransform, or mount.
+	// +optional
 	Mount string `json:"mount"`
 
+	// +kubebuilder:validation:Optional
 	// If the backing service resource requires transformation - e.g. from PEM to P12 - specify the transformation
 	// using the transform field
+	// +optional
 	Transform CertTransform `json:"transform"`
+}
+
+// PreconfigType defines a pre-configured backing service that the Operator knows about and can bind Nuxeo to
+// using a terse Nuxeo CR. This relieves the configurer of worrying about the details of the backing service.
+type PreconfigType string
+
+const (
+	// Elastic Cloud on Kubernetes
+	ECK PreconfigType = "ECK"
+	// Strimzi Kafka
+	Strimzi PreconfigType = "Strimzi"
+	// Crunchy Postgres
+	Crunchy PreconfigType = "Crunchy"
+	// todo-me some other Postgres variant, Mongo, and Redis
+)
+
+type PreconfiguredBackingService struct {
+	// +kubebuilder:validation:Enum=ECK;Strimzi;Crunchy
+	// type identifies the preconfigured backing service
+	Type PreconfigType `json:"type"`
+
+	// resource identifies the name of primary backing service resource. For example, for Elastic Cloud on
+	// Kubernetes, this is the cluster resource that would be returned if one executed: 'kubectl get
+	// elasticsearch'. The Nuxeo Operator already knows the GVK, so all the configurer needs to provide
+	// is the resource name in the same namespace as the Nuxeo CR.
+	Resource string `json:"resource"`
+
+	// +kubebuilder:validation:Optional
+	// Optional configuration settings that tune the backing service binding, depending on how the
+	// backing service was configured. For example, with Strimzi, it is possible to allow both plain text and
+	// tls connections. If you Nuxeo to connect one way or the other, then specify that here. See
+	// the documentation for which settings are valid for the various pre-configured backing services.
+	// +optional
+	Settings map[string]string `json:"settings"`
 }
 
 // A BackingServiceResource provides the ability to extract values from a Kubernetes cluster resource, and to
 // project those values into the Nuxeo Pod. For example, a password can be obtained from a backing service secret
 // and projected into the Nuxeo Pod as an environment variable or mount.
 type BackingServiceResource struct {
-	// name is GVK of the cluster resource from which to obtain a value or values.
-	metav1.GroupVersionKind `json:"kind"`
+	// GVK of the cluster resource from which to obtain a value or values.
+	metav1.GroupVersionKind `json:",inline"`
 
 	// name is the name of the cluster resource from which to obtain a value or values.
 	Name string `json:"name"`
@@ -457,7 +509,6 @@ type BackingServiceResource struct {
 	Projections []ResourceProjection `json:"projections"`
 }
 
-// todo-me /etc/nuxeo-operator/binding/ or /etc/nuxeo-operator/backing/ NEED A CONST!
 // A backing service specifies three things: 1) a list of cluster resources from which to obtain connection
 // configuration values like passwords and certificates, and the corresponding projections of those values into
 // the Nuxeo Pod. 2) A nuxeo.conf string that can reference the projected resource values. 3) A name. The name
@@ -499,15 +550,32 @@ type BackingServiceResource struct {
 // Operator has to have ownership of the cluster resource holding the nuxeo.conf content and it can't do that if
 // the resource is provisioned by the configurer.
 type BackingService struct {
-	// The name of the backing service, as well as the directory under which to mount any files
+	// +kubebuilder:validation:Optional
+	// The name of the backing service, as well as the directory under which to mount any files. Required
+	// if preConfigured is empty. If name is specified, then resources and nuxeoConf must also be specified,
+	// and preConfigured is ignored.
+	// +optional
 	Name string `json:"name"`
 
-	// Resources and projections control how backing service cluster resources are referenced within the Nuxeo Pod
+	// +kubebuilder:validation:Optional
+	// Resources and projections control how backing service cluster resources are referenced within the Nuxeo
+	// Pod. Required if name is specified. Ignored if preConfigured is specified.
+	// +optional
 	Resources []BackingServiceResource `json:"resources"`
 
+	// +kubebuilder:validation:Optional
 	// nuxeo.conf entries - some of which will be static, and some of which will reference resource projections
-	// via environment variables or filesystem mounts
+	// via environment variables or filesystem mounts. Required if name is specified. Ignored if preConfigured
+	// is specified.
+	// +optional
 	NuxeoConf string `json:"nuxeoConf"`
+
+	// +kubebuilder:validation:Optional
+	// For a set of known backing service (e.g. Strimzi Kafka) the configuration can be tersely specified
+	// using a preConfigured entry. The Nuxeo Operator will perform all the configuration using just a couple
+	// of additional settings. If this is specified, then name, resources, and nuxeoConf are all ignored.
+	// +optional
+	Preconfigured PreconfiguredBackingService `json:"preConfigured"`
 }
 
 // Defines the desired state of a Nuxeo cluster

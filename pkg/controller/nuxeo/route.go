@@ -78,9 +78,10 @@ func (r *ReconcileNuxeo) defaultRoute(nux *v1alpha1.Nuxeo, access v1alpha1.Nuxeo
 			To: routev1.RouteTargetReference{
 				Kind:   "Service",
 				Name:   serviceName(nux, nodeSet),
-				Weight: nil,
+				Weight: util.Int32Ptr(100),
 			},
 			Port: &routev1.RoutePort{TargetPort: targetPort},
+			WildcardPolicy: routev1.WildcardPolicyNone,
 			TLS:  nil,
 		},
 	}

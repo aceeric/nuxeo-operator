@@ -131,11 +131,13 @@ func configureDeployment(dep *appsv1.Deployment, typ interface{}, nuxeoContainer
 	if _, ok := typ.(*corev1.ConfigMap); ok {
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
 			LocalObjectReference: corev1.LocalObjectReference{Name: volSrc},
+			DefaultMode: util.Int32Ptr(420),
 		}
 		mapKeysToItems(keys, &vol.ConfigMap.Items)
 	} else if _, ok := typ.(*corev1.Secret); ok {
 		vol.Secret = &corev1.SecretVolumeSource{
 			SecretName: volSrc,
+			DefaultMode: util.Int32Ptr(420),
 		}
 		mapKeysToItems(keys, &vol.Secret.Items)
 	} else {

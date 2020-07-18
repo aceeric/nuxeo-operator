@@ -37,6 +37,7 @@ func handleClid(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 			Name: nuxeoClidConfigMapName,
 		}
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
+			DefaultMode: util.Int32Ptr(420),
 			LocalObjectReference: corev1.LocalObjectReference{Name: nuxeoClidConfigMapName},
 			Items: []corev1.KeyToPath{{
 				Key:  clidKey,

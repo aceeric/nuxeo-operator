@@ -1,7 +1,7 @@
 ROOT                   := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 GOROOT                 := $(shell go env GOROOT)
 OCICLI                 := docker
-OPERATOR_VERSION       := 0.5.0
+OPERATOR_VERSION       := 0.6.0
 # if OpenShift, this is the OpenShift integrated container image registry
 # If MicroK8s this is the internal registry plugin
 IMAGE_REGISTRY         := default-route-openshift-image-registry.apps-crc.testing
@@ -14,26 +14,35 @@ BUNDLE_IMAGE_NAME      := nuxeo-operator-manifest-bundle
 INDEX_IMAGE_NAME       := nuxeo-operator-index
 OPERATOR_SDK_SUPPORTED := v0.18.0
 OPERATOR_SDK_INSTALLED := $(shell operator-sdk version | cut -d, -f1 | cut -d: -f2 | sed "s/[[:blank:]]*\"//g")
-# operator base image differs for OpenShift/Kubernetes. See build/Dockerfile
-BASE_IMAGE_ARG         :=
-OPENSSL_INSTALL_ARG    :=
 UNIT_TEST_ARGS         ?= -v -coverprofile cp.out
 E2E_TEST_ARGS          ?= --verbose
 # used for e2e tests
 NUXEO_IMAGE            ?= nuxeo:10.10
+# overridden for MicroK8s
+KUBECTL                ?= kubectl
+# needed for the operator-install target that installs the operator into a namespace for testing
+NS                     ?=
+DOCKERFILE             ?= ubi8-minimal.Dockerfile
 
 # Since Operator SDK is undergoing active development, check the version so that the Makefile is repeatable
 ifneq ($(OPERATOR_SDK_SUPPORTED),$(OPERATOR_SDK_INSTALLED))
     $(error Requires operator-sdk: $(OPERATOR_SDK_SUPPORTED). Found: $(OPERATOR_SDK_INSTALLED))
 endif
 
+# if installing the operator, require a namespace like NS=some-namespace
+ifeq ($(MAKECMDGOALS),operator-install)
+ifeq ($(NS),)
+    $(error 'operator-install' requires a namespace in the NS arg or environment variable)
+endif
+endif
+
 # set Make variables for MicroK8s
 ifeq ($(TARGET_CLUSTER),MICROK8S)
-    BASE_IMAGE_ARG       := --build-arg BASE_IMAGE=alpine
-    OPENSSL_INSTALL_ARG  := --build-arg OPENSSL_INSTALL="apk add --no-cache openssl"
     IMAGE_REGISTRY       := localhost:32000
     IMAGE_REGISTRY_CLUST := localhost:32000
     E2E_KUBE_CONFIG_ARG  := --kubeconfig=/var/snap/microk8s/current/credentials/kubelet.config
+    KUBECTL              := microk8s kubectl
+    DOCKERFILE           := alpine.Dockerfile
 endif
 
 .PHONY : all
@@ -61,12 +70,21 @@ operator-build:
 .PHONY : operator-image-build
 operator-image-build:
 	$(OCICLI) build --tag $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
-		--file $(ROOT)/build/Dockerfile $(BASE_IMAGE_ARG) $(OPENSSL_INSTALL_ARG)\
-		$(ROOT)/build
+		--file $(ROOT)/build/$(DOCKERFILE) $(ROOT)/build
 
 .PHONY : operator-image-push
 operator-image-push:
 	$(OCICLI) push $(IMAGE_REGISTRY)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)
+
+.PHONY : operator-install
+operator-install:
+	-$(KUBECTL) create namespace $(NS) >/dev/null 2>&1
+	$(KUBECTL) apply -n $(NS) -f deploy/role.yaml
+	$(KUBECTL) apply -n $(NS) -f deploy/role_binding.yaml
+	$(KUBECTL) apply -n $(NS) -f deploy/service_account.yaml
+	sed -e "s|REPLACE_IMAGE|$(IMAGE_REGISTRY_CLUST)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)|"\
+		$(ROOT)/deploy/operator.yaml\
+		| $(KUBECTL) apply -n $(NS) -f -
 
 .PHONY : olm-generate
 olm-generate:
@@ -107,10 +125,12 @@ index-add:
 index-push:
 	$(OCICLI) push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(INDEX_IMAGE_NAME):$(OPERATOR_VERSION)
 
+# because of the size limit of a CRD, the CRD is deleted first. Unfortunately, this also removes any
+# Nuxeo CRs anywhere in the cluster. todo-me may be non-issue if pod template is removed from Nuxeo CRD
 .PHONY : apply-crd
 apply-crd:
-	kubectl delete crd/nuxeos.nuxeo.com
-	cat $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml | kubectl create -f -
+	-$(KUBECTL) delete crd/nuxeos.nuxeo.com >/dev/null 2>&1
+	$(KUBECTL) create -f $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml
 
 .PHONY : help
 help:
@@ -130,7 +150,7 @@ define HELPTEXT
 This Make file provides targets to build the Nuxeo Operator version $(OPERATOR_VERSION) and install the Operator
 into an OpenShift/Kubernetes cluster. It also builds and installs OLM components that enable the operator
 to be deployed via an OLM subscription. This Make file assumes that all required dependencies are
-already installed: go, operator-sdk, opm, and docker. The Make file runs silently unless you provide
+already installed: go, operator-sdk, opm, and docker/podman. The Make file runs silently unless you provide
 a VERBOSE arg or variable. E.g.: make VERBOSE=
 
 Targets:
@@ -162,12 +182,27 @@ index-add             Creates an OLM Index image using the output of the 'bundle
                       command, which is built from https://github.com/operator-framework/operator-registry.
 index-push            Pushes the Nuxeo Operator Index image to the cluster in the $(REGISTRY_NAMESPACE) namespace.
                       This is what enables OLM to create the Operator via a subscription.
+apply-crd             Generates the Nuxeo CRD in the cluster. Because of the size (currently) of the CRD it is
+                      first deleted, then created. Deletion of the CRD causes deletion of all Nuxeo CRs, and hence
+                      any associated Nuxeo clusters.
+operator-install      Performs a manual installation of the Operator (bypassing OLM subscription) into the
+                      specified namespace by applying manifests for Nuxeo Operator roles, role bindings,
+                      service account, and deployment. This is primarily in support of testing. Note: you must
+                      have previously built the operator and operator image, and pushed the operator image into
+                      the cluster, and for OpenShift, created an image puller role to allow the operator namespace
+                      to get the operator image from the images namespace (which is where operator-image-push puts
+                      it). If you want to also regenerate the Nuxeo CRD, use the apply-crd target. E.g.:
+                        make operator-build operator-image-build operator-image-push apply-crd
+                      Followed by
+                        If OpenShift:
+                          oc policy add-role-to-group system:image-puller system:serviceaccounts:<a namespace> --namespace=images
+                        make NS=<a namespace> operator-install
 help                  Prints this help.
 print-%               A diagnostic tool. Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to
                       print the value of 'OPERATOR_VERSION'.
 
-To build and install the Nuxeo Operator into a test cluster from a clean cloned copy of this repository, execute
-the following Make targets in order:
+To build and install the Nuxeo Operator into a cluster in such a way as to support installing the operator
+via OLM subscription, execute the following Make targets in order:
 
  1. operator-build       Build the operator binary
  2. operator-image-build Build the operator container image

@@ -5,6 +5,7 @@ import (
 
 	"k8s.io/api/core/v1"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/util"
 )
 
 // Configures Nginx as the reverse proxy by adding a sidecar Container and adding Volumes into the
@@ -68,6 +69,7 @@ func nginxVolumes(nginx v1alpha1.NginxRevProxySpec) []v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{
 				LocalObjectReference: v1.LocalObjectReference{Name: nginx.ConfigMap},
+				DefaultMode: util.Int32Ptr(420),
 			},
 		},
 	}, {
@@ -75,6 +77,7 @@ func nginxVolumes(nginx v1alpha1.NginxRevProxySpec) []v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
 				SecretName: nginx.Secret,
+				DefaultMode: util.Int32Ptr(420),
 			},
 		},
 	}, {

@@ -47,11 +47,11 @@ Key points:
 1. Each backing service has a name that you assign
 2. Each backing service specifies one or more in-cluster resources, identified by GVK + Name. For example: `""`, `v1`, `secret`, `elastic-es-http-certs-public`
 3. Each resource specifies one or more *projections* that make individual resource configuration values available in the Pod as environment variables or filesystem objects
-4. The `nuxeoConf` stanza has entries to add to nuxeo.conf to enable Nuxeo to connect to the backing service. These nuxeo.conf entries are a mix of literals, and references to the projections
+4. The `nuxeoConf` stanza allows adding nuxeo.conf settings to enable Nuxeo to connect to the backing service. These nuxeo.conf entries are a mix of literals, and references to the projections
 
 ### Example One
 
-This example will install one backing service: Elastic Cloud on Kubernetes (ECK).
+This example will connect Nuxeo to one backing service: Elastic Cloud on Kubernetes (ECK).
 
 1. **Install** - Install ECK into the Kubernetes cluster
 2. **Connect** - Manually connect to Elastic Search from outside of the cluster to verify the installation and also to understand the elements that are needed for a client connection
@@ -186,12 +186,14 @@ This example assumes that the Nuxeo Operator is running in the *backing* namespa
       kind: secret
       name: elastic-es-elastic-user
       projections:
-      - key: elastic
+      - from: elastic
         env: ELASTIC_PASSWORD
 
 ```
 
-As shown above, the GVK+Name of the `elastic-es-elastic-user` secret is configured with a projection that makes that password available in the Nuxeo Pod as an environment variable `ELASTIC_PASSWORD`. To reiterate - we know the name of the secret because we created the ElasticSearch cluster with the name `elastic` and so all the dependent resources created by the ECK operator derive from that.
+As shown above, the GVK+Name of the `elastic-es-elastic-user` secret is configured with a projection that makes that password available in the Nuxeo Pod as an environment variable `ELASTIC_PASSWORD`. The `from` element specifies the key within the secret to get the value from.
+
+To reiterate - we know the name of the secret because we created the ElasticSearch cluster with the name `elastic` and so all the dependent resources created by the ECK operator derive from that.
 
 To get the tls.crt certificate from the ECK secret that holds it, another resource and projection is configured:
 
@@ -207,12 +209,12 @@ To get the tls.crt certificate from the ECK secret that holds it, another resour
       - transform:
           type: TrustStore
           cert: tls.crt
-          store: elastic.ca.p12
+          store: elastic.ca.jks
           password: elastic.truststore.pass
           passEnv: ELASTIC_TS_PASS
 ```
 
-This tells the Nuxeo Operator to 1) get the `tls.crt` key from the `elastic-es-http-certs-public` secret, 2) transform it into a Java trust store by way of the `TrustStore` transform, 3) mount the store on the filesystem as `elastic.ca.p12`, 4) generate a trust store password and make it available as an environment variable `ELASTIC_TS_PASS`.
+This tells the Nuxeo Operator to 1) get the `tls.crt` key from the `elastic-es-http-certs-public` secret, 2) transform it into a Java trust store by way of the `TrustStore` transform, 3) mount the store on the filesystem as `elastic.ca.jks`, 4) generate a trust store password and make it available as an environment variable `ELASTIC_TS_PASS`.
 
 The only remaining task is to configure how Nuxeo should consume these projections. For that, the `nuxeoConf` stanza is used. Below is shown the entire Nuxeo CR incorporating the resources and projections, the `nuxeoConf` stanza, and the other CR components to stand up a Nuxeo cluster. Note the ticks around EOF to preserve the dollar signs in the nuxeo.conf settings:
 
@@ -248,7 +250,7 @@ spec:
       - transform:
           type: TrustStore
           cert: tls.crt
-          store: elastic.ca.p12
+          store: elastic.ca.jks
           password: elastic.truststore.pass
           passEnv: ELASTIC_TS_PASS
     - group: ""
@@ -263,7 +265,7 @@ spec:
       elasticsearch.restClient.username=elastic
       elasticsearch.restClient.password=${env:ELASTIC_PASSWORD}
       elasticsearch.addressList=https://elastic-es-http:9200
-      elasticsearch.restClient.truststore.path=/etc/nuxeo-operator/binding/elastic/elastic.ca.p12
+      elasticsearch.restClient.truststore.path=/etc/nuxeo-operator/binding/elastic/elastic.ca.jks
       elasticsearch.restClient.truststore.password=${env:ELASTIC_TS_PASS}
       elasticsearch.restClient.truststore.type=JKS
 EOF
@@ -338,7 +340,7 @@ data:
     elasticsearch.restClient.username=elastic
     elasticsearch.restClient.password=${env:ELASTIC_PASSWORD}
     elasticsearch.addressList=https://elastic-es-http:9200
-    elasticsearch.restClient.truststore.path=/etc/nuxeo-operator/binding/elastic/elastic.ca.p12
+    elasticsearch.restClient.truststore.path=/etc/nuxeo-operator/binding/elastic/elastic.ca.jks
     elasticsearch.restClient.truststore.password=${env:ELASTIC_TS_PASS}
     elasticsearch.restClient.truststore.type=PKCS12
 kind: ConfigMap
@@ -348,7 +350,7 @@ metadata:
   ...
 ```
 
-Whenever a transform of an upstream resource is required, the Operator has to create a *secondary secret* to hold the transformed value. The secret is named *nuxeo cluster name*-secondary-*backing name*. E.g.:
+Whenever a transform of an upstream resource is required, as was the case for the trust store, the Operator has to create a *secondary secret* to hold the transformed value. The secret is named *nuxeo cluster name*-secondary-*backing name*. E.g.:
 
 ```shell
 $ kubectl describe secret my-nuxeo-secondary-elastic
@@ -361,7 +363,7 @@ Type:  Opaque
 
 Data
 ====
-elastic.ca.p12:           1218 bytes
+elastic.ca.jks:           1820 bytes
 elastic.truststore.pass:  12 bytes
 ```
 
@@ -369,7 +371,7 @@ You can see that the operator placed the Java trust store, and the Operator-gene
 
 #### For the patient reader
 
-The binding approach presented above provides insight into how the Nuxeo Operator binds Nuxeo to a backing service. However, that binding is fairly verbose, especially if you're running Nuxeo over Strimzi, Postgres, and ECK. There is a simpler way.
+The binding approach presented above provides insight into how the Nuxeo Operator binds Nuxeo to a backing service. However, that binding is fairly verbose, especially if you're running Nuxeo with Strimzi, Postgres, and ECK. There is a simpler way.
 
 The simple way is based on understanding that the operator-managed backing services like Strimzi and ECK are machines and - as such - they always do the same thing. The Nuxeo Operator can take advantage of that with something called *pre-configured* bindings.
 

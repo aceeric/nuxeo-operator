@@ -37,7 +37,7 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 	require.Nil(suite.T(), err, "configureBackingServices failed to generate secondary secret")
 
 	// Data:
-	//  elastic.ca.p12 -> len:1984, cap:1986
+	//  elastic.ca.jks -> len:1984, cap:1986
 	//  elastic.truststore.pass -> len:17, cap:18
 	require.Equal(suite.T(), 2, len(secret.Data), "Secondary secret not correctly defined")
 
@@ -47,8 +47,8 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 	//     sources:
 	//     - secret:
 	//         items:
-	//         - key: elastic.ca.p12
-	//           path: elastic.ca.p12
+	//         - key: elastic.ca.jks
+	//           path: elastic.ca.jks
 	//         - key: elastic.truststore.pass
 	//           path: elastic.truststore.pass
 	//         name: testnux-secondary-elastic
@@ -71,7 +71,7 @@ func (suite *backingServiceSuite) TestReconcileNodeSetsWithBackingSvc() {
 	_ = createECKSecrets(suite)
 	result, err := suite.r.reconcileNodeSets(nux, log)
 	require.Nil(suite.T(), err, "reconcileNodeSets returned non-nil")
-	require.Equal(suite.T(), reconcile.Result{Requeue:true}, result, "reconcileNodeSets returned unexpected result")
+	require.Equal(suite.T(), reconcile.Result{Requeue: true}, result, "reconcileNodeSets returned unexpected result")
 	dep := appsv1.Deployment{}
 	depName := deploymentName(nux, nux.Spec.NodeSets[0])
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: depName, Namespace: suite.namespace}, &dep)
@@ -122,12 +122,12 @@ func (suite *backingServiceSuite) TestValueFromResource() {
 			Kind:    "Nuxeo",
 		},
 		Projections: []v1alpha1.ResourceProjection{{
-			Path:      "{.spec.backingServices[0].resources[0].name}",
+			From:      "{.spec.backingServices[0].resources[0].name}",
 			Transform: v1alpha1.CertTransform{},
 		}},
 		Name: suite.nuxeoName,
 	}
-	val, _, err = getValueFromResource(&suite.r, bsr, suite.namespace, 0)
+	val, _, err = getValueFromResource(&suite.r, bsr, suite.namespace, bsr.Projections[0].From)
 	require.Nil(suite.T(), err, "JSONPath parse error")
 	require.Equal(suite.T(), nux.Spec.BackingServices[0].Resources[0].Name, string(val), "Nuxeo not parsed")
 }
@@ -292,7 +292,7 @@ func (suite *backingServiceSuite) TestPreConfig() {
 	_ = createECKSecrets(suite)
 	result, err := suite.r.reconcileNodeSets(nux, log)
 	require.Nil(suite.T(), err, "reconcileNodeSets returned non-nil")
-	require.Equal(suite.T(), reconcile.Result{Requeue:true}, result, "reconcileNodeSets returned unexpected result")
+	require.Equal(suite.T(), reconcile.Result{Requeue: true}, result, "reconcileNodeSets returned unexpected result")
 	dep := appsv1.Deployment{}
 	depName := deploymentName(nux, nux.Spec.NodeSets[0])
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: depName, Namespace: suite.namespace}, &dep)
@@ -347,7 +347,7 @@ func (suite *backingServiceSuite) SetupSuite() {
 		"elasticsearch.restClient.username=elastic\n" +
 		"elasticsearch.restClient.password=${env:ELASTIC_PASSWORD}\n" +
 		"elasticsearch.addressList=https://elastic-es-http:9200\n" +
-		"elasticsearch.restClient.truststore.path="+backingMountBase+"elastic/elastic.ca.p12\n" +
+		"elasticsearch.restClient.truststore.path=" + backingMountBase + "elastic/elastic.ca.jks\n" +
 		"elasticsearch.restClient.truststore.password=${env:ELASTIC_TS_PASS}\n" +
 		"elasticsearch.restClient.truststore.type=JKS\n"
 	suite.nodeSetName = "test123"
@@ -393,7 +393,7 @@ func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoES() *v1alpha1.Nuxe
 						Transform: v1alpha1.CertTransform{
 							Type:     v1alpha1.TrustStore,
 							Cert:     "tls.crt",
-							Store:    "elastic.ca.p12",
+							Store:    "elastic.ca.jks",
 							Password: "elastic.truststore.pass",
 							PassEnv:  "ELASTIC_TS_PASS",
 						},
@@ -405,8 +405,8 @@ func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoES() *v1alpha1.Nuxe
 					},
 					Name: suite.passSecret,
 					Projections: []v1alpha1.ResourceProjection{{
-						Key: "elastic",
-						Env: "ELASTIC_PASSWORD",
+						From: "elastic",
+						Env:  "ELASTIC_PASSWORD",
 					}},
 				}},
 				NuxeoConf: suite.nuxeoConf,
@@ -433,7 +433,7 @@ func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoMounts() *v1alpha1.
 					},
 					Name: suite.passSecret,
 					Projections: []v1alpha1.ResourceProjection{{
-						Key:   "elastic",
+						From:  "elastic",
 						Mount: "elastic.password",
 					}},
 				}, {
@@ -443,7 +443,7 @@ func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoMounts() *v1alpha1.
 					},
 					Name: suite.cmName,
 					Projections: []v1alpha1.ResourceProjection{{
-						Key:   "config.setting",
+						From:  "config.setting",
 						Mount: "config.setting",
 					}},
 				}, {
@@ -453,7 +453,7 @@ func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoMounts() *v1alpha1.
 					},
 					Name: suite.serviceName,
 					Projections: []v1alpha1.ResourceProjection{{
-						Path:  "{.spec.ports[0].targetPort}",
+						From:  "{.spec.ports[0].targetPort}",
 						Mount: "service.target.port",
 					}},
 				}},

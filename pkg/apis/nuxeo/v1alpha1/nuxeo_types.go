@@ -347,11 +347,11 @@ type NuxeoConfig struct {
 type CertTransformType string
 
 const (
-	// Convert a certificate to a P12 trust store containing certs only - no keys. Supports one-way TLS
+	// Convert a certificate to a trust store containing certs only - no keys. Supports one-way TLS
 	TrustStore CertTransformType = "TrustStore"
 
-	// Convert a certificate and private key to a P12 key store supporting mutual TLS
-	Keystore CertTransformType = "KeyStore"
+	// Convert a certificate and private key to a key store supporting mutual TLS
+	KeyStore CertTransformType = "KeyStore"
 )
 
 // CertTransform supports the Operator's requirement to take incoming PKI assets in the form of CRTs/PEMs etc.
@@ -363,26 +363,29 @@ const (
 // my-nuxeo-binding-elastic. If multiple transformations are specified within a single binding then all the
 // keys are created within the same secondary binding secret.
 type CertTransform struct {
-	// +kubebuilder:validation:Enum=TrustStore
+	// +kubebuilder:validation:Enum=TrustStore;KeyStore
 	// certTransformType establishes the type of certificate transform to apply.
 	Type CertTransformType `json:"type"`
 
-	// PEM-encoded certificate for both truststore and keystore transforms. Configurer must ensure the correct cert
+	// Same as the "from" field of the resource projection: if the resource being transformed is a Secret or
+	// ConfigMap then this is a key in the .Data stanza. Otherwise it is a JSON Path expression. Either way, this
+	// finds the certificate bits in the upstream resource.
 	// (e.g. client or CA) is specified
 	Cert string `json:"cert"`
 
 	// +kubebuilder:validation:Optional
-	// For keystore transforms, this is the private key. Ignored for truststore transforms.
+	// Either a key, or a JSON Path - see the cert documentation. For keystore transforms, this represents the
+	// private key bits in the upstream resource. Ignored for truststore transforms.
 	// +optional
 	PrivateKey string `json:"privateKey"`
 
-	// store defines the name of the key/trust store to create from a source PEM. This becomes a key in the secondary
-	// secret and also a mounted file on the file system. Ensure this is unique across all transformations defined
-	// in the backing service.
+	// store defines the name of the key/trust store to create from a source PKI elements. This becomes a key in
+	// the secondary secret and also a mounted file on the file system in the Pod. Ensure this is unique across all
+	// transformations defined in the backing service.
 	Store string `json:"store"`
 
 	// When the Operator creates the store, it generates a random store password and places that password into the
-	// secondary secret's data identified by this key.  Ensure this key is unique across all transformations defined
+	// secondary secret's .Data identified by this key.  Ensure this key is unique across all transformations defined
 	// in the backing service.
 	Password string `json:"password"`
 
@@ -392,47 +395,17 @@ type CertTransform struct {
 	PassEnv string `json:"passEnv"`
 }
 
-// resourceProjection determines how a value from a backing service resource is projected into the Nuxeo Pod. If
-// the backing service resource is a Secret or ConfigMap and the resource contains a value can be used as is, then
-// the key field specifies the key in the Secret or ConfigMap. If the backing service resource is *not* a Secret or
-// ConfigMap but the resource value can still be used without transformation, then the 'path' field is used to locate
-// the resource value. E.g.: assume the following expression returns a value that is needed for the backing service
-// connection configuration:
-//   kubectl get elasticsearch my-elastic-cluster -ojsonpath='{.spec.nodeSets[0].config.node\.data}'
-// Then in this case, the path field in the resource projection would specify "{.spec.nodeSets[0].config.node\.data}"
-//
-// Having used the path or key fields to obtain the value from the resource, there are three options to project
-// the value into the Nuxeo Pod. If the backing service resource is a Secret or ConfigMap then the env field specifies
-// an environment variable for the operator to project into the Nuxeo Pod. The environment variable will be defined
-// as a 'valueFrom' environment variable. E.g. the Operator will project something like:
-//   env:
-//   - name: USER_PASSWORD
-//     valueFrom:
-//       secretKeyRef:
-//         name: backing-service-secret-name
-//         key: user.password (for example)
-//
-// If the backing service resource is not a Secret or ConfigMap but the resource value can still be used without
-// transformation, then the mount field is used to mount the resource value into the Pod. The mount field
-// specifies the name of the file to mount. All files are mounted by the Operator under
-// /etc/nuxeo-operator/binding/<backing service name>. Mount is also a valid option for Secrets and ConfigMaps if,
-// for example, a backing service secret contains a P12 key store and the goal is to simply mount that key store.
-//
-// Finally, the certTransform field supports transforming a backing service PKI resource such as a PEM into a key
-// Store or trust store. This results in the creation of a secondary secret whose keys can be projected via
-// mounts or environment variables.
+// ResourceProjection determines how a value from a backing service resource is projected into the Nuxeo Pod. Values
+// can be projected as environment variables, mounts, or transformed - which always results in a mount. There can
+// be multiple projections from a single resource.
 type ResourceProjection struct {
 	// +kubebuilder:validation:Optional
-	// If the backing service resource is a Secret or ConfigMap, this is the key of the resource value of interest.
-	// Specify this, or path, but not both. Ignored for transforms.
+	// If the backing service resource is a Secret or ConfigMap, this is the key of the resource value
+	// of interest from the .Data stanza of the Secret or ConfigMap. If the backing service resource is not a
+	// Secret or ConfigMap, this is a JSON Path expression that finds the value of interest in the resource.
+	// Ignored for transforms.
 	// +optional
-	Key string `json:"key"`
-
-	// +kubebuilder:validation:Optional
-	// If the backing service resource is not a Secret or ConfigMap, this is a JSON Path expression that finds
-	// the value of interest in the resource. Specify this, or key, but not both.
-	// +optional
-	Path string `json:"path"`
+	From string `json:"from"`
 
 	// todo-me consider this to make explicit the key in the secondary secret that will hold the result of a jsonPath
 	//  projection otherwise the operator has to take JSONPath like .spec.backingServices[0].resources[0].name and
@@ -442,20 +415,22 @@ type ResourceProjection struct {
 	// +kubebuilder:validation:Optional
 	// If the backing service resource is a Secret or ConfigMap, and the desire is to project the key value as an
 	// environment variable, then this is the name of the environment variable to project. The Operator will define
-	// a valueFrom environment variable. Specify only one of env, certTransform, or mount.
+	// a valueFrom environment variable. Environment projection is only supported for Secrets and ConfigMaps
+	// at present. Specify only one of env, mount, or transform. Ignored for transforms.
 	// +optional
 	Env string `json:"env"`
 
 	// +kubebuilder:validation:Optional
 	// If the backing service resource can be used without transformation, and the desire is to mount it as a file,
-	// then provide the name of a file for the Operator to mount the resource value as. Specify only one of env,
-	// certTransform, or mount.
+	// then provide the name of a file for the Operator to mount the resource value as. The operator will copy the
+	// value into a secondary secret and mount it from there. Specify only one of env, mount, or transform.
+	// Ignored for transforms.
 	// +optional
 	Mount string `json:"mount"`
 
 	// +kubebuilder:validation:Optional
-	// If the backing service resource requires transformation - e.g. from PEM to P12 - specify the transformation
-	// using the transform field
+	// If the backing service resource requires transformation - e.g. from PEM to JKS - specify the transformation
+	// using the transform field. If a transform is specified, then from, env, and mount are ignored.
 	// +optional
 	Transform CertTransform `json:"transform"`
 }
@@ -490,6 +465,7 @@ type PreconfiguredBackingService struct {
 	// backing service was configured. For example, with Strimzi, it is possible to allow both plain text and
 	// tls connections. If you Nuxeo to connect one way or the other, then specify that here. See
 	// the documentation for which settings are valid for the various pre-configured backing services.
+	// todo-me not implemented yet
 	// +optional
 	Settings map[string]string `json:"settings"`
 }

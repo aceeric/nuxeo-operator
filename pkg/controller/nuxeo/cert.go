@@ -22,7 +22,7 @@ func toTrustStoreFromBytes(cert []byte)([]byte, string, error) {
 	}
 }
 
-// decodes PEM-encoded certificates in the passed cert arg and returns the data encoded as a JKS truststore. This
+// Decodes PEM-encoded certificates in the passed cert arg and returns the data encoded as a JKS truststore. This
 // function was cloned from https://github.com/redhat-cop/cert-utils-operator. A copy of their license is in
 // resources/licenses/cert-utils/LICENSE. Note - this function uses the pavel-v-chernykh go library to do the actual
 // JKS encoding and that lib doesn't support P12. Hence JKS.

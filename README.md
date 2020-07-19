@@ -95,16 +95,17 @@ Version 0.5.0 incorporates some more advanced features into the Operator and ext
 
 #### Version 0.6.0 *(in progress)*
 
-Support integration of a Nuxeo Cluster with backing services.
+Version 0.6.0 implements integration of a Nuxeo Cluster with backing services. Integration with Elastic Cloud on Kubernetes is complete. See: [backing-services.md](docs/backing-services.md). The remaining integrations will make use of the structure created for ECK.
 
-| Feature                                                      | Status |
-| ------------------------------------------------------------ | ------ |
-| Integrate with the Service Binding Operator (https://github.com/redhat-developer/service-binding-operator) to bind Nuxeo to various backing services present in the cluster |        |
-| Test with Strimzi (https://strimzi.io/) for Nuxeo Stream support |        |
-| Test with Crunchy PostgreSQL (https://www.crunchydata.com/products/crunchy-postgresql-for-kubernetes/) for database support |        |
-| Test with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support |        |
-| Support password changes in backing services that trigger rolling updates of the Nuxeo cluster |        |
-| Support certificate expiration and replacement for the JVM, and also for backing services that trigger rolling updates of the Nuxeo cluster. An example would be where the Kafka backing service is accessed via TLS, and the Kafka CA and cert expire and are renewed |        |
+
+| Feature                                                      | Status   |
+| ------------------------------------------------------------ | -------- |
+| Integrate with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support | complete |
+| Integrate with Strimzi (https://strimzi.io/) for Nuxeo Stream support |          |
+| Integrate with Crunchy PostgreSQL (https://www.crunchydata.com/products/crunchy-postgresql-for-kubernetes/) for database support |          |
+| Integrate with another Postgres variant from Operator Hub    |          |
+| Create a Kustomize directory for no-touch deployment of Nuxeo, ECK, Strimzi, and Postgres all connected. |          |
+| Integrate with the Service Binding Operator (https://github.com/redhat-developer/service-binding-operator) to bind Nuxeo to various backing services present in the cluster |          |
 
 
 
@@ -114,6 +115,9 @@ Version 0.7.0 makes the Operator available as a Community Operator.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
+| Support password changes in backing services that trigger rolling updates of the Nuxeo cluster |  |
+| Support certificate expiration and replacement for the JVM, and also for backing services that trigger rolling updates of the Nuxeo cluster. An example would be where the Kafka backing service is accessed via TLS, and the Kafka CA and cert expire and are renewed |  |
+| Verify Prometheus monitoring support (Prometheus not available in CRC out of the box) |  |
 | Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
 | Consider sidecar array for  flexible sidecar configuration |  |
 | Address all "todo-me" in the code |  |
@@ -123,7 +127,7 @@ Version 0.7.0 makes the Operator available as a Community Operator.
 | Provide `kustomize` examples to illustrate bringing up an exemplar Nuxeo Cluster using kustomize) https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |        |
 | Review and augment unit and e2e tests                        |        |
 | Support multi-architecture build. Incorporate lint, gofmt, etc. into the build process |        |
-| GitHub CI / badges |        |
+| GitHub build / test automation |        |
 | Review the license |        |
 | Find someone else to work on this with... | |
 | Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |        |

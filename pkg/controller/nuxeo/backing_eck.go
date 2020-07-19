@@ -10,7 +10,7 @@ import (
 // todo-me enhance with ability to support anonymous, non-tls, two-way tls using 'settings' in preCfg arg, which
 //  is presently ignored
 func eckBacking(preCfg v1alpha1.PreconfiguredBackingService) v1alpha1.BackingService {
-	const trustStore = "elastic.ca.p12"
+	const trustStore = "elastic.ca.jks"
 	bsvc := v1alpha1.BackingService{
 		Name: "elastic",
 		// first resource converts the ECK tls.crt into a Java trust trustStore
@@ -22,9 +22,9 @@ func eckBacking(preCfg v1alpha1.PreconfiguredBackingService) v1alpha1.BackingSer
 			},
 			Name: preCfg.Resource + "-es-http-certs-public",
 			Projections: []v1alpha1.ResourceProjection{{
-				Key: "tls.crt",
 				Transform: v1alpha1.CertTransform{
 					Type:     "TrustStore",
+					Cert:     "tls.crt",
 					Store:    trustStore,
 					Password: "elastic.truststore.pass",
 					PassEnv:  "ELASTIC_TS_PASS",
@@ -39,7 +39,7 @@ func eckBacking(preCfg v1alpha1.PreconfiguredBackingService) v1alpha1.BackingSer
 			},
 			Name: preCfg.Resource + "-es-elastic-user",
 			Projections: []v1alpha1.ResourceProjection{{
-				Key: "elastic",
+				From: "elastic",
 				Env: "ELASTIC_PASSWORD",
 			}},
 		}},

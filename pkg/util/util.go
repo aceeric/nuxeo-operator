@@ -143,33 +143,36 @@ func GetJsonPathValue(obj runtime.Object, jsonPath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	j := jsonpath.New("jp")
+	jp := jsonpath.New("jp")
 	// parse the JSON path expression
-	err = j.Parse(jsonPath)
+	err = jp.Parse(jsonPath)
 	if err != nil {
 		return nil, err
 	}
-	result, err := j.FindResults(&unstructured)
+	result, err := jp.FindResults(&unstructured)
 	if err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer
 	for ix := range result {
-		if err := j.PrintResults(&buf, result[ix]); err != nil {
+		if err := jp.PrintResults(&buf, result[ix]); err != nil {
 			return nil, err
 		}
 	}
 	return buf.Bytes(), nil
 }
 
+// Returns a pointer to the passed value
 func Int32Ptr(i int32) *int32 {
 	return &i
 }
 
+// Returns a pointer to the passed value
 func Int64Ptr(i int64) *int64 {
 	return &i
 }
 
+// The ternary expression... such a thing of beauty: x = x == 1 ? 2 : x;
 func SetInt32If(v *int32, ifVal int32, thenVal int32) {
 	if *v == ifVal {
 		*v = thenVal

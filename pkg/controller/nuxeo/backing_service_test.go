@@ -208,14 +208,14 @@ func (suite *backingServiceSuite) TestProjectionMount2() {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: util.NuxeoServiceAccountName,
 					Volumes: []corev1.Volume{{
-						Name: "foo",
+						Name: "certificatesToPEM",
 						VolumeSource: corev1.VolumeSource{
 							Projected: &corev1.ProjectedVolumeSource{
 								Sources: []corev1.VolumeProjection{{
 									Secret: &corev1.SecretProjection{
-										LocalObjectReference: corev1.LocalObjectReference{Name: "foo"},
+										LocalObjectReference: corev1.LocalObjectReference{Name: "certificatesToPEM"},
 										Items: []corev1.KeyToPath{{
-											Key:  "foo",
+											Key:  "certificatesToPEM",
 											Path: "bar",
 										}},
 									},
@@ -228,12 +228,12 @@ func (suite *backingServiceSuite) TestProjectionMount2() {
 		},
 	}
 	shouldMergeKeys := corev1.Volume{
-		Name: "foo",
+		Name: "certificatesToPEM",
 		VolumeSource: corev1.VolumeSource{
 			Projected: &corev1.ProjectedVolumeSource{
 				Sources: []corev1.VolumeProjection{{
 					Secret: &corev1.SecretProjection{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "foo"},
+						LocalObjectReference: corev1.LocalObjectReference{Name: "certificatesToPEM"},
 						Items: []corev1.KeyToPath{{
 							Key:  "ting",
 							Path: "tang",
@@ -244,12 +244,12 @@ func (suite *backingServiceSuite) TestProjectionMount2() {
 		},
 	}
 	shouldAddProjection := corev1.Volume{
-		Name: "foo",
+		Name: "certificatesToPEM",
 		VolumeSource: corev1.VolumeSource{
 			Projected: &corev1.ProjectedVolumeSource{
 				Sources: []corev1.VolumeProjection{{
 					ConfigMap: &corev1.ConfigMapProjection{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "foo"},
+						LocalObjectReference: corev1.LocalObjectReference{Name: "certificatesToPEM"},
 						Items: []corev1.KeyToPath{{
 							Key:  "ting",
 							Path: "tang",

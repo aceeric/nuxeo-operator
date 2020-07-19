@@ -74,7 +74,7 @@ func joinCompact(separator string, items ...string) string{
 	ret := ""
 	for _, str := range items {
 		if s := strings.TrimSpace(str); len(s) != 0 {
-			// terminate each chunk with a newline. Last chunk also gets a newline since this will
+			// terminate each chunk with a separator. Last chunk also gets a newline since this will
 			// be mounted to the filesystem it's natural for the last line in a file to be newline-terminated
 			ret += s + separator
 		}

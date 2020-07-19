@@ -213,7 +213,7 @@ func getInteractiveNodeSet(nodeSets []v1alpha1.NodeSet, reqLogger logr.Logger) (
 func clusterHasRoute(mgr manager.Manager) bool {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "route.openshift.io", Version: "v1", Kind: "Route"})
-	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{Name: "foo"}, obj)
+	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{Name: "certificatesToPEM"}, obj)
 	if err != nil {
 		if _, ok := err.(*meta.NoKindMatchError); ok {
 			return false
@@ -226,7 +226,7 @@ func clusterHasRoute(mgr manager.Manager) bool {
 func clusterHasIngress(mgr manager.Manager) bool {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "networking.k8s.io", Version: "v1beta1", Kind: "Ingress"})
-	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{Name: "foo"}, obj)
+	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{Name: "certificatesToPEM"}, obj)
 	if err != nil {
 		if _, ok := err.(*meta.NoKindMatchError); ok {
 			return false

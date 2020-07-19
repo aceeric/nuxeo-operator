@@ -13,7 +13,7 @@ func eckBacking(preCfg v1alpha1.PreconfiguredBackingService) v1alpha1.BackingSer
 	const trustStore = "elastic.ca.jks"
 	bsvc := v1alpha1.BackingService{
 		Name: "elastic",
-		// first resource converts the ECK tls.crt into a Java trust trustStore
+		// first resource converts the ECK tls.crt into a Java trust store
 		Resources: []v1alpha1.BackingServiceResource{{
 			GroupVersionKind: metav1.GroupVersionKind{
 				Group:   "",

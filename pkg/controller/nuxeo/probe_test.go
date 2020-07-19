@@ -71,7 +71,7 @@ func (suite *probeSuite) probeSuiteNewNuxeo() *v1alpha1.Nuxeo {
 				ReadinessProbe: &corev1.Probe{
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"foo", "bar"},
+							Command: []string{"certificatesToPEM", "bar"},
 						},
 					},
 					InitialDelaySeconds: 1,

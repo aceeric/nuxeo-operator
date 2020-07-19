@@ -102,10 +102,9 @@ Version 0.6.0 implements integration of a Nuxeo Cluster with backing services. I
 | ------------------------------------------------------------ | -------- |
 | Integrate with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support | complete |
 | Integrate with Strimzi (https://strimzi.io/) for Nuxeo Stream support |          |
+| Integrate with Zelando Postgres (https://github.com/zalando/postgres-operator) for database support |          |
 | Integrate with Crunchy PostgreSQL (https://www.crunchydata.com/products/crunchy-postgresql-for-kubernetes/) for database support |          |
-| Integrate with another Postgres variant from Operator Hub    |          |
-| Create a Kustomize directory for no-touch deployment of Nuxeo, ECK, Strimzi, and Postgres all connected. |          |
-| Integrate with the Service Binding Operator (https://github.com/redhat-developer/service-binding-operator) to bind Nuxeo to various backing services present in the cluster |          |
+| Create a Kustomize directory for no-touch deployment of Nuxeo, ECK, Strimzi, and Postgres all connected |          |
 
 
 
@@ -140,6 +139,7 @@ These have not been prioritized yet.
 
 | Feature                         | Status |
 | ------------------------------- | ------ |
+| Integrate with the Service Binding Operator (https://github.com/redhat-developer/service-binding-operator) to bind Nuxeo to various backing services present in the cluster |          |
 | Phase V Operator Maturity Model |        |
 | OperatorHub availability |        |
 | Deploy a cluster as a Stateful Set or Deployment |        |

@@ -463,7 +463,7 @@ type PreconfiguredBackingService struct {
 	// +kubebuilder:validation:Optional
 	// Optional configuration settings that tune the backing service binding, depending on how the
 	// backing service was configured. For example, with Strimzi, it is possible to allow both plain text and
-	// tls connections. If you Nuxeo to connect one way or the other, then specify that here. See
+	// tls connections. If you want Nuxeo to connect one way or the other, then specify that here. See
 	// the documentation for which settings are valid for the various pre-configured backing services.
 	// todo-me not implemented yet
 	// +optional
@@ -489,42 +489,16 @@ type BackingServiceResource struct {
 // configuration values like passwords and certificates, and the corresponding projections of those values into
 // the Nuxeo Pod. 2) A nuxeo.conf string that can reference the projected resource values. 3) A name. The name
 // is important because it is used by the operator as a base directory into which to mount files. Files are
-// mounted under /etc/nuxeo-operator/binding/<the name you assign>. E.g. if a backing service is defined thus:
-//   spec:
-//     backingServices:
-//     - name: elastic
-//       ...
-//
-// then all files mounted by the operator will mount under: /etc/nuxeo-operator/binding/elastic. If a nuxeo.conf
-// entry references a mounted file, then it will reference it relative to that path.
+// mounted under /etc/nuxeo-operator/binding/<the name you assign>.
 //
 // Once the operator is finished configuring all of the backing service bindings, all of the nuxeo.conf entries are
-// concatenated and appended to the operator-managed nuxeo.conf ConfigMap. Note the Nuxeo CR offers the ability
-// to specify inline nuxeo.conf values in the Nuxeo CR:
-//   spec:
-//     nodeSets:
-//     - name: my-nuxeo
-//       nuxeoConfig:
-//         nuxeoConf:
-//           value: |
-//             # inline
-//             a.b.c=test1
-//             p.d.q=test2
-// The nuxeo.conf entries specified in the backing services are appended to any inline content. The Nuxeo CR also
-// offers the ability to define nuxeo.conf content in an externally provisioned ConfigMap or Secret and to reference
-// that in the Nuxeo CR:
-//   spec:
-//     nodeSets:
-//     - name: my-nuxeo
-//       nuxeoConfig:
-//         nuxeoConf:
-//           valueFrom:
-//             configMap:
-//               name: my-externally-provisioned-nuxeo-conf-config-map
-// An externally provisioned nuxeo.conf ConfigMap or Secret is not compatible with backing services and will result
-// in a reconciliation error. Only inlined nuxeo.conf content is supported with backing services - because the
-// Operator has to have ownership of the cluster resource holding the nuxeo.conf content and it can't do that if
-// the resource is provisioned by the configurer.
+// concatenated and appended to the operator-managed nuxeo.conf ConfigMap. The Nuxeo CR offers the ability
+// to specify inline nuxeo.conf values in the Nuxeo CR. If these are specified, the backing service settings are
+// appended. The Nuxeo CR also offers the ability to define nuxeo.conf content in an externally provisioned ConfigMap
+// or Secret and to reference that in the Nuxeo CR. An externally provisioned nuxeo.conf ConfigMap or Secret is not
+// compatible with backing services and will result in a reconciliation error. Only inlined nuxeo.conf content is
+// supported with backing services - because the Operator has to have ownership of the cluster resource holding
+// the nuxeo.conf content and it can't do that if the resource is provisioned by the configurer.
 type BackingService struct {
 	// +kubebuilder:validation:Optional
 	// The name of the backing service, as well as the directory under which to mount any files. Required

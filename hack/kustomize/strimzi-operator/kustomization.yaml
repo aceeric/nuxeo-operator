@@ -1,0 +1,5 @@
+namespace: backing
+
+resources:
+- namespace.yaml
+- strimzi-0.18.0-all-in-one.yaml

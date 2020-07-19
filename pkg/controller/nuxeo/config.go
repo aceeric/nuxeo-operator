@@ -240,7 +240,7 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 }
 
 // Given "PKCS12" (or "pkcs12"), returns ".p12", else returns storeType in lower case prefixed with a period.
-// E.g. given "FOO", returns ".foo". Given "", returns "". Note that the file name of the store is irrelevant to
+// E.g. given "FOO", returns ".certificatesToPEM". Given "", returns "". Note that the file name of the store is irrelevant to
 // Java, but by convention, most folks would expect to see .p12 or .jks in the container.
 func storeTypeToFileExtension(storeType string) string {
 	lower := strings.ToLower(storeType)

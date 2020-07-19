@@ -1,0 +1,7 @@
+namespace: backing
+
+resources:
+- namespace.yaml
+- elasticsearch.yaml
+- strimzi.yaml
+- nuxeo.yaml

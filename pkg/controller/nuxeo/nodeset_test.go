@@ -90,7 +90,7 @@ func (suite *nodeSetSuite) TestRevProxyDeploymentCreation() {
 	nux := suite.nodeSetSuiteNewNuxeo()
 	nux.Spec.RevProxy = v1alpha1.RevProxySpec{
 		Nginx: v1alpha1.NginxRevProxySpec{
-			Image:           "foo",
+			Image:           "certificatesToPEM",
 			ImagePullPolicy: corev1.PullAlways,
 		},
 	}

@@ -1,5 +1,0 @@
-
-bases:
-- eck-operator
-- strimzi-operator
-- base

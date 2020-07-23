@@ -1,5 +1,4 @@
 namespace: elastic-system
 
 resources:
-- namespace.yaml
 - eck-1.1.2-all-in-one.yaml

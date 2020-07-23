@@ -1,3 +1,4 @@
+# This configuration of Nuxeo will run all embedded unless patched
 apiVersion: nuxeo.com/v1alpha1
 kind: Nuxeo
 metadata:
@@ -14,9 +15,3 @@ spec:
       nuxeoPackages:
       - nuxeo-web-ui
   backingServices:
-  - preConfigured:
-      type: ECK
-      resource: elastic
-  - preConfigured:
-      type: Strimzi
-      resource: strimzi

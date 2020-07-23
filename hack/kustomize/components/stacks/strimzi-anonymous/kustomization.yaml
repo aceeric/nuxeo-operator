@@ -1,0 +1,30 @@
+namespace: backing
+
+bases:
+- ../../namespace
+- ../../strimzi
+- ../../nuxeo
+
+patchesJson6902:
+- target:
+    group: kafka.strimzi.io
+    version: v1beta1
+    kind: Kafka
+    name: strimzi
+  patch: |-
+    - op: replace
+      path: /spec/kafka/listeners
+      value:
+        plain: {}
+- target:
+    group: nuxeo.com
+    version: v1alpha1
+    kind: Nuxeo
+    name: nuxeo
+  patch: |-
+    - op: add
+      path: /spec/backingServices
+      value:
+      - preConfigured:
+          type: Strimzi
+          resource: strimzi

@@ -1,0 +1,25 @@
+namespace: backing
+
+bases:
+- ../../namespace
+- ../../eck
+- ../../strimzi
+- ../../nuxeo
+
+# patch Nuxeo: Strimzi anonymous, ECK built-in elastic user (simplest Nuxeo config)
+patchesJson6902:
+- target:
+    group: nuxeo.com
+    version: v1alpha1
+    kind: Nuxeo
+    name: nuxeo
+  patch: |-
+    - op: add
+      path: /spec/backingServices
+      value:
+      - preConfigured:
+          type: Strimzi
+          resource: strimzi
+      - preConfigured:
+          type: ECK
+          resource: elastic

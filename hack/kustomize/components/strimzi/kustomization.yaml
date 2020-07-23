@@ -1,0 +1,4 @@
+namespace: backing
+
+resources:
+- strimzi.yaml

@@ -9,7 +9,7 @@ import (
 )
 
 // These comparers compare expected to found with logic unique to the various resource types. If expected ==
-// found then the functions return true. Otherwise the functions update found from expected again within specific
+// found then the functions return true. Otherwise the functions update found from expected again with specific
 // logic by type and return false. False means found must be written back to the cluster.
 
 // Secret comparer (operator may annotate secrets)

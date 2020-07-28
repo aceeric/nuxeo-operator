@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# wait a while for all the hotfixes to install
+max=20
+for ((i=0; i<$max; i++)); do
+  if kubectl wait pod -l app=nuxeo -n backing --for condition=ready &>/dev/null; then
+    [[ "$(curl -s -o /dev/null -w '%{http_code}' http://nuxeo-server.apps-crc.testing)" == "200" ]] && break
+  fi
+  sleep 6s
+done
+if [[ $i -ge $max ]]; then
+  echo FAIL
+  exit 1
+else
+  kubectl get po -l app=nuxeo -n backing -o name | xargs kubectl logs |\
+    grep 'Component Loading Status: Pending: 0 / Missing: 0 / Unstarted: 0' &>/dev/null
+  if [[ $? -eq 0 ]]; then
+    echo PASS
+    exit 0
+  else
+    echo FAIL
+    exit 1
+  fi
+fi

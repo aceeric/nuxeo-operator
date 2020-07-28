@@ -47,11 +47,16 @@ func keyStoreFromPEM(cert []byte, privateKey []byte) ([]byte, string, error) {
 func toKeyStore(cert []byte, privateKey []byte, password string) ([]byte, error) {
 	store := keystore.KeyStore{}
 	var certs []keystore.Certificate
+	cnt := 0
 	for block, rest := pem.Decode(cert); block != nil; block, rest = pem.Decode(rest) {
 		certs = append(certs, keystore.Certificate{
 			Type:    x509str,
 			Content: block.Bytes,
 		})
+		cnt++
+	}
+	if cnt == 0 {
+		return nil, goerrors.New("no certs found in cert array")
 	}
 	if block, _ := pem.Decode(privateKey); block == nil {
 		return nil, goerrors.New("failed to decode passed key")
@@ -77,9 +82,9 @@ func toKeyStore(cert []byte, privateKey []byte, password string) ([]byte, error)
 // Decodes PEM-encoded cert arg and returns the data encoded as a JKS trust store.
 func toTrustStore(cert []byte, password string) ([]byte, error) {
 	store := keystore.KeyStore{}
-	i := 0
+	cnt := 0
 	for block, rest := pem.Decode(cert); block != nil; block, rest = pem.Decode(rest) {
-		store[aliasStr+strconv.Itoa(i)] = &keystore.TrustedCertificateEntry{
+		store[aliasStr+strconv.Itoa(cnt)] = &keystore.TrustedCertificateEntry{
 			Entry: keystore.Entry{
 				CreationDate: time.Now(),
 			},
@@ -88,7 +93,10 @@ func toTrustStore(cert []byte, password string) ([]byte, error) {
 				Content: block.Bytes,
 			},
 		}
-		i++
+		cnt++
+	}
+	if cnt == 0 {
+		return nil, goerrors.New("no certs found in cert array")
 	}
 	buffer := bytes.Buffer{}
 	if err := keystore.Encode(&buffer, store, []byte(password)); err != nil {

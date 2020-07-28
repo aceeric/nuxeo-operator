@@ -145,7 +145,6 @@ func (in *NodeSet) DeepCopyInto(out *NodeSet) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.PodTemplate.DeepCopyInto(&out.PodTemplate)
 	return
 }
 

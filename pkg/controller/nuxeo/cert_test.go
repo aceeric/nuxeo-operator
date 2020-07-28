@@ -2,11 +2,9 @@ package nuxeo
 
 import (
 	"bufio"
-	_ "bufio"
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
-	_ "encoding/pem"
 	goerrors "errors"
 	"fmt"
 	"testing"

@@ -130,7 +130,7 @@ index-push:
 .PHONY : apply-crd
 apply-crd:
 	-$(KUBECTL) delete crd/nuxeos.nuxeo.com >/dev/null 2>&1
-	$(KUBECTL) create -f $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml
+	$(KUBECTL) apply -f $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml
 
 .PHONY : help
 help:

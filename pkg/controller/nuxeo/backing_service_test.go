@@ -344,12 +344,12 @@ func (suite *backingServiceSuite) SetupSuite() {
 	suite.targetPort = 987
 	suite.backing = "elastic"
 	suite.nuxeoConf = "elasticsearch.client=RestClient\n" +
-		"elasticsearch.restClient.username=elastic\n" +
 		"elasticsearch.restClient.password=${env:ELASTIC_PASSWORD}\n" +
 		"elasticsearch.addressList=https://elastic-es-http:9200\n" +
 		"elasticsearch.restClient.truststore.path=" + backingMountBase + "elastic/elastic.ca.jks\n" +
 		"elasticsearch.restClient.truststore.password=${env:ELASTIC_TS_PASS}\n" +
-		"elasticsearch.restClient.truststore.type=JKS\n"
+		"elasticsearch.restClient.truststore.type=JKS\n" +
+  	    "elasticsearch.restClient.username=elastic\n"
 	suite.nodeSetName = "test123"
 }
 

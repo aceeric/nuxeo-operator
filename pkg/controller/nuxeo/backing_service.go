@@ -471,6 +471,10 @@ func getValueFromResource(r *ReconcileNuxeo, resource v1alpha1.BackingServiceRes
 		resVer := ""
 		if rv, rve := util.GetJsonPathValue(obj, "{.metadata.resourceVersion}"); rve == nil && rv != nil {
 			resVer = string(rv)
+		} else if rve != nil {
+			return nil, "", rve
+		} else if rv == nil {
+			return nil, "", goerrors.New("unable to get a resource version from resource: "+resource.Name)
 		}
 		resVal, resErr := util.GetJsonPathValue(obj, from)
 		return resVal, resVer, resErr
@@ -532,13 +536,13 @@ func backingSvcIsValid(backing v1alpha1.BackingService) bool {
 }
 
 // Uses the passed preconfigured backing service to generate a backing service struct that will wire Nuxeo
-// up to a backing service using well-known resources provided by the backing service.
+// up to a backing service using well-known resources provided by the backing service operator.
 func xlatBacking(preconfigured v1alpha1.PreconfiguredBackingService) (v1alpha1.BackingService, error) {
 	switch preconfigured.Type {
 	case v1alpha1.ECK:
-		return eckBacking(preconfigured), nil
+		return eckBacking(preconfigured)
 	case v1alpha1.Strimzi:
-		return strimziBacking(preconfigured), nil
+		return strimziBacking(preconfigured)
 	case v1alpha1.Crunchy:
 		return v1alpha1.BackingService{}, goerrors.New("pre-config for Crunchy not implemented yet")
 	default:

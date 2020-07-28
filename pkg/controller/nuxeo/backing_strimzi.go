@@ -1,36 +1,126 @@
 package nuxeo
 
-import "nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+)
 
-// wip:
-// $ ./stream.sh lag -k
-//   - verifies this connects nuxeo to strimzi
-// todo-me
-// 1) support encryption setting - only option is "tls"
-// 2) support auth setting: "anonymous" (what's below - default), "sasl-plain", "sasl-scram-sha-512", "tls""
-// 3) support user setting - the KafkUser
-// E.g.:
-//   backingServices:
-//   - preConfigured:
-//       type: Strimzi
-//       resource: strimzi
-//       settings:
-//         user: nuxeo
-//         auth: sasl-scram-sha-512
-//         encryption: tls
-// ... or:
-//       settings:
-//         auth: tls # automatically enables tls encryption
-// ... or:
-//       settings:
-//         user: nuxeo  # if user specified without auth, then auth="sasl-plain"
-func strimziBacking(preCfg v1alpha1.PreconfiguredBackingService) v1alpha1.BackingService {
-	bsvc := v1alpha1.BackingService{
-		Name: "strimzi",
-		NuxeoConf: "kafka.enabled=true\n" +
-			"kafka.bootstrap.servers=" + preCfg.Resource + "-kafka-bootstrap:9092\n" +
-			"nuxeo.stream.work.enabled=true\n" +
-			"nuxeo.pubsub.provider=stream\n",
+// Returns a backing service struct configured to connect to Strimzi Kafka. The resource name in the
+// passed pre-config is the name of a 'kafka.strimzi.io' resource in the namespace.
+func strimziBacking(preCfg v1alpha1.PreconfiguredBackingService) (v1alpha1.BackingService, error) {
+	opts, err := parsePreconfigOpts(preCfg)
+	if err != nil {
+		return v1alpha1.BackingService{}, err
 	}
-	return bsvc
+	bsvc := v1alpha1.BackingService{
+		Name:      "strimzi",
+		Resources: []v1alpha1.BackingServiceResource{},
+		NuxeoConf: "kafka.enabled=true\n",
+	}
+	auth, _ := opts["auth"]
+	user, _ := opts["user"]
+
+	switch {
+	case auth == "scram-sha-512":
+		bsvc.NuxeoConf += "kafka.sasl.enabled=true\n" +
+			"kafka.security.protocol=SASL_PLAINTEXT\n" +
+			"kafka.sasl.mechanism=SCRAM-SHA-512\n" +
+			"kafka.bootstrap.servers=" + preCfg.Resource + "-kafka-bootstrap:9092\n" +
+			"kafka.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + user + "\" password=\"${env:KAFKA_USER_PASS}\";\n"
+
+		res := v1alpha1.BackingServiceResource{
+			GroupVersionKind: metav1.GroupVersionKind{
+				Group:   "",
+				Version: "v1",
+				Kind:    "secret",
+			},
+			// KafkaUser CR = user name = user secret name
+			Name: user,
+			Projections: []v1alpha1.ResourceProjection{{
+				From: "password",
+				Env:  "KAFKA_USER_PASS",
+			}},
+		}
+		bsvc.Resources = append(bsvc.Resources, res)
+		break
+	case auth == "tls":
+		// Nuxeo will add security.protocol=SSL
+		bsvc.NuxeoConf += "kafka.ssl=true\n" +
+			"kafka.bootstrap.servers=" + preCfg.Resource + "-kafka-bootstrap:9093\n" +
+			"kafka.truststore.type=PKCS12\n" +
+			"kafka.truststore.path=" + backingMountBase + "strimzi/truststore.p12\n" +
+			"kafka.truststore.password=${env:KAFKA_TRUSTSTORE_PASS}\n" +
+			"kafka.keystore.type=PKCS12\n" +
+			"kafka.keystore.path=" + backingMountBase + "strimzi/keystore.p12\n" +
+			"kafka.keystore.password=${env:KAFKA_KEYSTORE_PASS}\n"
+
+		//resNew := []v1alpha1.BackingServiceResource{{
+		//	GroupVersionKind: metav1.GroupVersionKind{
+		//		Group:   "",
+		//		Version: "v1",
+		//		Kind:    "secret",
+		//	},
+		//	Name: preCfg.Resource + "-cluster-ca-cert",
+		//	Projections: []v1alpha1.ResourceProjection{{
+		//		Transform: v1alpha1.CertTransform{
+		//			Type:     "TrustStore",
+		//			Cert:     "ca.crt",
+		//			Store:    "truststore.jks",
+		//			Password: "strimzi.truststore.pass",
+		//			PassEnv:  "KAFKA_TRUSTSTORE_PASS",
+		//		},
+		//	}},
+		//}, {
+		//	GroupVersionKind: metav1.GroupVersionKind{
+		//		Group:   "",
+		//		Version: "v1",
+		//		Kind:    "secret",
+		//	},
+		//	Name: user,
+		//	Projections: []v1alpha1.ResourceProjection{{
+		//		Transform: v1alpha1.CertTransform{
+		//			Type:       "KeyStore",
+		//			Cert:       "user.crt",
+		//			PrivateKey: "user.key",
+		//			Store:      "keystore.jks",
+		//			Password:   "strimzi.keystore.pass",
+		//			PassEnv:    "KAFKA_KEYSTORE_PASS",
+		//		},
+		//	}},
+		//}}
+		res := []v1alpha1.BackingServiceResource{{
+			GroupVersionKind: metav1.GroupVersionKind{
+				Group:   "",
+				Version: "v1",
+				Kind:    "secret",
+			},
+			Name: preCfg.Resource + "-cluster-ca-cert",
+			Projections: []v1alpha1.ResourceProjection{{
+				From: "ca.password",
+				Env:  "KAFKA_TRUSTSTORE_PASS",
+			}, {
+				From:  "ca.p12",
+				Mount: "truststore.p12",
+			}},
+		}, {
+			GroupVersionKind: metav1.GroupVersionKind{
+				Group:   "",
+				Version: "v1",
+				Kind:    "secret",
+			},
+			// KafkaUser CR = user name = user secret name
+			Name: user,
+			Projections: []v1alpha1.ResourceProjection{{
+				From: "user.password",
+				Env:  "KAFKA_KEYSTORE_PASS",
+			}, {
+				From:  "user.p12",
+				Mount: "keystore.p12",
+			}},
+		}}
+		bsvc.Resources = append(bsvc.Resources, res...)
+	default:
+		bsvc.NuxeoConf += "kafka.bootstrap.servers=" + preCfg.Resource + "-kafka-bootstrap:9092\n"
+	}
+	return bsvc, nil
 }

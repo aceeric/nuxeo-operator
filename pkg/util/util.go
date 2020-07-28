@@ -172,7 +172,7 @@ func Int64Ptr(i int64) *int64 {
 	return &i
 }
 
-// The ternary expression... such a thing of beauty: x = x == 1 ? 2 : x;
+// set v = thenVal if v == ifVal
 func SetInt32If(v *int32, ifVal int32, thenVal int32) {
 	if *v == ifVal {
 		*v = thenVal

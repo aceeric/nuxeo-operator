@@ -1,0 +1,94 @@
+namespace: backing
+
+resources:
+# https://download.elastic.co/downloads/eck/1.2.0/all-in-one.yaml
+- all-in-one.yaml
+
+patchesStrategicMerge:
+- set-elastic-operator-crb-namespace.yaml
+
+patchesJson6902:
+- target:
+    group: ""
+    version: v1
+    kind: Namespace
+    name:  elastic-system
+  patch: |-
+    - op: replace
+      path: /metadata/name
+      value:
+        backing
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name:  elastic-operator
+    namespace: elastic-system
+  patch: |-
+    - op: replace
+      path: /metadata/namespace
+      value:
+        backing
+- target:
+    group: ""
+    version: v1
+    kind: ServiceAccount
+    name:  elastic-operator
+    namespace: elastic-system
+  patch: |-
+    - op: replace
+      path: /metadata/namespace
+      value:
+        backing
+- target:
+    group: ""
+    version: v1
+    kind: Service
+    name:  elastic-webhook-server
+    namespace: elastic-system
+  patch: |-
+    - op: replace
+      path: /metadata/namespace
+      value:
+        backing
+- target:
+    group: ""
+    version: v1
+    kind: Secret
+    name:  elastic-webhook-server-cert
+    namespace: elastic-system
+  patch: |-
+    - op: replace
+      path: /metadata/namespace
+      value:
+        backing
+- target:
+    group: admissionregistration.k8s.io
+    version: v1beta1
+    kind: ValidatingWebhookConfiguration
+    name:  elastic-webhook.k8s.elastic.co
+  patch: |-
+    - op: replace
+      path: /webhooks/0/clientConfig/service/namespace
+      value:
+        backing
+    - op: replace
+      path: /webhooks/1/clientConfig/service/namespace
+      value:
+        backing
+    - op: replace
+      path: /webhooks/2/clientConfig/service/namespace
+      value:
+        backing
+    - op: replace
+      path: /webhooks/3/clientConfig/service/namespace
+      value:
+        backing
+    - op: replace
+      path: /webhooks/4/clientConfig/service/namespace
+      value:
+        backing
+    - op: replace
+      path: /webhooks/5/clientConfig/service/namespace
+      value:
+        backing

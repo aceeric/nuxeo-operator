@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: pgdb-backrest-repo-config
+  name: nuxeo-backrest-repo-config
   labels:
-    pg-cluster: pgdb
+    pg-cluster: nuxeo
     pgo-backrest-repo: "true"
 stringData:
   authorized_keys: |

@@ -13,13 +13,15 @@ import (
 // E.g.: "user: nuxeo" is valid but "auth: nuxeo" is not.
 var opts = map[v1alpha1.PreconfigType]map[string][]string{
 	v1alpha1.ECK: {
-		"user": {},
+		"user": {}, // a secret containing keys 'user' and 'password'
 	},
 	v1alpha1.Strimzi: {
 		"auth": {"anonymous", "scram-sha-512", "tls"},
-		"user": {},
+		"user": {}, // a secret whose name is the username containing key 'password'
 	},
-	v1alpha1.Crunchy: {},
+	v1alpha1.Crunchy: {
+		"user": {}, // a secret containing keys 'username' and 'password'
+	},
 }
 
 // parsePreconfigOpts parses the options in the passed preconfigured backing service
@@ -72,10 +74,9 @@ func validatePreConfig(typ v1alpha1.PreconfigType, opts map[string]string) (map[
 	case v1alpha1.ECK:
 		// no additional validations
 		return opts, nil
-	default:
-		fallthrough
 	case v1alpha1.Crunchy:
-		return nil, goerrors.New("preconfig validation not implemented yet")
+		// no additional validations
+		return opts, nil
 	}
 	return opts, nil
 }

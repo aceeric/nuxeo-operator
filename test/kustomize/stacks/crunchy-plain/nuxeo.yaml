@@ -24,4 +24,6 @@ spec:
   backingServices:
   - preConfigured:
       type: Crunchy
-      resource: pgdb
+      resource: nuxeo
+      settings:
+        user: nuxeo-nuxeo-secret

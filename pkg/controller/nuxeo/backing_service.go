@@ -36,7 +36,7 @@ func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *
 	for idx, backingService := range instance.Spec.BackingServices {
 		var err error
 		if !backingSvcIsValid(backingService) {
-			return "", goerrors.New("invalid backing service definition at ordinal position "+strconv.Itoa(idx))
+			return "", goerrors.New("invalid backing service definition at ordinal position " + strconv.Itoa(idx))
 		}
 		// if configurer provided a preconfigured backing service use that as if it were actually in the CR
 		if backingService.Preconfigured.Type != "" {
@@ -49,6 +49,22 @@ func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *
 		}
 		// accumulate each backing service's nuxeo.conf settings
 		nuxeoConf = joinCompact("\n", nuxeoConf, backingService.NuxeoConf)
+
+		if backingService.Template != "" {
+			// backing service requires a template
+			if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
+				return "", err
+			} else {
+				env := corev1.EnvVar{
+					Name:  "NUXEO_TEMPLATES",
+					Value: backingService.Template,
+				}
+				// todo-me convert all instances of modifying the deployment to MergeOrAdd
+				if err := util.MergeOrAdd(nuxeoContainer, env, ","); err != nil {
+					return "", err
+				}
+			}
+		}
 	}
 	return nuxeoConf, nil
 }
@@ -347,7 +363,7 @@ func populateSecondary(resource v1alpha1.BackingServiceResource, secondarySecret
 	passKey string, resVer string, cert []byte, privateKey []byte, transformType v1alpha1.CertTransformType) error {
 
 	secondarySecret.Annotations[genAnnotationKey(resource)] = resVer
-	var store [] byte
+	var store []byte
 	var pass string
 	var err error
 	if transformType == v1alpha1.TrustStore {
@@ -474,7 +490,7 @@ func getValueFromResource(r *ReconcileNuxeo, resource v1alpha1.BackingServiceRes
 		} else if rve != nil {
 			return nil, "", rve
 		} else if rv == nil {
-			return nil, "", goerrors.New("unable to get a resource version from resource: "+resource.Name)
+			return nil, "", goerrors.New("unable to get a resource version from resource: " + resource.Name)
 		}
 		resVal, resErr := util.GetJsonPathValue(obj, from)
 		return resVal, resVer, resErr
@@ -544,9 +560,9 @@ func xlatBacking(preconfigured v1alpha1.PreconfiguredBackingService) (v1alpha1.B
 	case v1alpha1.Strimzi:
 		return strimziBacking(preconfigured)
 	case v1alpha1.Crunchy:
-		return v1alpha1.BackingService{}, goerrors.New("pre-config for Crunchy not implemented yet")
+		return crunchyBacking(preconfigured)
 	default:
 		// can only happen if someone adds a preconfig and forgets to add a case statement for it
-		return v1alpha1.BackingService{}, goerrors.New("unknown pre-configured backing service:"+string(preconfigured.Type))
+		return v1alpha1.BackingService{}, goerrors.New("unknown pre-configured backing service:" + string(preconfigured.Type))
 	}
 }

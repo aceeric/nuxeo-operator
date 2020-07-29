@@ -101,8 +101,8 @@ strimzi-mutual-tls-test: verify-images-ns clean operator-strimzi-0.18.0 security
 	echo COMPLETED STRIMZI MUTUAL TLS TEST
 
 .PHONY: crunchy-plain-test
-crunchy-plain-test:
-	echo CRUNCHY PLAIN NOT IMPLEMENTED YET
+crunchy-plain-test: verify-images-ns clean operator-crunchy-4.4.0 security crunchy-plain verify-nuxeo
+	echo COMPLETED CRUNCHY PLAIN TEST
 
 .PHONY: crunchy-mutual-tls-test
 crunchy-mutual-tls-test:

@@ -420,6 +420,8 @@ type ResourceProjection struct {
 	// +optional
 	Env string `json:"env"`
 
+	// todo-me mount as value to support getting port/service from crunchy cluster and mounting as env/value
+
 	// +kubebuilder:validation:Optional
 	// If the backing service resource can be used without transformation, and the desire is to mount it as a file,
 	// then provide the name of a file for the Operator to mount the resource value as. The operator will copy the
@@ -519,6 +521,12 @@ type BackingService struct {
 	// is specified.
 	// +optional
 	NuxeoConf string `json:"nuxeoConf"`
+
+	// +kubebuilder:validation:Optional
+	// Some backing services (e.g. PostgreSQL) require that a template be added to the list of templates. If that
+	// is the case, then specify the template here. E.g.: 'postgresql', 'mongodb', etc.
+	// +optional
+	Template string `json:"template"`
 
 	// +kubebuilder:validation:Optional
 	// For a set of known backing service (e.g. Strimzi Kafka) the configuration can be tersely specified

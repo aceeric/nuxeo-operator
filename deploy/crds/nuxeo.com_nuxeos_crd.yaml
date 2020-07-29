@@ -284,6 +284,12 @@ spec:
                         - version
                         type: object
                       type: array
+                    template:
+                      description: 'Some backing services (e.g. PostgreSQL) require
+                        that a template be added to the list of templates. If that
+                        is the case, then specify the template here. E.g.: ''postgresql'',
+                        ''mongodb'', etc.'
+                      type: string
                   type: object
                 type: array
               clid:

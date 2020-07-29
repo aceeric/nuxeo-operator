@@ -1,17 +1,17 @@
 apiVersion: crunchydata.com/v1
 kind: Pgcluster
 metadata:
-  name: pgdb
+  name: nuxeo
   annotations:
-    current-primary: pgdb
+    current-primary: nuxeo
   labels:
     autofail: "true"
     crunchy-pgbadger: "false"
-    crunchy-pgha-scope: pgdb
+    crunchy-pgha-scope: nuxeo
     crunchy_collect: "false"
-    deployment-name: pgdb
-    name: pgdb
-    pg-cluster: pgdb
+    deployment-name: nuxeo
+    name: nuxeo
+    pg-cluster: nuxeo
     pg-pod-anti-affinity: ""
     pgo-backrest: "true"
     pgo-version: 4.4.0
@@ -28,7 +28,7 @@ spec:
   PrimaryStorage:
     accessmode: ReadWriteMany
     matchLabels: ""
-    name: pgdb
+    name: nuxeo
     size: 1G
     storageclass: ""
     storagetype: create
@@ -53,12 +53,12 @@ spec:
   ccpimage: crunchy-postgres-ha
   ccpimageprefix: registry.developers.crunchydata.com/crunchydata
   ccpimagetag: centos7-12.3-4.4.0
-  clustername: pgdb
+  clustername: nuxeo
   customconfig: ""
-  database: pgdb
+  database: nuxeo
   exporterport: "9187"
   limits: {}
-  name: pgdb
+  name: nuxeo
   namespace: backing
   pgBouncer:
     limits: {}
@@ -74,9 +74,9 @@ spec:
     pgBouncer: preferred
   policies: ""
   port: "5432"
-  primarysecretname: pgdb-primaryuser-secret
+  primarysecretname: nuxeo-primaryuser-secret
   replicas: "0"
-  rootsecretname: pgdb-postgres-secret
+  rootsecretname: nuxeo-postgres-secret
   shutdown: false
   standby: false
   tablespaceMounts: {}
@@ -90,4 +90,4 @@ spec:
     crunchy_collect: "false"
     pg-pod-anti-affinity: ""
     pgo-version: 4.4.0
-  usersecretname: pgdb-nuxeo-secret
+  usersecretname: nuxeo-nuxeo-secret

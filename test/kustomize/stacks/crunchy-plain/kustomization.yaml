@@ -1,0 +1,14 @@
+namespace: backing
+
+bases:
+- ../../namespace
+
+# this kustomize requires 'make crunchy-backrest-secret' first (only once)
+# to generate 'pgdb-backrest-repo-config.yaml'
+resources:
+- pgdb-backrest-repo-config.yaml
+- pgdb-nuxeo-secret.yaml
+- pgdb-postgres-secret.yaml
+- pgdb-primaryuser-secret.yaml
+- crunchy-cluster.yaml
+#- nuxeo.yaml

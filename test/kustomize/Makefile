@@ -5,8 +5,22 @@ NUXHFERR  := "These tests require image 'nuxeo' with tag 'LTS-2019-HF29' in the 
 
 # at the present this Makefile only supports OpenShift
 
-# the following targets are used to do the small units of work. They are dependencies for the larger
-# targets invoked in the section below
+.PHONY: all
+all:
+	echo This Makefile does not provide an 'all' target
+
+.PHONY: all-tests
+all-tests:
+	$(MAKE) elastic-builtin-test
+	$(MAKE) elastic-filerealm-test
+	$(MAKE) strimzi-anonymous-test
+	$(MAKE) strimzi-scram-sha-512-test
+	$(MAKE) strimzi-mutual-tls-test
+	$(MAKE) crunchy-plain-test
+	$(MAKE) crunchy-mutual-tls-test
+
+# the following rules are used to do the small units of work. They are dependencies for the larger
+# rules invoked in the section following this
 
 .PHONY: clean
 clean:
@@ -23,6 +37,13 @@ operator-eck-1.1.2:
 .PHONY: operator-strimzi-0.18.0
 operator-strimzi-0.18.0:
 	kustomize build $(ROOT)/operator-strimzi-0.18.0 | $(KUBEAPPLY)
+
+# kustomize refuses to patch the 'disable_fsgroup' setting in 'pgo-deployer-cm' - which
+# OpenShift can't tolerate - so sed
+.PHONY: operator-crunchy-4.4.0
+operator-crunchy-4.4.0:
+	KUSTOMIZE_PLUGIN_HOME=$(ROOT) kustomize build --enable_alpha_plugins $(ROOT)/operator-crunchy-4.4.0\
+		| sed -e 's|disable_fsgroup: "false"|disable_fsgroup: "true"|' | $(KUBEAPPLY)
 
 .PHONY: security
 security:
@@ -48,12 +69,16 @@ strimzi-scram-sha-512:
 strimzi-mutual-tls:
 	kustomize build $(ROOT)/stacks/strimzi-mutual-tls | $(KUBEAPPLY)
 
+.PHONY: crunchy-plain
+crunchy-plain:
+	kustomize build $(ROOT)/stacks/crunchy-plain | $(KUBEAPPLY)
+
 .PHONY: verify-nuxeo
 verify-nuxeo:
 	$(eval result = $(shell bash -c "$(ROOT)/scripts/verify-nuxeo"))
 	if [ FAIL = "$(result)" ]; then exit 1; else exit 0; fi
 
-# these targets each test one connectivity configuration
+# these rules each test one connectivity configuration
 
 .PHONY: elastic-builtin-test
 elastic-builtin-test: verify-images-ns clean operator-eck-1.1.2 security elastic-builtin verify-nuxeo
@@ -75,17 +100,32 @@ strimzi-scram-sha-512-test: verify-images-ns clean operator-strimzi-0.18.0 secur
 strimzi-mutual-tls-test: verify-images-ns clean operator-strimzi-0.18.0 security strimzi-mutual-tls verify-nuxeo
 	echo COMPLETED STRIMZI MUTUAL TLS TEST
 
-# a couple helper targets - only need to be run once to set up the tests
+.PHONY: crunchy-plain-test
+crunchy-plain-test:
+	echo CRUNCHY PLAIN NOT IMPLEMENTED YET
+
+.PHONY: crunchy-mutual-tls-test
+crunchy-mutual-tls-test:
+	echo CRUNCHY MUTUAL TLS NOT IMPLEMENTED YET
+
+# helper rules - only need to be run once to set up the tests
 
 .PHONY: elastic-filerealm-secret
 elastic-filerealm-secret:
 	$(eval result = $(shell bash -c "$(ROOT)/scripts/crt-filerealm-secret"))
 	if [ FAIL = "$(result)" ]; then exit 1; else exit 0; fi
 
+.PHONY: crunchy-backrest-secret
+crunchy-backrest-secret:
+	$(eval result = $(shell bash -c "$(ROOT)/scripts/crt-backrest-secret"))
+	if [ FAIL = "$(result)" ]; then exit 1; else exit 0; fi
+
 # requires you to be logged in to the OpenShift internal registry
 .PHONY: nuxeo-lts-2019-hf29-image
 nuxeo-lts-2019-hf29-image:
 	-$(KUBECTL) create namespace images
+	# in case no HF's have been downloaded ensure the directory ref'd by the Dockerfile exists
+	mkdir -p $(ROOT)/nuxeo-build/hf
 	docker build --tag default-route-openshift-image-registry.apps-crc.testing/images/nuxeo:LTS-2019-HF29\
 		--file $(ROOT)/nuxeo-build/Dockerfile $(ROOT)/nuxeo-build/
 	docker push default-route-openshift-image-registry.apps-crc.testing/images/nuxeo:LTS-2019-HF29

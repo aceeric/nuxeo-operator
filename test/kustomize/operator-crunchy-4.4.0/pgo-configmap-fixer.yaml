@@ -1,0 +1,5 @@
+apiVersion: plugins
+kind: PgoConfigMapFixer
+metadata:
+  name: unused
+argsOneLiner: s|\"pgo\"|\"backing\"|

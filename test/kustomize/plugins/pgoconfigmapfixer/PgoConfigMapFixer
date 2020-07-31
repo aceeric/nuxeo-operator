@@ -3,7 +3,7 @@
 # Replaces "pgo" hard-coded namespace in the PGO ConfigMap with "backing"
 # adapted from https://github.com/Agilicus/kustomize-plugins. Note - original
 # intent was for this also to patch the disable_fsgroup setting but Kustomize
-# will not help there so that's patched with sed in the Makefile
+# will not help there so that's patched with sed in the Makefile.
 #
 
 # how to test:

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/controller/nuxeo/preconfigs"
 )
 
 // Tests that valid options for Strimzi can be parsed
@@ -18,7 +19,7 @@ func (suite *backingOptSuite) TestBackingOptsGood() {
 		Type:     v1alpha1.Strimzi,
 		Settings: goodOpts,
 	}
-	parsed, err := parsePreconfigOpts(pbs)
+	parsed, err := preconfigs.ParsePreconfigOpts(pbs)
 	require.Nil(suite.T(), err, "parsePreconfigOpts should not have errored")
 	user, ok := parsed["user"]
 	require.True(suite.T(), ok, "Did not get a user back")
@@ -31,7 +32,7 @@ func (suite *backingOptSuite) TestBackingOptsUnknownType() {
 	pbs := v1alpha1.PreconfiguredBackingService{
 		Type: "Unknown",
 	}
-	_, err := parsePreconfigOpts(pbs)
+	_, err := preconfigs.ParsePreconfigOpts(pbs)
 	require.NotNil(suite.T(), err, "parsePreconfigOpts should have errored")
 }
 
@@ -45,7 +46,7 @@ func (suite *backingOptSuite) TestBackingOptsBad() {
 		Type:     v1alpha1.Strimzi,
 		Settings: goodOpts,
 	}
-	_, err := parsePreconfigOpts(pbs)
+	_, err := preconfigs.ParsePreconfigOpts(pbs)
 	require.NotNil(suite.T(), err, "parsePreconfigOpts should have errored")
 }
 
@@ -60,7 +61,7 @@ func (suite *backingOptSuite) TestBackingOptsUnknownSetting() {
 		Type:     v1alpha1.Strimzi,
 		Settings: goodOpts,
 	}
-	_, err := parsePreconfigOpts(pbs)
+	_, err := preconfigs.ParsePreconfigOpts(pbs)
 	require.NotNil(suite.T(), err, "parsePreconfigOpts should not errored")
 }
 

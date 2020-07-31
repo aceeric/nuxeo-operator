@@ -1,14 +1,5 @@
-namespace: backing
-
 bases:
-- ../../namespace
+- ../crunchy-base
 
-# this kustomize requires 'make crunchy-backrest-secret' first (only once)
-# to generate 'nuxeo-backrest-repo-config.yaml'
 resources:
-- nuxeo-backrest-repo-config.yaml
-- nuxeo-nuxeo-secret.yaml
-- nuxeo-postgres-secret.yaml
-- nuxeo-primaryuser-secret.yaml
-- crunchy-cluster.yaml
-- nuxeo.yaml
+- crunchypg-nuxeo-secret.yaml

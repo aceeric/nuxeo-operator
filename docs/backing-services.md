@@ -367,15 +367,15 @@ elastic.ca.jks:           1820 bytes
 elastic.truststore.pass:  12 bytes
 ```
 
-You can see that the operator placed the Java trust store, and the Operator-generated trust store password into this Secret. In addition, the secret was annotated with the resource version of the TLS cert that the trust store was created from.
+You can see that the operator placed the Java trust store, and the Operator-generated trust store password into this Secret. In addition, the secret was annotated with the resource version of the TLS cert secret that the trust store was created from.
 
 #### For the patient reader
 
-The binding approach presented above provides insight into how the Nuxeo Operator binds Nuxeo to a backing service. However, that binding is fairly verbose, especially if you're running Nuxeo with Strimzi, Postgres, and ECK. There is a simpler way.
+The binding approach presented above provides insight into how the Nuxeo Operator binds Nuxeo to a backing service. However, that binding is fairly verbose, especially if you're running Nuxeo with multiple backing services. There is a simpler way.
 
 The simple way is based on understanding that the operator-managed backing services like Strimzi and ECK are machines and - as such - they always do the same thing. The Nuxeo Operator can take advantage of that with something called *pre-configured* bindings.
 
-Pre-configured bindings are bindings to well-known backing services like ECK, Strimzi Kafka, and Crunchy Postgres. For ECK, for example, the following Nuxeo CR will perform exactly the same binding as the more verbose example above:
+Pre-configured bindings are bindings to backing services like ECK, Strimzi Kafka, and Crunchy Postgres pre-wired into the Operator. For ECK, for example, the following Nuxeo CR will perform exactly the same binding as the more verbose example above:
 
 ```shell
 cat <<'EOF' | kubectl apply -n backing -f -
@@ -401,9 +401,9 @@ spec:
 EOF
 ```
 
-You can see that the `backingServices` stanza simply provides a `preConfigured` entry, specifying type `ECK`, which is one of the supported pre-configured backing services. The only additional piece of information needed is the `resource` key, which specifies that in the Nuxeo namespace, there is instance of a `elasticsearch.k8s.elastic.co` resource named `elastic`.
+You can see that the `backingServices` stanza simply provides a `preConfigured` entry, specifying type `ECK`, which is one of the supported pre-configured backing services. The only additional piece of information needed is the `resource` key, which specifies that in the namespace that the Nuxeo cluster is running in, there is instance of a `elasticsearch.k8s.elastic.co` resource named `elastic`.
 
 That's all that's required by the Operator to bind Nuxeo to ECK. Feel free to try it.
 
-The current version of the Nuxeo Operator only supports ECK, but soon will support Strimzi, Crunchy Postgres, and possibly another Postgres variant available on Operator Hub. Eventually, the goal is to support all Nuxeo-supported backing services, to include Redis and MongoDB.
+The current version of the Nuxeo Operator supports ECK, Strimzi, and Crunchy Postgres.
 

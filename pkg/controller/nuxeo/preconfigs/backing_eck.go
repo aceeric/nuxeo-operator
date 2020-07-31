@@ -1,4 +1,4 @@
-package nuxeo
+package preconfigs
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -7,9 +7,9 @@ import (
 
 // returns a backing service configured to connect to ECK. The resource name in the passed pre-config
 // is the name of an 'elasticsearch.k8s.elastic.co' resource in the namespace.
-func eckBacking(preCfg v1alpha1.PreconfiguredBackingService) (v1alpha1.BackingService, error) {
+func EckBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBase string) (v1alpha1.BackingService, error) {
 	const trustStore = "elastic.ca.jks"
-	opts, err := parsePreconfigOpts(preCfg)
+	opts, err := ParsePreconfigOpts(preCfg)
 	if err != nil {
 		return v1alpha1.BackingService{}, err
 	}

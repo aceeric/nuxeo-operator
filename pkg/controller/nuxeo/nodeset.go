@@ -76,6 +76,7 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 		reqLogger.Error(err, "Error attempting to get Deployment for NodeSet: "+nodeSet.Name)
 		return reconcile.Result{}, err
 	}
+	// todo-me resolve twice creation
 	if different, err := util.ObjectsDiffer(expected.Spec, actual.Spec); err == nil && different {
 		reqLogger.Info("Updating Deployment", "Namespace", expected.Namespace, "Name", expected.Name)
 		expected.Spec.DeepCopyInto(&actual.Spec)

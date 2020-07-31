@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: nuxeo-backrest-repo-config
+  name: crunchypg-backrest-repo-config
   labels:
-    pg-cluster: nuxeo
+    pg-cluster: crunchypg
     pgo-backrest-repo: "true"
 stringData:
   authorized_keys: |

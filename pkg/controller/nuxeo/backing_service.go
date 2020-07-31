@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/controller/nuxeo/preconfigs"
 	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -100,6 +101,7 @@ func configureBackingService(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, backin
 			}
 		}
 	}
+	// todo-me secondary may be amalgamation of multiple upstream secrets, hence with >1 annotations
 	return reconcileSecondary(r, instance, &secondarySecret, reqLogger)
 }
 
@@ -556,11 +558,11 @@ func backingSvcIsValid(backing v1alpha1.BackingService) bool {
 func xlatBacking(preconfigured v1alpha1.PreconfiguredBackingService) (v1alpha1.BackingService, error) {
 	switch preconfigured.Type {
 	case v1alpha1.ECK:
-		return eckBacking(preconfigured)
+		return preconfigs.EckBacking(preconfigured, backingMountBase)
 	case v1alpha1.Strimzi:
-		return strimziBacking(preconfigured)
+		return preconfigs.StrimziBacking(preconfigured, backingMountBase)
 	case v1alpha1.Crunchy:
-		return crunchyBacking(preconfigured)
+		return preconfigs.CrunchyBacking(preconfigured, backingMountBase)
 	default:
 		// can only happen if someone adds a preconfig and forgets to add a case statement for it
 		return v1alpha1.BackingService{}, goerrors.New("unknown pre-configured backing service:" + string(preconfigured.Type))

@@ -1,7 +1,7 @@
 # Nuxeo Operator
 # Nuxeo Operator
 
-This project is a very early - **0.5.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
+This project is a very early - **0.6.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
 
 Presently, I'm doing this development on a Ubuntu 18.04 desktop with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
 
@@ -94,36 +94,41 @@ Version 0.5.0 incorporates some more advanced features into the Operator and ext
 
 
 
-#### Version 0.6.0 *(in progress)*
+#### Version 0.6.0 *(complete)*
 
-Version 0.6.0 implements integration of a Nuxeo Cluster with backing services. Integration with Elastic Cloud on Kubernetes is complete. See: [backing-services.md](docs/backing-services.md). The remaining integrations will make use of the structure created for ECK.
+Version 0.6.0 implements integration of a Nuxeo Cluster with backing services. See the following document for background on the design: [Backing Service Integration Design](docs/backing-services.md).
+
+In addition to general-purpose backing service integration, the Operator supports a few *pre-configured* backing service integrations (listed below) to support integration more tersely in the CR. These are documented in more detail here: [Preconfigured Backing Service Tests](test/kustomize/README.md).
+
 
 | Feature                                                      | Status   |
 | ------------------------------------------------------------ | -------- |
+| Add support for flexible integration with backing services by adding a `backingService` resource into the Nuxeo CR. Validate that with specific integrations (see below) | complete |
 | Integrate with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support | complete |
-| Integrate with Strimzi (https://strimzi.io/) for Nuxeo Stream support. Note - no success with Nuxeo+Strimzi SASL/SCRAM-SHA-512 | (partially) complete |
-| Integrate with Zelando Postgres (https://github.com/zalando/postgres-operator) for database support |          |
-| Integrate with Crunchy PostgreSQL (https://www.crunchydata.com/products/crunchy-postgresql-for-kubernetes/) for database support |          |
-| Create a Kustomize directory for no-touch deployment of Nuxeo, ECK, Strimzi, and Postgres all connected | in progress |
+| Integrate with Strimzi (https://strimzi.io/) for Nuxeo Stream support | complete |
+| Integrate with Crunchy PostgreSQL (https://www.crunchydata.com/products/crunchy-postgresql-for-kubernetes/) for database support | complete |
+| Create a Kustomize directory for no-touch deployment and testing of a Nuxeo cluster integrated with ECK, Strimzi, and Crunchy Postgres | complete |
 
 
 
 #### Version 0.6.1
 
-Version 0.6.1 Will be a clean-up iteration
+Version 0.6.1 will be a clean-up iteration.
 
 | Feature                                                      | Status   |
 | ------------------------------------------------------------ | -------- |
-| Address all "todo-me" in the code (50ish...) |  |
+| Address all "todo-me" in the code |  |
 | Refactor all reconcile functions into the common reconciler with resource-specific comparers (started in 0.6.0) |  |
-| Consider sidecar array for flexible sidecar configuration |  |
+| Update the test/kustomize directory to support native Kubernetes (right now just supports OpenShift) | |
+| Consider a sidecar array for flexible sidecar configuration |  |
 | Build out the Status field in the Nuxeo CR to be comparable with other resources available on OperatorHub | |
-| Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with those production environments |        |
+| Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |        |
+| Add the Nuxeo Operator image to Docker Hub to simplify installing the operator into a cluster (avoids needing to create Operator images in the Kubernetes/OpenShift cluster internal registry) | |
 
 
-#### Version 0.7.0
+#### Version 0.7.x.y...
 
-Version 0.7.0 makes the Operator available as a Community Operator.
+This iteration makes the Operator available as a Community Operator. This will get chunked into multiple smaller units.
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
@@ -131,11 +136,13 @@ Version 0.7.0 makes the Operator available as a Community Operator.
 | Verify Prometheus monitoring support (Prometheus not available in CRC out of the box) |  |
 | Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |        |
-| Provide `kustomize` examples to illustrate bringing up an exemplar Nuxeo Cluster using kustomize) https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |        |
+| Build on kustomize testing from 0.6.0 to provide exemplars for bringing up Nuxeo Clusters using kustomize (https://kubectl.docs.kubernetes.io/pages/examples/kustomize.html) |        |
+| kpt (https://googlecontainertools.github.io/kpt/) vs kustomize? | |
 | Review and augment e2e tests                        |        |
 | Support multi-architecture build. Incorporate lint, gofmt, etc. into the build process |        |
 | GitHub build & test automation |        |
 | Review the license |        |
+| Refactor all the documentation into a user guide | |
 | Find someone else to work on this with... | |
 | Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |        |
 
@@ -147,7 +154,7 @@ These have not been prioritized yet.
 
 | Feature                         | Status |
 | ------------------------------- | ------ |
-| Integrate with the Service Binding Operator (https://github.com/redhat-developer/service-binding-operator) to bind Nuxeo to various backing services present in the cluster |          |
+| Integrate with the Service Binding Operator (https://github.com/k8s-service-bindings/spec) as soon as a reasonably table implementation is available |          |
 | Phase V Operator Maturity Model |        |
 | OperatorHub availability |        |
 | Deploy a cluster as a Stateful Set or Deployment |        |

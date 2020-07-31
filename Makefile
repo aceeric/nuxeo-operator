@@ -196,6 +196,7 @@ operator-install      Performs a manual installation of the Operator (bypassing 
                       Followed by
                         If OpenShift:
                           oc policy add-role-to-group system:image-puller system:serviceaccounts:<a namespace> --namespace=images
+                        Then (OpenShift and Kubernetes):
                         make NS=<a namespace> operator-install
 help                  Prints this help.
 print-%               A diagnostic tool. Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to

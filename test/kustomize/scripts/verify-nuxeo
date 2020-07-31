@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
+#
+# Verifies that Nuxeo started successfully. The tests have NOP readiness and liveness probes in the Nuxeo CR
+# because that supports troubleshooting. This script is used to verify that Nuxeo had a clean start. All
+# these tests were performed with a Nuxeo image that installs 29 hotfixes on startup, which takes a bit of time.
+#
 
-# wait a while for all the hotfixes to install
 max=20
 for ((i=0; i<$max; i++)); do
-  if kubectl wait pod -l app=nuxeo -n backing --for condition=ready &>/dev/null; then
+  if kubectl wait pod -l app=nuxeo -n backing --for condition=ready --timeout=1s &>/dev/null; then
     [[ "$(curl -s -o /dev/null -w '%{http_code}' http://nuxeo-server.apps-crc.testing)" == "200" ]] && break
   fi
   sleep 6s

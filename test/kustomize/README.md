@@ -1,6 +1,6 @@
-# Backing Service Tests
+# Pre-Configured Backing Service Tests
 
-This directory provides a Make file to test the backing services that the Nuxeo Operator has pre-configured support for. The idea is, with a minimal bit of configuration, you can connect Nuxeo to a backing service:
+This directory provides a Make file to test the backing services that the Nuxeo Operator has **pre-configured** support for. The idea is, with a minimal bit of configuration, you can connect Nuxeo to a backing service:
 
 ```shell
   backingServices:
@@ -9,52 +9,56 @@ This directory provides a Make file to test the backing services that the Nuxeo 
       resource: elastic
 ```
 
-The configuration above in a Nuxeo CR will connect Nuxeo to Elastic Search provisioned by Elastic Cloud for Kubernetes using the built-in `elastic` user. The following pre-configured backing services are supported by the Nuxeo Operator:
+The configuration above in a Nuxeo CR will connect Nuxeo to Elastic Search provisioned by Elastic Cloud for Kubernetes (ECK) using the built-in `elastic` user.  You're not constrained to using pre-configured backing services. Any backing service whose configuration is discoverable in the cluster can be integrated with Nuxeo using the more verbose backing services stanzas supported by the Nuxeo CR.
 
-1. Elastic Search with the built-in `elastic` user
-2. Elastic Search with a custom file realm user, where a cluster secret contains the user name and password of the file realm user
-3. Strimzi anonymous (no authentication, no authorization, no encryption)
-4. *Strimzi SASL SCRAM SHA 512 authentication is developed but does not work at present - believe this is a Nuxeo defect but I have a todo to verify*. This is SASL authentication, simple authorization, no encryption
-5. Strimzi mutual TLS, simple authorization, TLS encryption
+However, there are a few backing services that the Nuxeo Operator has pre-configured support for. For each backing service, there are a couple of different connection options.
 
-On deck:
+This directory and Make file test those pre-configured backing services and connection options. The following pre-configured backing services / options are supported by the Nuxeo Operator at present:
 
-- Crunchy Postgres
-- Zelando Postgres
+1. ECK Elastic Search with the built-in `elastic` user
+2. ECK Elastic Search with a custom file realm user, where a cluster secret contains the user name and password of the file realm user for Nuxeo, and another secret contains that information in a specific hashed format required by Elastic Search.
+3. Strimzi Kafka anonymous (no authentication, no authorization, no encryption)
+4. Strimzi Kafka SASL SCRAM SHA 512 authentication with simple authorization and TLS encryption
+5. Strimzi Kafka mutual TLS, simple authorization
+6. Crunchy Postgres with plain username/password authentication, no encryption
+6. Crunchy Postgres with plain username/password authentication and TLS encryption
 
 ## Pre-requisites
 
-To run the tests, the following pre-requisites must be satisfied:
+To run the tests, the following pre-requisites must be met:
 
-- You must be running on OpenShift. Presently, the Make file only supports OpenShift - specifically regarding the Nuxeo image discussed next
-- You must create a container image of Nuxeo and push it into the OpenShift integrated registry. (Or, change the image refs in the nuxeo manifests.) The make target `nuxeo-lts-2019-hf29-image` is provided for this. The target creates an `images` namespace, and then runs a Docker build with a Dockerfile the `nuxeo-build` directory. This builds an image from Nuxeo LTS-2019 from Docker Hub, plus all hot fixes in the `hf` directory under `nuxeo-build`:
-  - `make nuxeo-lts-2019-hf29-image`
-- Prior to that, you *should* download all the hot fixes from the Nuxeo Marketplace into the `nuxeo-build/hf` directory. That's how all the tests were run.
-- To support the ElasticSearch file realm connection, you must execute a make target one time to execute the ElasticSearch CLI tool in a Docker container to generate the salted, hashed file realm credentials, and merge them into a Secret manifest:
-  - `make elastic-filerealm-secret`
-- Finally, you must have the Nuxeo Operator running, watching the `backing` namespace in the cluster. At this stage, I simply run it on the desktop. Subsequently I will modify the Make file to install the operator.
+- You must be running on OpenShift. Presently, the Backing Service Test Make file only supports OpenShift - specifically regarding the Nuxeo image discussed next. The Make file will be improved in a later version to support native Kubernetes.
+- You must create a container image of Nuxeo and push it into the OpenShift integrated registry. Or, you must change the image refs in the nuxeo manifests. If you want to build the image, the make target `nuxeo-lts-2019-hf29-image` is provided for this. The target creates an `images` namespace, and then runs a Docker build with a Dockerfile the `nuxeo-build` directory. This builds an image from Nuxeo LTS-2019 from Docker Hub, plus all hot fixes in the `hf` directory under `nuxeo-build`:
+  - `make nuxeo-lts-2019-hf29-image`.
+- Prior to that, you *should* download all the hot fixes from the Nuxeo Marketplace into the `nuxeo-build/hf` directory. That's how all the tests were run so it's unknown whether they would pass without a fully patched Nuxeo.
+- Finally, you must have the Nuxeo Operator running, watching the `backing` namespace in the cluster. At this stage, I simply run it on the desktop. Subsequently, I will modify the Make file to install the operator. Run `make help` and look at the `operator-install` target in the [Project Makefile](Makefile) for instructions to build and install the operator.
 
-## Test targets
+## Tests
 
-Each test target does the same thing:
+The tests are run using a Make file in this directory. Each test does the same thing:
 
 1. Deletes the `backing` namespace if it exists so each test starts clean.
-2. Installs backing service operator(s) into the backing namespace using Kustomize - each backing service creates the `backing` namespace if it doesn't already exist.
-3. Deploys an image puller RBAC that allows the `backing` namespace to pull the Nuxeo image from the `images` namespace.
-4. Deploys manifests for backing services, and for Nuxeo, using Kustomize
-5. Waits for the Nuxeo Pod to come up with a clean log and then respond to a curl request with a 200 HTTP status code
+2. Installs backing service operator(s) into the backing namespace using Kustomize and kubectl - each backing service creates the `backing` namespace if it doesn't already exist.
+3. Deploys an image puller RBAC that allows the `backing` namespace to pull the Nuxeo image from the `images` namespace. (Hence OpenShift)
+4. Deploys manifests for backing services, and for Nuxeo, using Kustomize.
+5. Waits for the Nuxeo Pod to come up, then curls Nuxeo waiting for an HTTP 200 status code, then checks for a clean start in the Nuxeo logs.
 
-The following targets are presently available. Note - these need to be run one at a time, because of the nature of the Make file:
+## Make Rules
 
-```shell
-make elastic-builtin-test
-make elastic-filerealm-test
-make strimzi-anonymous-test
-make strimzi-mutual-tls-test
-#soon?: make strimzi-scram-sha-512
-```
+The following Make rules are presently available:
 
-Example:
+| Rule                       | Tests                                                        |
+| -------------------------- | ------------------------------------------------------------ |
+| all                        | Runs all the tests listed below                              |
+| elastic-builtin-test       | Nuxeo with ElasticSearch provisioned by ECK with the built-in Elastic user over TLS encryption |
+| elastic-filerealm-test     | As above, except with a file realm user instead of the built in `elastic` user |
+| strimzi-anonymous-test     | Strimzi with no authentication, no authorization, no encryption |
+| strimzi-scram-sha-512-test | Strimzi with SASL SCRAM-SHA-512 authentication over TLS with simple authorization |
+| strimzi-mutual-tls-test    | Strimzi with mutual TLS, simple authorization                |
+| crunchy-plain-test         | Crunchy Postgres with plain username/password login, no encryption |
+| crunchy-tls-test           | Crunchy Postgres with plain username/password login, TLS encryption |
+
+## Example
 
 ```shell
 $ make strimzi-anonymous-test

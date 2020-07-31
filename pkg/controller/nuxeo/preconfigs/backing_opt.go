@@ -1,4 +1,4 @@
-package nuxeo
+package preconfigs
 
 import (
 	goerrors "errors"
@@ -21,15 +21,17 @@ var opts = map[v1alpha1.PreconfigType]map[string][]string{
 	},
 	v1alpha1.Crunchy: {
 		"user": {}, // a secret containing keys 'username' and 'password'
+		"ca": {},   // a secret containing key 'ca.crt' for one-way tls
+		"tls": {},  // a secret containing keys 'tls.crt' and 'tls.key' for mutual tls
 	},
 }
 
-// parsePreconfigOpts parses the options in the passed preconfigured backing service
-func parsePreconfigOpts(preconfigured v1alpha1.PreconfiguredBackingService) (map[string]string, error) {
+// ParsePreconfigOpts parses the options in the passed preconfigured backing service
+func ParsePreconfigOpts(preconfigured v1alpha1.PreconfiguredBackingService) (map[string]string, error) {
 	return preConfigOpts(preconfigured.Type, preconfigured.Settings)
 }
 
-// worker called by parsePreconfigOpts. The crSetting arg holds what the configurer provided in the
+// worker called by ParsePreconfigOpts. The crSetting arg holds what the configurer provided in the
 // Nuxeo CR.
 func preConfigOpts(typ v1alpha1.PreconfigType, crSetting map[string]string) (map[string]string, error) {
 	toReturn := map[string]string{}
@@ -75,8 +77,17 @@ func validatePreConfig(typ v1alpha1.PreconfigType, opts map[string]string) (map[
 		// no additional validations
 		return opts, nil
 	case v1alpha1.Crunchy:
-		// no additional validations
-		return opts, nil
+		user, _ := opts["user"]
+		ca, _ := opts["ca"]
+		tls, _ := opts["tls"]
+		switch {
+		case user != "" && ca == "" && tls == "": fallthrough // user/pass auth no encrypt
+		case user != "" && ca != "" && tls == "": fallthrough // user/pass auth TLS encrypt
+		case user == "" && ca != "" && tls != "":             // mutual TLS
+			return opts, nil
+		default:
+			return nil, goerrors.New("unsupported Crunchy authentication/encryption configuration")
+		}
 	}
 	return opts, nil
 }

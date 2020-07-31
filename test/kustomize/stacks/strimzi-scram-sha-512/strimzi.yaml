@@ -11,7 +11,7 @@ spec:
         kafka.root.logger.level: "INFO"
     replicas: 1
     listeners:
-      plain:
+      tls:
         authentication:
           type: scram-sha-512
     authorization:

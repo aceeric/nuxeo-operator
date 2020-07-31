@@ -1,7 +1,7 @@
 ROOT                   := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 GOROOT                 := $(shell go env GOROOT)
 OCICLI                 := docker
-OPERATOR_VERSION       := 0.6.0
+OPERATOR_VERSION       := 0.6.1
 # if OpenShift, this is the OpenShift integrated container image registry
 # If MicroK8s this is the internal registry plugin
 IMAGE_REGISTRY         := default-route-openshift-image-registry.apps-crc.testing
@@ -126,7 +126,8 @@ index-push:
 	$(OCICLI) push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(INDEX_IMAGE_NAME):$(OPERATOR_VERSION)
 
 # because of the size limit of a CRD, the CRD is deleted first. Unfortunately, this also removes any
-# Nuxeo CRs anywhere in the cluster. todo-me may be non-issue if pod template is removed from Nuxeo CRD
+# Nuxeo CRs anywhere in the cluster.
+# todo-me may be non-issue if pod template is removed from Nuxeo CRD
 .PHONY : apply-crd
 apply-crd:
 	-$(KUBECTL) delete crd/nuxeos.nuxeo.com >/dev/null 2>&1

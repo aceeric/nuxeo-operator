@@ -31,7 +31,7 @@ To run the tests, the following pre-requisites must be met:
 - You must create a container image of Nuxeo and push it into the OpenShift integrated registry. Or, you must change the image refs in the nuxeo manifests. If you want to build the image, the make target `nuxeo-lts-2019-hf29-image` is provided for this. The target creates an `images` namespace, and then runs a Docker build with a Dockerfile the `nuxeo-build` directory. This builds an image from Nuxeo LTS-2019 from Docker Hub, plus all hot fixes in the `hf` directory under `nuxeo-build`:
   - `make nuxeo-lts-2019-hf29-image`.
 - Prior to that, you *should* download all the hot fixes from the Nuxeo Marketplace into the `nuxeo-build/hf` directory. That's how all the tests were run so it's unknown whether they would pass without a fully patched Nuxeo.
-- Finally, you must have the Nuxeo Operator running, watching the `backing` namespace in the cluster. At this stage, I simply run it on the desktop. Subsequently, I will modify the Make file to install the operator. Run `make help` and look at the `operator-install` target in the [Project Makefile](Makefile) for instructions to build and install the operator.
+- Finally, you must have the Nuxeo Operator running, watching the `backing` namespace in the cluster. At this stage, I simply run it on the desktop. Subsequently, I will modify the Make file to install the operator. Run `make help` and look at the `operator-install` target in the [Project Makefile](/Makefile) for instructions to build and install the operator.
 
 ## Tests
 

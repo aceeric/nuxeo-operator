@@ -111,7 +111,7 @@ In addition to general-purpose backing service integration, the Operator support
 
 
 
-#### Version 0.6.1
+#### Version 0.6.1 *(in progress)*
 
 Version 0.6.1 will be a clean-up iteration.
 

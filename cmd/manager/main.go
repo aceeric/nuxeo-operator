@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/pprof"
 
 	"k8s.io/client-go/rest"
 	"nuxeo-operator/pkg/apis"
@@ -43,6 +44,12 @@ func printVersion() {
 	log.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion.Version))
 }
 
+var cpuProfile string
+
+func init() {
+	flag.StringVar(&cpuProfile, "cpu-profile", "", "Write CPU profile to file")
+}
+
 func main() {
 	// Add the zap logger flag set to the CLI. The flag set must
 	// be added before calling pflag.Parse().
@@ -65,6 +72,17 @@ func main() {
 	logf.SetLogger(zap.Logger())
 
 	printVersion()
+
+	if cpuProfile != "" {
+		if f, err := os.Create(cpuProfile); err != nil {
+			log.Error(err, "Can't open/create profile file: "+cpuProfile)
+			os.Exit(1)
+		} else if err := pprof.StartCPUProfile(f); err != nil {
+			log.Error(err, "Failed to start profiler")
+			os.Exit(1)
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {

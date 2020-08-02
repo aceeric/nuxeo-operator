@@ -3,3 +3,4 @@ tmp/
 build/_output/bin/
 cp.out
 hf/
+cpu.profile

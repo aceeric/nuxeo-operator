@@ -8,49 +8,28 @@ import (
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	v13 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	// todo-me clean up all these weird aliases created by GoLand
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// reconcileOpenShiftRoute configures access to the Nuxeo cluster via an OpenShift Route
-func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
-	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
-	found := &routev1.Route{}
+func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool,
+	nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
 	routeName := routeName(instance, nodeSet)
-	expected, err := r.defaultRoute(instance, access, forcePassthrough, routeName, nodeSet)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeName, Namespace: instance.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Route", "Namespace", expected.Namespace, "Name", expected.Name)
-		err = r.client.Create(context.TODO(), expected)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new Route", "Namespace", expected.Namespace, "Name", expected.Name)
-			return reconcile.Result{}, err
+	if access != (v1alpha1.NuxeoAccess{}) {
+		if expected, err := r.defaultRoute(instance, access, forcePassthrough, routeName, nodeSet); err != nil {
+			return err
+		} else {
+			_, err = addOrUpdate(r, routeName, instance.Namespace, expected, &routev1.Route{}, util.RouteComparer, reqLogger)
+			return err
 		}
-		// Route created successfully
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		reqLogger.Error(err, "Error attempting to get Route for Nuxeo cluster: "+routeName)
-		return reconcile.Result{}, err
+	} else {
+		return removeIfPresent(r, instance, routeName, instance.Namespace, &routev1.Route{}, reqLogger)
 	}
-	if different, err := util.ObjectsDiffer(expected.Spec, found.Spec); err == nil && different {
-		reqLogger.Info("Updating Route", "Namespace", expected.Namespace, "Name", expected.Name)
-		expected.Spec.DeepCopyInto(&found.Spec)
-		if err = r.client.Update(context.TODO(), found); err != nil {
-			return reconcile.Result{}, err
-		}
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-	return reconcile.Result{}, nil
 }
 
 // defaultRoute generates and returns a Route struct from the passed params. The 'tls' section of the route is

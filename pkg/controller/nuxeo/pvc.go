@@ -13,20 +13,16 @@ import (
 	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // reconcilePvc examines the Storage definitions in each NodeSet of the passed Nuxeo CR, gathers a list of PVCs,
 // then conforms actual PVCs in the cluster to those expected PVCs. If the Nuxeo CR changes the definition of a PVC,
 // and there is an existing PVC with the same name, then the existing PVC is deleted and re-created.
-func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) (reconcile.Result, error) {
+func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) error {
 	var expectedPvcs []corev1.PersistentVolumeClaim
 	for _, nodeSet := range instance.Spec.NodeSets {
 		for _, storage := range nodeSet.Storage {
-			claimDefined, err := util.ObjectsDiffer(storage.VolumeClaimTemplate, corev1.PersistentVolumeClaim{})
-			if err != nil {
-				return reconcile.Result{}, err
-			} else if claimDefined {
+			if !reflect.DeepEqual(storage.VolumeClaimTemplate, corev1.PersistentVolumeClaim{}) {
 				// CR defines an explicit PVC for the storage
 				storage.VolumeClaimTemplate.Namespace = instance.Namespace
 				_ = controllerutil.SetControllerReference(instance, &storage.VolumeClaimTemplate, r.scheme)
@@ -61,16 +57,16 @@ func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) (reconcile.Result
 		client.InNamespace(instance.Namespace),
 	}
 	if err := r.client.List(context.TODO(), &actualPvcs, opts...); err != nil {
-		return reconcile.Result{}, err
+		return err
 	} else {
 		if err := addPvcs(r, instance, expectedPvcs, actualPvcs.Items); err != nil {
-			return reconcile.Result{}, err
+			return err
 		}
 		if err := deletePvcs(r, instance, expectedPvcs, actualPvcs.Items); err != nil {
-			return reconcile.Result{}, err
+			return err
 		}
 	}
-	return reconcile.Result{}, nil
+	return nil
 }
 
 // getPvc searches the passed array of PVCs for one with a Name matching the passed pvc Name. If found, returns
@@ -95,10 +91,7 @@ func addPvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.Pers
 				return goerrors.New(fmt.Sprintf("Existing PVC '%v' is not owned by this Nuxeo '%v' and cannot be reconciled",
 					actualPvc.Name, instance.UID))
 			}
-			different := !reflect.DeepEqual(expectedPvc.Spec.AccessModes, actualPvc.Spec.AccessModes) ||
-				!reflect.DeepEqual(expectedPvc.Spec.Resources, actualPvc.Spec.Resources) ||
-				(expectedPvc.Spec.VolumeMode != nil && expectedPvc.Spec.VolumeMode != actualPvc.Spec.VolumeMode)
-			if different {
+			if !util.PvcComparer(&expectedPvc, actualPvc) {
 				if err := r.client.Delete(context.TODO(), actualPvc); err != nil {
 					return err
 				}

@@ -55,12 +55,11 @@ operator-unit-test:
 
 .PHONY : operator-e2e-test
 operator-e2e-test:
+	-$(KUBECTL) create namespace operator-test
 	operator-sdk test local --debug $(ROOT)/test/e2e --operator-namespace operator-test $(E2E_TEST_ARGS)\
 		--image $(IMAGE_REGISTRY_CLUST)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
-		$(E2E_KUBE_CONFIG_ARG)\
-		--go-test-flags="--nuxeo-image=$(IMAGE_REGISTRY_CLUST)/$(IMAGE_ORG)/$(NUXEO_IMAGE)"
+		$(E2E_KUBE_CONFIG_ARG) --go-test-flags="--nuxeo-image=nuxeo:LTS-2019"
 
-# CGO_ENABLED=0 seems standard and allows the executable go file to run on images that do not provide some libs
 .PHONY : operator-build
 operator-build:
 	operator-sdk generate k8s
@@ -101,7 +100,6 @@ bundle-test:
 	operator-sdk run packagemanifests --olm-namespace openshift-operator-lifecycle-manager --operator-namespace nuxeo\
 		--operator-version $(OPERATOR_VERSION) --manifests-dir deploy/olm-catalog/nuxeo-operator
 
-# todo-me is it possible to not push the bundle image but rather to reference it locally in the index-add target? 
 .PHONY : bundle-build
 bundle-build:
 	if ! grep OPERATOR_IMAGE\
@@ -125,9 +123,6 @@ index-add:
 index-push:
 	$(OCICLI) push $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(INDEX_IMAGE_NAME):$(OPERATOR_VERSION)
 
-# because of the size limit of a CRD, the CRD is deleted first. Unfortunately, this also removes any
-# Nuxeo CRs anywhere in the cluster.
-# todo-me may be non-issue if pod template is removed from Nuxeo CRD
 .PHONY : apply-crd
 apply-crd:
 	-$(KUBECTL) delete crd/nuxeos.nuxeo.com >/dev/null 2>&1

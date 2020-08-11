@@ -3,6 +3,7 @@ package nuxeo
 import (
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
@@ -10,9 +11,13 @@ import (
 
 // Configures Nginx as the reverse proxy by adding a sidecar Container and adding Volumes into the
 // passed Deployment as specified in the passed Nginx rev proxy spec
-func configureNginx(spec *v1.PodSpec, nginx v1alpha1.NginxRevProxySpec) {
-	spec.Containers = append(spec.Containers, nginxContainer(nginx))
-	spec.Volumes = append(spec.Volumes, nginxVolumes(nginx)...)
+func configureNginx(dep *appsv1.Deployment, nginx v1alpha1.NginxRevProxySpec) error {
+	for _, vol := range nginxVolumes(nginx) {
+		if err := util.OnlyAddVol(dep, vol); err != nil {
+			return err
+		}
+	}
+	return util.OnlyAddContainer(dep, nginxContainer(nginx))
 }
 
 // nginxContainer creates and returns a Container struct defining the Nginx reverse proxy. It defines various

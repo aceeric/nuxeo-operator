@@ -10,21 +10,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TestBasicRouteCreation tests the basic mechanics of creating a new OpenShift Route from the Nuxeo CR spec
 // when a Route does not already exist
 func (suite *routeSuite) TestBasicRouteCreation() {
 	nux := suite.routeSuiteNewNuxeo()
-	result, err := reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
-	require.Nil(suite.T(), err, "reconcileOpenShiftRoute failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileOpenShiftRoute returned unexpected result: %v\n", result)
+	err := reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
+	require.Nil(suite.T(), err, "reconcileOpenShiftRoute failed")
 	found := &routev1.Route{}
 	expectedRouteName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "route"
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedRouteName, Namespace: suite.namespace}, found)
-	require.Nil(suite.T(), err, "Route creation failed with err: %v\n", err)
-	require.Equal(suite.T(), suite.routeHostName, found.Spec.Host, "Route has incorrect host name: %v\n", found.Spec.Host)
+	require.Nil(suite.T(), err, "Route creation failed")
+	require.Equal(suite.T(), suite.routeHostName, found.Spec.Host, "Route has incorrect host name")
 }
 
 // TestRouteHostChange creates a Route, then changes the hostname in the Nuxeo CR and does a reconciliation. Then
@@ -34,15 +32,15 @@ func (suite *routeSuite) TestBasicRouteCreation() {
 func (suite *routeSuite) TestRouteHostChange() {
 	nux := suite.routeSuiteNewNuxeo()
 	// create the route
-	_, _ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
 	newHostName := "modified." + nux.Spec.Access.Hostname
 	nux.Spec.Access.Hostname = newHostName
 	// should update the route
-	_, _ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
 	expectedRouteName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "route"
 	found := &routev1.Route{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedRouteName, Namespace: suite.namespace}, found)
-	require.Equal(suite.T(), newHostName, found.Spec.Host, "Route has incorrect host name: %v\n", found.Spec.Host)
+	require.Equal(suite.T(), newHostName, found.Spec.Host, "Route has incorrect host name")
 }
 
 func (suite *routeSuite) TestRouteToTLS() {
@@ -100,8 +98,9 @@ func (suite *routeSuite) routeSuiteNewNuxeo() *v1alpha1.Nuxeo {
 				Hostname: suite.routeHostName,
 			},
 			NodeSets: []v1alpha1.NodeSet{{
-				Name:     suite.deploymentName,
-				Replicas: 1,
+				Name:        suite.deploymentName,
+				Interactive: true,
+				Replicas:    1,
 			}},
 		},
 	}

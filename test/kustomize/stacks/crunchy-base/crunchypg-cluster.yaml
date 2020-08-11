@@ -75,7 +75,7 @@ spec:
   policies: ""
   port: "5432"
   primarysecretname: crunchypg-primaryuser-secret
-  replicas: "0"
+  replicas: "2"
   rootsecretname: crunchypg-postgres-secret
   shutdown: false
   standby: false

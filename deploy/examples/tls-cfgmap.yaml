@@ -1,7 +1,6 @@
 #
 # This file is a copy of:
 # https://github.com/nuxeo/nuxeo-apb-catalog/blob/master/nuxeo-apb/files/nginx.conf
-# todo-me re https://doc.nuxeo.com/nxdoc/http-and-https-reverse-proxy-configuration/#ngnix-issue should this specify 'ignore_invalid_headers off'?
 # todo-me can this be automatically provided by the operator if not explicitly overridden since it refs things also ref'd in the Go code
 apiVersion: v1
 kind: ConfigMap
@@ -52,6 +51,10 @@ data:
         gzip_buffers 16 8k;
 
         client_max_body_size 20M;
+
+        # per https://doc.nuxeo.com/nxdoc/http-and-https-reverse-proxy-configuration/#ngnix-issue
+        ignore_invalid_headers off;
+
         include /etc/nginx/proxy.conf;
     }
   proxy.conf: |

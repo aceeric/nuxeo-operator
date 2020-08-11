@@ -17,14 +17,14 @@ import (
 // created that contains the matching nuxeo.conf content.
 func (suite *nuxeoConfSuite) TestBasicInlineNuxeoConf() {
 	nux := suite.nuxeoConfSuiteNewNuxeo()
-	err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "",log)
-	require.Nil(suite.T(), err, "reconcileNuxeoConf failed with err: %v\n", err)
+	err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", "", log)
+	require.Nil(suite.T(), err, "reconcileNuxeoConf failed")
 	found := &corev1.ConfigMap{}
 	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: suite.namespace}, found)
-	require.Nil(suite.T(), err, "Nuxeo conf ConfigMap creation failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "Nuxeo conf ConfigMap creation failed")
 	require.Equal(suite.T(), suite.nuxeoConfContent, found.Data[suite.nuxeoConfKey],
-		"ConfigMap has incorrect nuxeo.conf content: %v\n", found.Data)
+		"ConfigMap has incorrect nuxeo.conf content")
 }
 
 // joinCompact is used to build the combined nuxeo.conf ConfigMap

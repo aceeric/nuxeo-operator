@@ -26,7 +26,7 @@ func (suite *reconUtilSuite) TestReconUtilSecret() {
 		Data: map[string][]byte{suite.secretKey: suite.secretData},
 		Type: v1.SecretTypeOpaque,
 	}
-	err = addOrUpdate(&suite.r, suite.secretName, suite.namespace, &exp, &v1.Secret{}, util.SecretCompare, log)
+	_, err = addOrUpdate(&suite.r, suite.secretName, suite.namespace, &exp, &v1.Secret{}, util.SecretComparer, log)
 	require.Nil(suite.T(), err, "addOrUpdate failed with error")
 	created := v1.Secret{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: suite.secretName, Namespace: suite.namespace}, &created)

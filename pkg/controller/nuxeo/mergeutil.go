@@ -8,53 +8,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Scans the Volume array in the passed deployment for one with a name matching the passed volume name. If not
-// found in the array, then adds the passed volume to the array. If found, then compares the volume source of the
-// existing volume in the array with the volume source of the passed volume. If a different volume source types
-// this indicates that there are collisions on volume definition. So returns a non-nil error. Otherwise
-// attempts to merge the items collection from the passed volume into the existing volume. Collisions on items are
-// also returned as non-nil errors. Otherwise on completion the deployment will have one volume with all items
-//
-// Deprecated: in favor of addVolumeProjectionAndItems
-func addVolumeAndItems(dep *appsv1.Deployment, toAdd corev1.Volume) error {
-	for _, vol := range dep.Spec.Template.Spec.Volumes {
-		if vol.Name == toAdd.Name {
-			var curItems *[]corev1.KeyToPath
-			var toAddItems []corev1.KeyToPath
-			if vol.VolumeSource.ConfigMap != nil && toAdd.VolumeSource.ConfigMap != nil {
-				curItems = &vol.VolumeSource.ConfigMap.Items
-				toAddItems = toAdd.VolumeSource.ConfigMap.Items
-			} else if vol.VolumeSource.Secret != nil && toAdd.VolumeSource.Secret != nil {
-				curItems = &vol.VolumeSource.Secret.Items
-				toAddItems = toAdd.VolumeSource.Secret.Items
-			} else {
-				return goerrors.New("attempt to add volume " + toAdd.Name + " but a volume already exists with a different volume source")
-			}
-			// add keys from incoming vol to this vol
-			for _, itemToAdd := range toAddItems {
-				exists := false
-				for i := 0; i < len(*curItems); i++ {
-					if (*curItems)[i].Key == itemToAdd.Key {
-						if (*curItems)[i].Path != itemToAdd.Path {
-							return goerrors.New("collision on item " + itemToAdd.Key + " in volume " + toAdd.Name)
-						}
-						exists = true
-					}
-				}
-				if !exists {
-					*curItems = append(*curItems, itemToAdd)
-				}
-			}
-			return nil
-		}
-	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, toAdd)
-	return nil
-}
-
-// addVolumeProjectionAndItems builds up a volume with a projection source by adding new sources and merging
-// keys to existing sources. The passed volume must define exactly one projection source or an error is returned.
-// When merging items, if an incoming volume source has an item like {key: x, path: y} and an matching source in
+// Adds a volume with projections to the passed deployment, or adds source from passed volume to existing volume
+// projection in deployment, or adds keys from passed projection source to sources in existing volume projection.
+// When adding keys, if an incoming volume source has an item like {key: x, path: y} and a matching source in
 // an existing volume has key like {key: x, path: z} then an error is returned.
 func addVolumeProjectionAndItems(dep *appsv1.Deployment, toAdd corev1.Volume) error {
 	if toAdd.Projected == nil || len(toAdd.Projected.Sources) != 1 {
@@ -62,6 +18,7 @@ func addVolumeProjectionAndItems(dep *appsv1.Deployment, toAdd corev1.Volume) er
 	}
 	for _, vol := range dep.Spec.Template.Spec.Volumes {
 		if vol.Name == toAdd.Name {
+			// volume exists
 			if vol.Projected == nil {
 				return goerrors.New("attempt to merge projected volume " + toAdd.Name + " into non-projected volume " + vol.Name)
 			}
@@ -84,12 +41,14 @@ func addVolumeProjectionAndItems(dep *appsv1.Deployment, toAdd corev1.Volume) er
 					}
 					return nil
 				} else {
+					// source does not exist, so add
 					vol.Projected.Sources = append(vol.Projected.Sources, toAdd.Projected.Sources[0])
 					return nil
 				}
 			}
 		}
 	}
+	// no matching volume so add
 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, toAdd)
 	return nil
 }

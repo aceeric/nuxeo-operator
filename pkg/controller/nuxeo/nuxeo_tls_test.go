@@ -13,7 +13,8 @@ import (
 
 // TestBasicNuxeoTLS defines a Nuxeo struct with Nuxeo TLS configured and a mock Deployment. The
 // test performs very basic validation of the expected configuration: The resulting deployment should contain
-// a volume, and the nuxeo container should contain three environment variables, and a volume mount. E.g.:
+// a volume, and the nuxeo container should contain two environment variables, and a volume mount. In addition,
+// nuxeo.conf settings should be returned. E.g.:
 //  spec:
 //   template:
 //     spec:
@@ -24,11 +25,6 @@ import (
 //             secretKeyRef:
 //               key: keystorePass
 //               name: testsecret
-//         - name: NUXEO_CUSTOM_PARAM
-//           value: |
-//             nuxeo.server.https.port=8443
-//             nuxeo.server.https.keystoreFile=/etc/secrets/tls-keystore/keystore.jks
-//             nuxeo.server.https.keystorePass=${env:TLS_KEYSTORE_PASS}
 //         - name: NUXEO_TEMPLATES
 //           value: https
 //         name: nuxeo
@@ -47,11 +43,12 @@ import (
 func (suite *nuxeoTLSSuite) TestBasicNuxeoTLS() {
 	nux := suite.nuxeoTLSSuiteNewNuxeo()
 	dep := genTestDeploymentForNuxeoTLSSuite()
-	err := configureNuxeoForTLS(&dep, nux.Spec.NodeSets[0].NuxeoConfig.TlsSecret)
-	require.Nil(suite.T(), err, "configureNuxeoForTLS failed with err: %v\n", err)
-	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes), "Incorrect volume configuration\n")
-	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts), "Incorrect volume mount configuration\n")
-	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Containers[0].Env), "Incorrect environment configuration\n")
+	nuxeoconf, err := configureNuxeoForTLS(&dep, nux.Spec.NodeSets[0].NuxeoConfig.TlsSecret)
+	require.Nil(suite.T(), err, "configureNuxeoForTLS failed")
+	require.Equal(suite.T(), suite.nuxeoConf, nuxeoconf, "Incorrect nuxeo.conf string")
+	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes), "Incorrect volume configuration")
+	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts), "Incorrect volume mount configuration")
+	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].Env), "Incorrect environment configuration")
 }
 
 // nuxeoTLSSuite is the NuxeoTLS test suite structure
@@ -60,6 +57,7 @@ type nuxeoTLSSuite struct {
 	r              ReconcileNuxeo
 	deploymentName string
 	tlsSecret      string
+	nuxeoConf      string
 }
 
 // SetupSuite initializes the Fake client, a ReconcileNuxeo struct, and various test suite constants
@@ -67,6 +65,9 @@ func (suite *nuxeoTLSSuite) SetupSuite() {
 	suite.r = initUnitTestReconcile()
 	suite.deploymentName = "testclust"
 	suite.tlsSecret = "testsecret"
+	suite.nuxeoConf = "nuxeo.server.https.port=8443\n" +
+		"nuxeo.server.https.keystoreFile=/etc/secrets/tls-keystore/keystore.jks\n"  +
+		"nuxeo.server.https.keystorePass=${env:TLS_KEYSTORE_PASS}\n"
 }
 
 // AfterTest removes objects of the type being tested in this suite after each test

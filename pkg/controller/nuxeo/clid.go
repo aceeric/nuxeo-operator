@@ -12,7 +12,7 @@ import (
 
 const (
 	nuxeoClidConfigMapName = "nuxeo-clid"
-	clidKey = "instance.clid"
+	clidKey                = "instance.clid"
 )
 
 // handleClid configures the passed Deployment with a Volume and VolumeMount to project the CLID into the
@@ -29,24 +29,25 @@ func handleClid(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 		volMnt := corev1.VolumeMount{
 			Name:      nuxeoClidConfigMapName,
 			ReadOnly:  true,
-			MountPath: "/var/lib/nuxeo/data/"+clidKey,
+			MountPath: "/var/lib/nuxeo/data/" + clidKey,
 			SubPath:   clidKey,
 		}
-		nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+		if err := util.OnlyAddVolMnt(nuxeoContainer, volMnt); err != nil {
+			return err
+		}
 		vol := corev1.Volume{
 			Name: nuxeoClidConfigMapName,
 		}
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
-			DefaultMode: util.Int32Ptr(420),
+			DefaultMode:          util.Int32Ptr(420),
 			LocalObjectReference: corev1.LocalObjectReference{Name: nuxeoClidConfigMapName},
 			Items: []corev1.KeyToPath{{
 				Key:  clidKey,
 				Path: clidKey,
 			}},
 		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+		return util.OnlyAddVol(dep, vol)
 	}
-	return nil
 }
 
 // reconcileClid creates, updates, or deletes the CLID ConfigMap. If the Clid is specified in the CR, then the
@@ -55,9 +56,11 @@ func handleClid(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 func reconcileClid(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
 	if instance.Spec.Clid != "" {
 		expected := r.defaultClidCM(instance, instance.Spec.Clid)
-		return addOrUpdateConfigMap(r, instance, expected, reqLogger)
+		_, err := addOrUpdate(r, nuxeoClidConfigMapName, instance.Namespace, expected, &corev1.ConfigMap{},
+			util.ConfigMapComparer, reqLogger)
+		return err
 	} else {
-		return removeConfigMapIfPresent(r, instance, nuxeoClidConfigMapName, reqLogger)
+		return removeIfPresent(r, instance, nuxeoClidConfigMapName, instance.Namespace, &corev1.ConfigMap{}, reqLogger)
 	}
 }
 

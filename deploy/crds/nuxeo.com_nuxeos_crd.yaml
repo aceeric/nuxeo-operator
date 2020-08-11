@@ -136,7 +136,6 @@ spec:
                             If you want Nuxeo to connect one way or the other, then
                             specify that here. See the documentation for which settings
                             are valid for the various pre-configured backing services.
-                            todo-me not implemented yet
                           type: object
                         type:
                           description: type identifies the preconfigured backing service
@@ -3336,9 +3335,10 @@ spec:
                           type: string
                         nuxeoPackages:
                           description: NuxeoPackages defines a list of packages to
-                            install when starting Nuxeo. These packages can only be
-                            installed if the Nuxeo cluster has internet access to
-                            Nuxeo Connect. todo-me consider ConnectPackages
+                            install when starting Nuxeo. Except for packages that
+                            are pre-included in the Nuxeo container (like nuxeo-web-ui)
+                            these packages can only be installed if the Nuxeo cluster
+                            has internet access to Nuxeo Connect.
                           items:
                             type: string
                           type: array
@@ -4943,29 +4943,17 @@ spec:
                           specified storage with volumeMode=Filesystem, accessMode=ReadWriteOnce,
                           and no storage class. This Operator will define a volume
                           and a volume mount for the PVC with a hard-coded path that
-                          is reasonable for the storage. The Mount path can be overridden.
-                          If a default PVC as described is not desired, the Volume
-                          Source can be overridden by specifying the 'volumeSource'.
+                          is reasonable for the storage. If a default PVC as described
+                          is not desired, the Volume Source can be overridden by specifying
+                          the 'volumeSource'.
                         properties:
-                          mountPath:
-                            description: 'todo-me since these paths are just mappings
-                              maybe it should not be allowed to change them  because
-                              only binaries and transient stores appear to support
-                              ENV vars to set - others require  nuxeo.conf... Path
-                              within the container at which the volume should be mounted.
-                              Defaults are: NuxeoStorageBinaries=/var/lib/nuxeo/binaries.
-                              NuxeoStorageTransientStore=/var/lib/nuxeo/transientstore.
-                              NuxeoStorageConnect=/opt/nuxeo/connect. NuxeoStorageData=/var/lib/nuxeo/data.
-                              NuxeoStorageNuxeoTmp=/opt/nuxeo/server/tmp.'
-                            type: string
                           size:
                             description: 'Defines the amount of storage to request.
                               E.g.: 2Gi, 100M, etc.'
                             type: string
                           storageType:
                             description: Defines the type of Nuxeo data for of the
-                              storage todo-me need a better designator than "storage
-                              type"? "storage role"?
+                              storage
                             enum:
                             - Binaries
                             - TransientStore

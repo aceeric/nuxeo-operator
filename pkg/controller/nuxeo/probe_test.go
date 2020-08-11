@@ -18,12 +18,12 @@ func (suite *probeSuite) TestProbes() {
 	nux := suite.probeSuiteNewNuxeo()
 	dep := genTestDeploymentForProbeSuite()
 	err := addProbes(&dep, nux.Spec.NodeSets[0], false)
-	require.Nil(suite.T(), err, "addProbes failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "addProbes failed")
 	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].LivenessProbe, defaultProbe(false),
-		"No explicit LivenessProbe was defined so a default should have been generated - but it was not. Or, it was generated incorrectly\n")
+		"No explicit LivenessProbe was defined so a default should have been generated - but it was not. Or, it was generated incorrectly")
 	// explicit probe - should match
 	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].ReadinessProbe, nux.Spec.NodeSets[0].ReadinessProbe,
-		"Explicit ReadinessProbe was defined. Actual ReadinessProbe should have been identical but was not\n")
+		"Explicit ReadinessProbe was defined. Actual ReadinessProbe should have been identical but was not")
 }
 
 func (suite *probeSuite) TestProbesHttps() {

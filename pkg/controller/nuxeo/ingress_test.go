@@ -10,22 +10,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TestBasicIngressCreation tests the basic mechanics of creating a new Kubernetes Ingress from the Nuxeo CR spec
 // when an Ingress does not already exist
 func (suite *ingressSuite) TestBasicIngressCreation() {
 	nux := suite.ingressSuiteNewNuxeo()
-	result, err := reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
-	require.Nil(suite.T(), err, "reconcileIngress failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileIngress returned unexpected result: %v\n", result)
+	err := reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
+	require.Nil(suite.T(), err, "reconcileIngress failed")
 	found := &v1beta1.Ingress{}
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)
-	require.Nil(suite.T(), err, "Ingress creation failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "Ingress creation failed")
 	require.Equal(suite.T(), suite.ingressHostName, found.Spec.Rules[0].Host,
-		"Ingress has incorrect host name: %v\n", found.Spec.Rules[0].Host)
+		"Ingress has incorrect host name")
 }
 
 // TestIngressHostChange creates an Ingress, then changes the hostname in the Nuxeo CR and does a reconciliation. Then
@@ -33,16 +31,16 @@ func (suite *ingressSuite) TestBasicIngressCreation() {
 func (suite *ingressSuite) TestIngressHostChange() {
 	nux := suite.ingressSuiteNewNuxeo()
 	// create the ingress
-	_, _ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
 	newHostName := "modified." + nux.Spec.Access.Hostname
 	nux.Spec.Access.Hostname = newHostName
 	// should update the ingress
-	_, _ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux, log)
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
 	found := &v1beta1.Ingress{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)
 	require.Equal(suite.T(), newHostName, found.Spec.Rules[0].Host,
-		"Ingress has incorrect host name: %v\n", found.Spec.Rules[0].Host)
+		"Ingress has incorrect host name")
 }
 
 func (suite *ingressSuite) TestIngressToTLS() {

@@ -50,7 +50,8 @@ func configureContributions(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, dep *appsv1.
 		} else if contrib.VolumeSource.Secret != nil {
 			err = configureSecretContrib(r, dep, nux.Namespace, nuxeoContainer, contrib.Templates[0], contrib.VolumeSource.Secret.SecretName)
 		} else {
-			configureVolDeployment(dep, contrib.VolumeSource, nuxeoContainer)
+			// only one of these is supported for now
+			err = configureVolDeployment(dep, contrib.VolumeSource, nuxeoContainer)
 		}
 		if err != nil {
 			return err
@@ -65,7 +66,7 @@ func configureContributions(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, dep *appsv1.
 		Name:  "NUXEO_TEMPLATES",
 		Value: strings.Join(templates, ","),
 	}
-	return util.MergeOrAdd(nuxeoContainer, templatesEnv, ",")
+	return util.MergeOrAddEnvVar(nuxeoContainer, templatesEnv, ",")
 }
 
 // If the Volume Source containing the contribution is a ConfigMap then gets all the keys from the resource
@@ -102,18 +103,22 @@ func configureSecretContrib(r *ReconcileNuxeo, dep *appsv1.Deployment, namespace
 
 // Configures the passed Deployment when the contribution Volume Source is other than Secret/ConfigMap because
 // the entire volume is mounted as a unit and only the NUXEO_TEMPLATES is used to add the contribution to Nuxeo.
-func configureVolDeployment(dep *appsv1.Deployment, volSrc corev1.VolumeSource, nuxeoContainer *corev1.Container) {
+// Presently, only one of these is supported with the expectation that all contributions will be present in the
+// volume and so multiple volumes aren't needed
+func configureVolDeployment(dep *appsv1.Deployment, volSrc corev1.VolumeSource, nuxeoContainer *corev1.Container) error {
 	volMnt := corev1.VolumeMount{
 		Name:      "nuxeo-operator-config",
 		ReadOnly:  true,
 		MountPath: "/etc/nuxeo/nuxeo-operator-config",
 	}
-	nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+	if err := util.OnlyAddVolMnt(nuxeoContainer, volMnt); err != nil {
+		return err
+	}
 	vol := corev1.Volume{
 		Name: "nuxeo-operator-config",
 		VolumeSource: volSrc,
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+	return util.OnlyAddVol(dep, vol)
 }
 
 // Configures the deployment by adding Volumes and Volume Mounts
@@ -124,7 +129,9 @@ func configureDeployment(dep *appsv1.Deployment, typ interface{}, nuxeoContainer
 		ReadOnly:  true,
 		MountPath: "/etc/nuxeo/nuxeo-operator-config/" + contribName,
 	}
-	nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+	if err := util.OnlyAddVolMnt(nuxeoContainer, volMnt); err != nil {
+		return err
+	}
 	vol := corev1.Volume{
 		Name: "nuxeo-operator-config-" + contribName,
 	}
@@ -143,8 +150,7 @@ func configureDeployment(dep *appsv1.Deployment, typ interface{}, nuxeoContainer
 	} else {
 		return goerrors.New("configureDeployment only valid for ConfigMap and Secret volume sources")
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
-	return nil
+	return util.OnlyAddVol(dep, vol)
 }
 
 // mapKeysToItems takes the passed keys (from a ConfigMap or Secret volume source) that each represent

@@ -17,10 +17,10 @@ import (
 func (suite *nginxRevProxySpecSuite) TestBasicNginxRevProxy() {
 	nux := suite.nginxRevProxySpecSuiteNewNuxeo()
 	dep := genTestDeploymentForNginxSuite()
-	configureNginx(&dep.Spec.Template.Spec, nux.Spec.RevProxy.Nginx)
-	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers), "Container not created\n")
+	configureNginx(&dep, nux.Spec.RevProxy.Nginx)
+	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers), "Container not created")
 	nginx := dep.Spec.Template.Spec.Containers[1]
-	require.Equal(suite.T(), "nginx", nginx.Name, "Container name incorrect\n")
+	require.Equal(suite.T(), "nginx", nginx.Name, "Container name incorrect")
 	volCnt := 0
 	for _, vol := range dep.Spec.Template.Spec.Volumes {
 		if vol.Name == "nginx-conf" && vol.VolumeSource.ConfigMap.LocalObjectReference.Name == suite.nginxConfigMap {
@@ -29,7 +29,7 @@ func (suite *nginxRevProxySpecSuite) TestBasicNginxRevProxy() {
 			volCnt += 1
 		}
 	}
-	require.Equal(suite.T(), 2, volCnt, "Deployment volumes incorrect\n")
+	require.Equal(suite.T(), 2, volCnt, "Deployment volumes incorrect")
 }
 
 // nginxRevProxySpecSuite is the NginxRevProxySpec test suite structure

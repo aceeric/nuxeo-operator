@@ -11,23 +11,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TestBasicDeploymentCreation tests the basic mechanics of creating a new Deployment from the Nuxeo CR spec
 // when a Deployment does not already exist
 func (suite *nodeSetSuite) TestBasicDeploymentCreation() {
 	nux := suite.nodeSetSuiteNewNuxeo()
-	result, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy, log)
-	require.Nil(suite.T(), err, "reconcileNodeSet failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{Requeue: true}, result,
-		"reconcileNodeSet returned unexpected result: %v\n", result)
+	requeue, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy, log)
+	require.Nil(suite.T(), err, "reconcileNodeSet failed")
+	require.Equal(suite.T(), true, requeue, "reconcileNodeSet returned unexpected result")
 	found := &appsv1.Deployment{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
-	require.Nil(suite.T(), err, "Deployment creation failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "Deployment creation failed")
 	require.Equal(suite.T(), suite.nuxeoContainerName, found.Spec.Template.Spec.Containers[0].Name,
-		"Deployment has incorrect container name: %v\n", found.Spec.Template.Spec.Containers[0].Name)
+		"Deployment has incorrect container name")
 }
 
 // TestDeploymentUpdated creates a Deployment, updates the Nuxeo CR, and verifies the Deployment was updated
@@ -41,7 +39,7 @@ func (suite *nodeSetSuite) TestDeploymentUpdated() {
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
 	require.Equal(suite.T(), newReplicas, *found.Spec.Replicas,
-		"Deployment has incorrect replica count: %v\n", *found.Spec.Replicas)
+		"Deployment has incorrect replica count")
 }
 
 // TestDeploymentClustering tests the clustering configuration. If defines clustering as enabled, and also defines
@@ -63,9 +61,9 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 			envCount += 1
 		}
 	}
-	require.Equal(suite.T(), 2, envCount, "Environment incorrectly defined\n")
-	err = reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", log)
-	require.Nil(suite.T(), err, "reconcileNuxeoConf failed with err: %v\n", err)
+	require.Equal(suite.T(), 2, envCount, "Environment incorrectly defined")
+	err = reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", "", log)
+	require.Nil(suite.T(), err, "reconcileNuxeoConf failed")
 	foundCMap := &corev1.ConfigMap{}
 	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: suite.namespace}, foundCMap)
@@ -73,8 +71,7 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 		"\nrepository.binary.store=${env:NUXEO_BINARY_STORE}\n" +
 		"nuxeo.cluster.enabled=true\n" +
 		"nuxeo.cluster.nodeid=${env:POD_UID}\n"
-	require.Equal(suite.T(), nuxeoConfExpected, foundCMap.Data["nuxeo.conf"],"nuxeo.conf ConfigMap has incorrect values: %v\n",
-		foundCMap.Data)
+	require.Equal(suite.T(), nuxeoConfExpected, foundCMap.Data["nuxeo.conf"], "nuxeo.conf ConfigMap has incorrect values")
 }
 
 func (suite *nodeSetSuite) TestDeploymentClusteringNoBinaries() {
@@ -99,7 +96,7 @@ func (suite *nodeSetSuite) TestRevProxyDeploymentCreation() {
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
 	require.Equal(suite.T(), suite.imagePullPolicy, found.Spec.Template.Spec.Containers[1].ImagePullPolicy,
-		"Deployment sidecar has incorrect pull policy: %v\n", found.Spec.Template.Spec.Containers[1].ImagePullPolicy)
+		"Deployment sidecar has incorrect pull policy")
 }
 
 // nodeSetSuite is the NodeSet test suite structure
@@ -146,8 +143,9 @@ func (suite *nodeSetSuite) nodeSetSuiteNewNuxeo() *v1alpha1.Nuxeo {
 		},
 		Spec: v1alpha1.NuxeoSpec{
 			NodeSets: []v1alpha1.NodeSet{{
-				Name:     suite.deploymentName,
-				Replicas: 3,
+				Name:        suite.deploymentName,
+				Interactive: true,
+				Replicas:    3,
 			}},
 		},
 	}

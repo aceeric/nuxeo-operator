@@ -24,7 +24,7 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	dep := genTestDeploymentForConfigSuite()
 	sec := genTestJvmPkiSecret()
 	err := handleConfig(nux, &dep, nux.Spec.NodeSets[0], sec)
-	require.Nil(suite.T(), err, "handleConfig failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "handleConfig failed")
 	validActualEnvCnt := 0
 	for _, env := range dep.Spec.Template.Spec.Containers[0].Env {
 		switch {
@@ -42,7 +42,7 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 		}
 	}
 	require.Equal(suite.T(), 5, validActualEnvCnt,
-		"Configuration environment variables were not created correctly\n")
+		"Configuration environment variables were not created correctly")
 	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
 		"Volume Mounts not correctly defined")
 	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes),

@@ -20,12 +20,12 @@ func (suite *nuxeoStorageSpecSuite) TestBasicNuxeoStorage() {
 	nux := suite.nuxeoStorageSpecSuiteNewNuxeo()
 	dep := genTestDeploymentForStorageSuite()
 	err := handleStorage(&dep, nux.Spec.NodeSets[0])
-	require.Nil(suite.T(), err, "handleStorage failed with err: %v\n", err)
-	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes), "Volumes were not created\n")
+	require.Nil(suite.T(), err, "handleStorage failed")
+	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes), "Volumes were not created")
 	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
-		"Volume mounts were not created\n")
+		"Volume mounts were not created")
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].Env),
-		"Environment variables were not created\n")
+		"Environment variables were not created")
 }
 
 // nuxeoStorageSpecSuite is the NuxeoStorageSpec test suite structure

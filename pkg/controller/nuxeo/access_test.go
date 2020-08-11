@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TestBasicAccess calls 'reconcileAccess' with OpenShift=true and OpenShift=false. The ingress_test.go file
@@ -19,13 +18,11 @@ import (
 func (suite *accessSuite) TestBasicAccess() {
 	nux := suite.accessSuiteNewNuxeo()
 	util.SetIsOpenShift(false)
-	result, err := reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
-	require.Nil(suite.T(), err, "reconcileAccess (Kubernetes) failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileAccess (Kubernetes) returned unexpected result: %v\n", result)
+	err := reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
+	require.Nil(suite.T(), err, "reconcileAccess (Kubernetes) failed")
 	util.SetIsOpenShift(true)
-	result, err = reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
-	require.Nil(suite.T(), err, "reconcileAccess (OpenShift) failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileAccess (OpenShift) returned unexpected result: %v\n", result)
+	err = reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux, log)
+	require.Nil(suite.T(), err, "reconcileAccess (OpenShift) failed")
 }
 
 // accessSuite is the Access test suite structure

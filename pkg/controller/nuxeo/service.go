@@ -1,20 +1,16 @@
 package nuxeo
 
 import (
-	"context"
 	goerrors "errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // reconcileService reconciles the passed ServiceSpec from the Nuxeo CR this operator is watching to the ServiceSpec's
@@ -23,38 +19,14 @@ import (
 // Otherwise, the fall-through case is that a Service exists that matches the ServiceSpec and so in this
 // case - cluster state is not modified.
 func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alpha1.NodeSet,
-	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
-	found := &corev1.Service{}
+	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
 	svcName := serviceName(instance, nodeSet)
 	expected, err := r.defaultService(instance, svc, svcName)
 	if err != nil {
-		return reconcile.Result{}, err
+		return err
 	}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: svcName, Namespace: instance.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Service", "Namespace", expected.Namespace, "Name", expected.Name)
-		err = r.client.Create(context.TODO(), expected)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new Service", "Namespace", expected.Namespace, "Name", expected.Name)
-			return reconcile.Result{}, err
-		}
-		// Service created successfully
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		reqLogger.Error(err, "Error attempting to get Service for Nuxeo cluster: "+svcName)
-		return reconcile.Result{}, err
-	}
-	if !util.ServiceComparer(expected, found) {
-		reqLogger.Info("Updating Service", "Namespace", expected.Namespace, "Name", expected.Name)
-		if expected.Spec.Type == corev1.ServiceTypeClusterIP && expected.Spec.Type == found.Spec.Type {
-			expected.Spec.ClusterIP = found.Spec.ClusterIP
-		}
-		expected.Spec.DeepCopyInto(&found.Spec)
-		if err = r.client.Update(context.TODO(), found); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-	return reconcile.Result{}, nil
+	_, err = addOrUpdate(r, svcName, instance.Namespace, expected, &corev1.Service{}, util.ServiceComparer, reqLogger)
+	return err
 }
 
 // defaultService generates and returns a Service struct from the passed params. The default Service

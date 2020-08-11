@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
-	"nuxeo-operator/pkg/util"
 )
 
 var (
@@ -77,6 +76,7 @@ func nuxeoScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context
 		},
 		Spec: v1alpha1.NuxeoSpec{
 			ImagePullPolicy: corev1.PullAlways,
+			NuxeoImage: *args.nuxeoImageName,
 			Access: v1alpha1.NuxeoAccess{
 				Hostname: "z",
 			},
@@ -84,28 +84,6 @@ func nuxeoScaleTest(t *testing.T, f *framework.Framework, ctx *framework.Context
 				Name:        clusterName,
 				Replicas:    1,
 				Interactive: true,
-				PodTemplate: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app":         "nuxeo",
-							"nuxeoCr":     nuxeoName,
-							"interactive": "true",
-						},
-					},
-					Spec: corev1.PodSpec{
-						ServiceAccountName: util.NuxeoServiceAccountName,
-						Containers: []corev1.Container{{
-							Image:           *args.nuxeoImageName,
-							ImagePullPolicy: corev1.PullAlways,
-							Name:            "nuxeo",
-							Ports: []corev1.ContainerPort{{
-								ContainerPort: 8080,
-							}},
-							VolumeMounts: []corev1.VolumeMount{},
-						}},
-						Volumes: []corev1.Volume{},
-					},
-				},
 			}},
 		},
 	}

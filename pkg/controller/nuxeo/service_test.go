@@ -10,38 +10,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TestBasicServiceCreation tests the basic mechanics of creating a new Service from the Nuxeo CR spec
 // when a Service does not already exist
 func (suite *serviceSuite) TestBasicServiceCreation() {
 	nux := suite.serviceSuiteNewNuxeo()
-	result, err := reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
-	require.Nil(suite.T(), err, "reconcileService failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result,
-		"reconcileService returned unexpected result: %v\n", result)
+	err := reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
+	require.Nil(suite.T(), err, "reconcileService failed")
 	found := &corev1.Service{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: serviceName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
-	require.Nil(suite.T(), err, "Route creation failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "Route creation failed")
 	require.Equal(suite.T(), suite.servicePort, found.Spec.Ports[0].Port,
-		"Service has incorrect port number: %v\n", found.Spec.Ports[0].Port)
+		"Service has incorrect port number")
 }
 
 // TestServiceTargetPortChanged creates a service, then changes target port in the Nuxeo CR and verifies the
 // Service object was updated by the reconciler
 func (suite *serviceSuite) TestServiceTargetPortChanged() {
 	nux := suite.serviceSuiteNewNuxeo()
-	_, _ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
 	newTargetPort := nux.Spec.Service.TargetPort + 1000
 	nux.Spec.Service.TargetPort = newTargetPort
-	_, _ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
 	found := &corev1.Service{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: serviceName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
 	require.Equal(suite.T(), newTargetPort, found.Spec.Ports[0].TargetPort.IntVal,
-		"Route has incorrect target port number: %v\n", found.Spec.Ports[0].TargetPort.IntVal)
+		"Route has incorrect target port number")
 }
 
 // serviceSuite is the Service test suite structure

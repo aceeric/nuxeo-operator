@@ -11,19 +11,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TestBasicServiceAccountCreation tests the basic mechanics of creating a new ServiceAccount from the Nuxeo CR spec
 // when a ServiceAccount does not already exist
 func (suite *serviceAccountSuite) TestBasicServiceAccountCreation() {
 	nux := suite.serviceAccountSuiteNewNuxeo()
-	result, err := reconcileServiceAccount(&suite.r, nux, log)
-	require.Nil(suite.T(), err, "reconcileServiceAccount failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "reconcileServiceAccount returned unexpected result: %v\n", result)
+	err := reconcileServiceAccount(&suite.r, nux, log)
+	require.Nil(suite.T(), err, "reconcileServiceAccount failed")
 	found := &corev1.ServiceAccount{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: util.NuxeoServiceAccountName, Namespace: suite.namespace}, found)
-	require.Nil(suite.T(), err, "ServiceAccount creation failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "ServiceAccount creation failed")
 }
 
 // serviceAccountSuite is the ServiceAccount test suite structure

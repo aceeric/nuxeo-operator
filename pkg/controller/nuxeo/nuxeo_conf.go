@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
+	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -19,27 +20,30 @@ import (
 // then the function makes sure a ConfigMap does not exist in the cluster. The ConfigMap is given a hard-coded
 // name: nuxeo cluster name + "-" + node set name + "-nuxeo-conf". E.g.: 'my-nuxeo-cluster-nuxeo-conf'.
 func reconcileNuxeoConf(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet, backingNuxeoConf string,
-	reqLogger logr.Logger) error {
-	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf){
+	tlsNuxeoConf string, reqLogger logr.Logger) error {
+	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf){
 		expected := r.defaultNuxeoConfCM(instance, nodeSet.Name, nodeSet.NuxeoConfig.NuxeoConf.Value,
-			nodeSet.ClusterEnabled, backingNuxeoConf)
-		return addOrUpdateConfigMap(r, instance, expected, reqLogger)
+			nodeSet.ClusterEnabled, backingNuxeoConf, tlsNuxeoConf)
+		_, err := addOrUpdate(r, expected.Name, instance.Namespace, expected, &corev1.ConfigMap{},
+			util.ConfigMapComparer, reqLogger)
+		return err
 	} else {
 		cmName := nuxeoConfCMName(instance, nodeSet.Name)
-		return removeConfigMapIfPresent(r, instance, cmName, reqLogger)
+		return removeIfPresent(r, instance, cmName, instance.Namespace, &corev1.ConfigMap{}, reqLogger)
 	}
 }
 
 // Returns true if the Operator should reconcile a nuxeo.conf ConfigMap or Secret to hold nuxeo.conf settings
-func shouldReconNuxeoConf(nodeSet v1alpha1.NodeSet, backingNuxeoConf string) bool {
-	return nodeSet.NuxeoConfig.NuxeoConf.Value != "" || nodeSet.ClusterEnabled || backingNuxeoConf != ""
+func shouldReconNuxeoConf(nodeSet v1alpha1.NodeSet, backingNuxeoConf string, tlsNuxeoConf string) bool {
+	return nodeSet.NuxeoConfig.NuxeoConf.Value != "" || nodeSet.ClusterEnabled || backingNuxeoConf != "" ||
+		tlsNuxeoConf != ""
 }
 
 // defaultNuxeoConfCM generates a ConfigMap struct in a standard internally-defined form to hold the passed
 // inline nuxeo conf string data, and/or clustering config settings. The generated struct is configured to be
 // owned by the passed 'nux'. A ref to the generated struct is returned.
 func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName string,
-	inlineNuxeoConf string, clusterEnabled bool, bindingNuxeoConf string) *corev1.ConfigMap {
+	inlineNuxeoConf string, clusterEnabled bool, bindingNuxeoConf string, tlsNuxeoConf string) *corev1.ConfigMap {
 	cmName := nuxeoConfCMName(nux, nodeSetName)
 	clusterNuxeoConf := ""
 	if clusterEnabled {
@@ -51,7 +55,7 @@ func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName str
 			"nuxeo.cluster.enabled=true\n" +
 			"nuxeo.cluster.nodeid=${env:POD_UID}\n"
 	}
-	allNuxeoConf := joinCompact("\n", inlineNuxeoConf, clusterNuxeoConf, bindingNuxeoConf)
+	allNuxeoConf := joinCompact("\n", inlineNuxeoConf, clusterNuxeoConf, bindingNuxeoConf, tlsNuxeoConf)
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,

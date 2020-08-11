@@ -11,12 +11,18 @@ import (
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 )
 
-// todo-me refactor other reconciliation functions to this
-
 // Compares expected to found. If identical, returns true, meaning no action required.
 // Otherwise updates found from expected and returns false, meaning caller must write
 // found back to the cluster.
 type comparer func (expected runtime.Object, found runtime.Object) bool
+
+// indicates whether the 'addOrUpdate' function updated or created a resource, or did nothing
+type reconOp int
+const (
+	Updated reconOp = 1
+	Created = 2
+	NA = 3
+)
 
 // Performs the standard reconciliation logic with expected and found. Expected is what the caller expects
 // to find in the cluster. Found is a ref of the same type to receive what exists in the cluster. If no instance
@@ -28,11 +34,11 @@ type comparer func (expected runtime.Object, found runtime.Object) bool
 // Caller is expected to have set the Nuxeo CR as the owner of 'expected' if that is the intent (this function
 // performs no modifications to 'expected')
 func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runtime.Object, found runtime.Object,
-	comparer comparer, reqLogger logr.Logger) error  {
+	comparer comparer, reqLogger logr.Logger) (reconOp, error)  {
 	var kind string
 	var err error
 	if kind, err = getKind(r.scheme, expected); err != nil {
-		return err
+		return NA, err
 	}
 	knv := []interface{}{"Namespace", namespace, "Name", name}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, found)
@@ -41,20 +47,20 @@ func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runt
 		err = r.client.Create(context.TODO(), expected)
 		if err != nil {
 			reqLogger.Error(err, "Failed to create "+kind, knv...)
-			return err
+			return NA, err
 		}
-		return nil
+		return Created, nil
 	} else if err != nil {
 		reqLogger.Error(err, "Error attempting to get "+kind, knv...)
-		return err
+		return NA, err
 	}
 	if !comparer(expected, found) {
 		reqLogger.Info("Updating "+kind, knv...)
 		if err = r.client.Update(context.TODO(), found); err != nil {
-			return err
+			return Updated, err
 		}
 	}
-	return nil
+	return NA, nil
 }
 
 // removeIfPresent looks for an object in the cluster matching the passed name and type (as expressed in the 'found'
@@ -88,7 +94,6 @@ func removeIfPresent(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, name string, n
 
 // getOwnerRefs returns owner reference UIDs from the passed object. If there are no owner references then an empty
 // array is returned. If there is any error manipulating the passed object, a non-nil error is returned.
-// todo-me consider jsonpath parsing to get the UIDs from the resource
 func getOwnerRefs(obj runtime.Object) ([]string, error) {
 	if unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj); err != nil {
 		return nil, err

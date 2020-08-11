@@ -3,7 +3,9 @@ package util
 import (
 	"reflect"
 
-	"k8s.io/api/core/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -13,27 +15,27 @@ import (
 // logic by type and return false. False means found must be written back to the cluster.
 
 // Secret comparer (operator may annotate secrets)
-func SecretCompare(expected runtime.Object, found runtime.Object) bool {
-	if !reflect.DeepEqual(expected.(*v1.Secret).Data, found.(*v1.Secret).Data) {
-		found.(*v1.Secret).Data = expected.(*v1.Secret).Data
-		found.(*v1.Secret).Annotations = expected.(*v1.Secret).Annotations
+func SecretComparer(expected runtime.Object, found runtime.Object) bool {
+	if !reflect.DeepEqual(expected.(*corev1.Secret).Data, found.(*corev1.Secret).Data) {
+		found.(*corev1.Secret).Data = expected.(*corev1.Secret).Data
+		found.(*corev1.Secret).Annotations = expected.(*corev1.Secret).Annotations
 		return false
-	} else if !reflect.DeepEqual(expected.(*v1.Secret).Annotations, found.(*v1.Secret).Annotations) {
-		found.(*v1.Secret).Annotations = expected.(*v1.Secret).Annotations
+	} else if !reflect.DeepEqual(expected.(*corev1.Secret).Annotations, found.(*corev1.Secret).Annotations) {
+		found.(*corev1.Secret).Annotations = expected.(*corev1.Secret).Annotations
 		return false
 	}
 	return true
 }
 
-// Service comparer (Kubeternes will update components of the service spec with values it chooses so the
+// Service comparer (Kubernetes will update components of the service spec with values it chooses so the
 // comparer has to ignore those)
 func ServiceComparer(expected runtime.Object, found runtime.Object) bool {
-	if !reflect.DeepEqual(expected.(*v1.Service).Spec.Ports, found.(*v1.Service).Spec.Ports) ||
-		!reflect.DeepEqual(expected.(*v1.Service).Spec.Selector, found.(*v1.Service).Spec.Selector) ||
-		expected.(*v1.Service).Spec.Type != found.(*v1.Service).Spec.Type {
-		found.(*v1.Service).Spec.Ports = expected.(*v1.Service).Spec.Ports
-		found.(*v1.Service).Spec.Selector = expected.(*v1.Service).Spec.Selector
-		found.(*v1.Service).Spec.Type = expected.(*v1.Service).Spec.Type
+	if !reflect.DeepEqual(expected.(*corev1.Service).Spec.Ports, found.(*corev1.Service).Spec.Ports) ||
+		!reflect.DeepEqual(expected.(*corev1.Service).Spec.Selector, found.(*corev1.Service).Spec.Selector) ||
+		expected.(*corev1.Service).Spec.Type != found.(*corev1.Service).Spec.Type {
+		found.(*corev1.Service).Spec.Ports = expected.(*corev1.Service).Spec.Ports
+		found.(*corev1.Service).Spec.Selector = expected.(*corev1.Service).Spec.Selector
+		found.(*corev1.Service).Spec.Type = expected.(*corev1.Service).Spec.Type
 		return false
 	}
 	return true
@@ -57,7 +59,7 @@ func IngressComparer(expected runtime.Object, found runtime.Object) bool {
 				delete(foundAnnotations, nginxPassthroughAnnotation)
 				same = false
 			}
-		} else if expAnnotations != nil{
+		} else if expAnnotations != nil {
 			// found ingress is not annotated with passthrough and expected is thusly annotated
 			foundAnnotations[nginxPassthroughAnnotation] = "true"
 		}
@@ -67,4 +69,51 @@ func IngressComparer(expected runtime.Object, found runtime.Object) bool {
 		same = false
 	}
 	return same
+}
+
+// OpenShift Route comparer
+func RouteComparer(expected runtime.Object, found runtime.Object) bool {
+	if !reflect.DeepEqual(expected.(*routev1.Route).Spec, found.(*routev1.Route).Spec) {
+		expected.(*routev1.Route).Spec.DeepCopyInto(&found.(*routev1.Route).Spec)
+		return false
+	}
+	return true
+}
+
+// Deployment comparer
+func DeploymentComparer(expected runtime.Object, found runtime.Object) bool {
+	if !reflect.DeepEqual(expected.(*appsv1.Deployment).Spec, found.(*appsv1.Deployment).Spec) {
+		expected.(*appsv1.Deployment).Spec.DeepCopyInto(&found.(*appsv1.Deployment).Spec)
+		return false
+	}
+	return true
+}
+
+// ConfigMap comparer
+func ConfigMapComparer(expected runtime.Object, found runtime.Object) bool {
+	if !reflect.DeepEqual(expected.(*corev1.ConfigMap).Data, found.(*corev1.ConfigMap).Data) {
+		found.(*corev1.ConfigMap).Data = expected.(*corev1.ConfigMap).Data
+		return false
+	}
+	return true
+}
+
+// PersistentVolumeClaim comparer
+func PvcComparer(expected runtime.Object, found runtime.Object) bool {
+	exp := expected.(*corev1.PersistentVolumeClaim)
+	fnd := found.(*corev1.PersistentVolumeClaim)
+	if !reflect.DeepEqual(exp.Spec.AccessModes, fnd.Spec.AccessModes) ||
+		!reflect.DeepEqual(exp.Spec.Resources, fnd.Spec.Resources) ||
+		(exp.Spec.VolumeMode != nil && exp.Spec.VolumeMode != fnd.Spec.VolumeMode) {
+		fnd.Spec.AccessModes = exp.Spec.AccessModes
+		fnd.Spec.Resources = exp.Spec.Resources
+		fnd.Spec.AccessModes = exp.Spec.AccessModes
+		return false
+	}
+	return true
+}
+
+// objects are always the same
+func NopComparer(expected runtime.Object, found runtime.Object) bool {
+	return true
 }

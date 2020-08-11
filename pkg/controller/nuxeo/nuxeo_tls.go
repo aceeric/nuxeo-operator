@@ -2,9 +2,7 @@ package nuxeo
 
 import (
 	"bytes"
-	goerrors "errors"
 	"fmt"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,14 +12,13 @@ import (
 // configureNuxeoForTLS configures Nuxeo to terminate TLS as follows:
 //  1) Creates a volume and volume mount referencing the keystore.jks key from the passed secret name
 //  2) Creates env var TLS_KEYSTORE_PASS referencing keystorePass key in the same secret
-//  3) Configures the NUXEO_CUSTOM_PARAM env var to reference the keystore and password. Nuxeo will incorporate
-//     this into nuxeo.conf when it starts the server
-//  4) Adds an https entry to the NUXEO_TEMPLATES env var
-func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) error {
+//  3) Adds an https entry to the NUXEO_TEMPLATES env var
+//  4) Returns entries to be merged into nuxeo.conf
+func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) (string, error) {
 	var nuxeoContainer *corev1.Container
 	var err error
 	if nuxeoContainer, err = util.GetNuxeoContainer(dep); err != nil {
-		return err
+		return "", err
 	}
 	keystoreVol := corev1.Volume{
 		Name: "tls-keystore",
@@ -35,77 +32,40 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) error {
 				}},
 			}},
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, keystoreVol)
+	if err := util.OnlyAddVol(dep, keystoreVol); err != nil {
+		return "", err
+	}
 	keystoreVolMnt := corev1.VolumeMount{
 		Name:      "tls-keystore",
 		ReadOnly:  true,
 		MountPath: "/etc/secrets/tls-keystore",
 	}
-	nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, keystoreVolMnt)
-
+	if err := util.OnlyAddVolMnt(nuxeoContainer, keystoreVolMnt); err != nil {
+		return "", err
+	}
 	// TLS_KEYSTORE_PASS env var
-	keystorePassEnv := util.GetEnv(nuxeoContainer, "TLS_KEYSTORE_PASS")
-	if keystorePassEnv != nil {
-		return goerrors.New("TLS_KEYSTORE_PASS already defined - operator cannot override")
-	} else {
-		keystorePassEnv = &corev1.EnvVar{
-			Name: "TLS_KEYSTORE_PASS",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: tlsSecret},
-					Key:                  "keystorePass",
-				},
+	keystorePassEnv := corev1.EnvVar{
+		Name: "TLS_KEYSTORE_PASS",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: tlsSecret},
+				Key:                  "keystorePass",
 			},
-		}
-		nuxeoContainer.Env = append(nuxeoContainer.Env, *keystorePassEnv)
+		},
 	}
-
-	// NUXEO_CUSTOM_PARAM env var (refs TLS_KEYSTORE_PASS set above). We use this environment var
-	// because the configurer can also specify nuxeo.conf and if they did, it could clash with this code path
-	// if this code path also tried to use nuxeo.conf
-	tlsConfig := map[string]string{
-		"nuxeo.server.https.port":         "8443",
-		"nuxeo.server.https.keystoreFile": "/etc/secrets/tls-keystore/keystore.jks",
-		"nuxeo.server.https.keystorePass": "${env:TLS_KEYSTORE_PASS}",
+	if err := util.OnlyAddEnvVar(nuxeoContainer, keystorePassEnv); err != nil {
+		return "", err
 	}
-	customParamEnv := util.GetEnv(nuxeoContainer, "NUXEO_CUSTOM_PARAM")
-	if customParamEnv == nil {
-		customParamEnv = &corev1.EnvVar{
-			Name:  "NUXEO_CUSTOM_PARAM",
-			Value: mapToStr(tlsConfig, "\n"),
-		}
-	} else {
-		if customParamEnv.ValueFrom != nil {
-			// if the configurer defines an external source for NUXEO_CUSTOM_PARAM then the operator cannot
-			// touch that. Since the operator uses that environment variable to configure TLS for Nuxeo 10.x
-			// the operator cannot proceed with the configuration
-			return goerrors.New("operator Nuxeo TLS config conflicts with externally defined NUXEO_CUSTOM_PARAM env var")
-		}
-		for key, _ := range tlsConfig {
-			if strings.Contains(customParamEnv.Value, key) {
-				return goerrors.New("NUXEO_CUSTOM_PARAM already defines configuration: " + key)
-			}
-		}
-		customParamEnv.Value += "\n" + mapToStr(tlsConfig, "\n")
-	}
-	nuxeoContainer.Env = append(nuxeoContainer.Env, *customParamEnv)
 
 	// NUXEO_TEMPLATES env var
-	templatesEnv := util.GetEnv(nuxeoContainer, "NUXEO_TEMPLATES")
-	if templatesEnv == nil {
-		templatesEnv = &corev1.EnvVar{
-			Name:  "NUXEO_TEMPLATES",
-			Value: "https",
-		}
-		nuxeoContainer.Env = append(nuxeoContainer.Env, *templatesEnv)
-	} else {
-		if templatesEnv.ValueFrom != nil {
-			// same as above
-			return goerrors.New("operator Nuxeo TLS config conflicts with externally defined NUXEO_TEMPLATES env var")
-		}
-		templatesEnv.Value += ",https"
+	templatesEnv := corev1.EnvVar{
+		Name:  "NUXEO_TEMPLATES",
+		Value: "https",
 	}
-	return nil
+	tlsConfig := "nuxeo.server.https.port=8443\n" +
+		"nuxeo.server.https.keystoreFile=/etc/secrets/tls-keystore/keystore.jks\n"  +
+		"nuxeo.server.https.keystorePass=${env:TLS_KEYSTORE_PASS}\n"
+	return tlsConfig, util.MergeOrAddEnvVar(nuxeoContainer, templatesEnv, ",")
 }
 
 // mapToStr takes map A:1,B:2 and returns string "A=1\nB=2\n"

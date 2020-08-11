@@ -60,8 +60,7 @@ func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *
 					Name:  "NUXEO_TEMPLATES",
 					Value: backingService.Template,
 				}
-				// todo-me convert all instances of modifying the deployment to MergeOrAdd
-				if err := util.MergeOrAdd(nuxeoContainer, env, ","); err != nil {
+				if err := util.MergeOrAddEnvVar(nuxeoContainer, env, ","); err != nil {
 					return "", err
 				}
 			}
@@ -138,12 +137,9 @@ func projectEnvFrom(resource v1alpha1.BackingServiceResource, projection v1alpha
 	}
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 		return err
-	} else if util.GetEnv(nuxeoContainer, env.Name) != nil {
-		return goerrors.New("invalid backing service projection - attempt to add duplicate environment var: " + env.Name)
 	} else {
-		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
+		return util.OnlyAddEnvVar(nuxeoContainer, env)
 	}
-	return nil
 }
 
 // Handles mount projections for resources by creating/appending to a volume with a projection source like so:
@@ -327,7 +323,7 @@ func projectTransform(r *ReconcileNuxeo, namespace string, backingServiceName st
 			},
 		},
 	}
-	return util.OnlyAdd(nuxeoContainer, env)
+	return util.OnlyAddEnvVar(nuxeoContainer, env)
 }
 
 // Gets the existing secondary secret from the cluster and populates the passed keys in the the passed in-mem
@@ -422,8 +418,9 @@ func reconcileSecondary(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, secondarySe
 	reqLogger logr.Logger) error {
 	if len(secondarySecret.Data)+len(secondarySecret.StringData) != 0 {
 		// secondary secret has content so it should exist in the cluster
-		return addOrUpdate(r, secondarySecret.Name, instance.Namespace, secondarySecret, &corev1.Secret{},
-			util.SecretCompare, reqLogger)
+		_, err := addOrUpdate(r, secondarySecret.Name, instance.Namespace, secondarySecret, &corev1.Secret{},
+			util.SecretComparer, reqLogger)
+		return err
 	} else {
 		// secondary secret has no content so it not should exist in the cluster
 		return removeIfPresent(r, instance, secondarySecret.Name, instance.Namespace, secondarySecret, reqLogger)

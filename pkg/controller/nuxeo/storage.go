@@ -1,6 +1,8 @@
 package nuxeo
 
 import (
+	"reflect"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
@@ -20,10 +22,16 @@ func handleStorage(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
 			} else {
 				volMnt := createVolumeMountForStorage(storage.StorageType, volume.Name)
 				envVar := createEnvVarForStorage(storage.StorageType, volMnt.MountPath)
-				dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, volume)
-				nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+				if err := util.OnlyAddVol(dep, volume); err != nil {
+					return err
+				}
+				if err := util.OnlyAddVolMnt(nuxeoContainer, volMnt); err != nil {
+					return err
+				}
 				if envVar != (corev1.EnvVar{}) {
-					nuxeoContainer.Env = append(nuxeoContainer.Env, envVar)
+					if err := util.OnlyAddEnvVar(nuxeoContainer, envVar); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -63,10 +71,6 @@ func createEnvVarForStorage(storageType v1alpha1.NuxeoStorage, mountPath string)
 // must add the struct to the Deployment.
 func createVolumeMountForStorage(storageType v1alpha1.NuxeoStorage, volumeName string) corev1.VolumeMount {
 	mountPath := getMountPathForStorageType(storageType)
-	// todo-me I think this probably gets removed from the spec
-	//if storage.MountPath != "" {
-	//	mountPath = storage.MountPath
-	//}
 	volMnt := corev1.VolumeMount{
 		Name:      volumeName,
 		ReadOnly:  false,
@@ -101,7 +105,8 @@ func getMountPathForStorageType(storageType v1alpha1.NuxeoStorage) string {
 func createVolumeForStorage(storage v1alpha1.NuxeoStorageSpec) (corev1.Volume, error) {
 	volName := volumeNameForStorage(storage.StorageType)
 	var volSrc corev1.VolumeSource
-	if different, err := util.ObjectsDiffer(storage.VolumeClaimTemplate, corev1.PersistentVolumeClaim{}); err == nil && different {
+
+	if !reflect.DeepEqual(storage.VolumeClaimTemplate, corev1.PersistentVolumeClaim{}) {
 		// explicit PVC template
 		volSrc = corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
@@ -109,8 +114,6 @@ func createVolumeForStorage(storage v1alpha1.NuxeoStorageSpec) (corev1.Volume, e
 				ReadOnly:  false,
 			},
 		}
-	} else if err != nil {
-		return corev1.Volume{}, err
 	} else if storage.VolumeSource != (corev1.VolumeSource{}) {
 		// explicit volume source
 		volSrc = storage.VolumeSource

@@ -14,17 +14,16 @@ import (
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // reconcileIngress configures access to the Nuxeo cluster via a Kubernetes Ingress
 func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
-	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
+	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
 	found := &v1beta1.Ingress{}
 	ingressName := ingressName(instance, nodeSet)
 	expected, err := r.defaultIngress(instance, access, forcePassthrough, ingressName, nodeSet)
 	if err != nil {
-		return reconcile.Result{}, err
+		return err
 	}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ingressName, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
@@ -32,20 +31,19 @@ func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePasst
 		err = r.client.Create(context.TODO(), expected)
 		if err != nil {
 			reqLogger.Error(err, "Failed to create new Ingress", "Namespace", expected.Namespace, "Name", expected.Name)
-			return reconcile.Result{}, err
+			return err
 		}
 		// Ingress created successfully
-		return reconcile.Result{}, nil
+		return nil
 	} else if err != nil {
 		reqLogger.Error(err, "Error attempting to get Ingress for Nuxeo cluster: "+ingressName)
-		return reconcile.Result{}, err
+		return err
 	}
 	if !util.IngressComparer(expected, found) {
 		reqLogger.Info("Updating Ingress", "Namespace", expected.Namespace, "Name", expected.Name)
-		err = r.client.Update(context.TODO(), found)
-		return reconcile.Result{}, err
+		return r.client.Update(context.TODO(), found)
 	}
-	return reconcile.Result{}, nil
+	return nil
 }
 
 // defaultIngress generates and returns an Ingress struct from the passed params. If the passed 'access' struct

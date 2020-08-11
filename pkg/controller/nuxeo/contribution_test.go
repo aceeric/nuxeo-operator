@@ -21,12 +21,12 @@ func (suite *contributionSuite) TestSecretConfigMapContribution() {
 	var err error
 	nux := suite.contributionSuiteNewNuxeo()
 	err = suite.genConfigMapForContrib()
-	require.Nil(suite.T(), err, "genConfigMapForContrib failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "genConfigMapForContrib failed")
 	err = suite.genSecretForContrib()
-	require.Nil(suite.T(), err, "genSecretForContrib failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "genSecretForContrib failed")
 	dep := genTestDeploymentForContributionSuite()
 	err = configureContributions(&suite.r, nux, &dep, nux.Spec.NodeSets[0])
-	require.Nil(suite.T(), err, "handleConfig failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "handleConfig failed")
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Volumes),
 		"incorrect volume configuration")
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
@@ -43,7 +43,7 @@ func (suite *contributionSuite) TestPVCContribution() {
 	nux := suite.contributionSuitePvcNewNuxeo()
 	dep := genTestDeploymentForContributionSuite()
 	err = configureContributions(&suite.r, nux, &dep, nux.Spec.NodeSets[0])
-	require.Nil(suite.T(), err, "handleConfig failed with err: %v\n", err)
+	require.Nil(suite.T(), err, "handleConfig failed")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes),
 		"incorrect volume configuration")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),

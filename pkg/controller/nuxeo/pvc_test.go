@@ -12,29 +12,26 @@ import (
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // Performs a basic PVC test. Defines a Nuxeo CR with storage configuration that should result in two PVCs.
 // Creates an orphaned PVC. Ensures that the two PVCs were created and the orphan was removed.
 func (suite *persistentVolumeClaimSuite) TestBasicPVC() {
 	var err error
-	var result reconcile.Result
 	nux := suite.persistentVolumeClaimSuiteNewNuxeo()
 	err = createOrphanPVC(nux, suite.orphanPVCName, suite.r)
-	require.Nil(suite.T(), err, "Error creating orphaned PVC: %v\n", err)
-	result, err = reconcilePvc(&suite.r, nux)
-	require.Nil(suite.T(), err, "reconcilePvc failed with err: %v\n", err)
-	require.Equal(suite.T(), reconcile.Result{}, result, "reconcilePvc returned unexpected result: %v\n", result)
+	require.Nil(suite.T(), err, "Error creating orphaned")
+	err = reconcilePvc(&suite.r, nux)
+	require.Nil(suite.T(), err, "reconcilePvc failed")
 	var pvcsInCluster corev1.PersistentVolumeClaimList
 	opts := []client.ListOption{
 		client.InNamespace(nux.Namespace),
 	}
 	err = suite.r.client.List(context.TODO(), &pvcsInCluster, opts...)
-	require.Nil(suite.T(), err, "Error getting PVCs: %v\n", err)
-	require.Equal(suite.T(), 2, len(pvcsInCluster.Items), "Failed to obtain the expected number of PVCs\n")
+	require.Nil(suite.T(), err, "Error getting PVCs")
+	require.Equal(suite.T(), 2, len(pvcsInCluster.Items), "Failed to obtain the expected number of PVCs")
 	for _, pvc := range pvcsInCluster.Items {
-		require.NotEqual(suite.T(), suite.orphanPVCName, pvc.Name, "Orphaned PVC was not removed\n", result)
+		require.NotEqual(suite.T(), suite.orphanPVCName, pvc.Name, "Orphaned PVC was not removed")
 	}
 }
 

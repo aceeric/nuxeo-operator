@@ -29,10 +29,18 @@ func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.
 	if err := configureJavaOpts(nuxeoContainer, nodeSet); err != nil {
 		return err
 	}
-	configureNuxeoTemplates(nuxeoContainer, nodeSet)
-	configureNuxeoPackages(nuxeoContainer, nodeSet)
-	configureNuxeoURL(nuxeoContainer, nodeSet)
-	configureNuxeoEnvName(nuxeoContainer, nodeSet)
+	if err := configureNuxeoTemplates(nuxeoContainer, nodeSet); err != nil {
+		return err
+	}
+	if err := configureNuxeoPackages(nuxeoContainer, nodeSet); err != nil {
+		return err
+	}
+	if err := configureNuxeoURL(nuxeoContainer, nodeSet); err != nil {
+		return err
+	}
+	if err := configureNuxeoEnvName(nuxeoContainer, nodeSet); err != nil {
+		return err
+	}
 	if err := configureJvmPki(dep, nuxeoContainer, jvmPkiSecret); err != nil {
 		return err
 	}
@@ -52,58 +60,59 @@ func configureJavaOpts(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSe
 	if nodeSet.NuxeoConfig.JavaOpts != "" {
 		env.Value = nodeSet.NuxeoConfig.JavaOpts
 	}
-	if err := util.MergeOrAdd(nuxeoContainer, env, " "); err != nil {
-		return err
-	}
-	return nil
+	return util.MergeOrAddEnvVar(nuxeoContainer, env, " ")
 }
 
 // configureJavaOpts defines a NUXEO_TEMPLATES environment variable in the passed container iff
 // nodeSet.NuxeoConfig.NuxeoTemplates was specified in the CR
-func configureNuxeoTemplates(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
+func configureNuxeoTemplates(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) error {
 	if nodeSet.NuxeoConfig.NuxeoTemplates != nil || len(nodeSet.NuxeoConfig.NuxeoTemplates) != 0 {
 		env := corev1.EnvVar{
 			Name:  "NUXEO_TEMPLATES",
 			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoTemplates, ","),
 		}
-		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
+		return util.OnlyAddEnvVar(nuxeoContainer, env)
 	}
+	return nil
 }
 
 // configureNuxeoPackages defines a NUXEO_PACKAGES environment variable in the passed container iff
 // nodeSet.NuxeoConfig.NuxeoPackages was specified in the CR
-func configureNuxeoPackages(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
+func configureNuxeoPackages(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) error {
 	if nodeSet.NuxeoConfig.NuxeoPackages != nil || len(nodeSet.NuxeoConfig.NuxeoPackages) != 0 {
 		env := corev1.EnvVar{
 			Name:  "NUXEO_PACKAGES",
 			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoPackages, ","),
 		}
-		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
+		return util.OnlyAddEnvVar(nuxeoContainer, env)
 	}
+	return nil
 }
 
 // configureNuxeoURL defines a NUXEO_URL environment variable in the passed container iff
 // nodeSet.NuxeoConfig.NuxeoUrl was specified in the CR
-func configureNuxeoURL(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
+func configureNuxeoURL(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) error {
 	if nodeSet.NuxeoConfig.NuxeoUrl != "" {
 		env := corev1.EnvVar{
 			Name:  "NUXEO_URL",
 			Value: nodeSet.NuxeoConfig.NuxeoUrl,
 		}
-		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
+		return util.OnlyAddEnvVar(nuxeoContainer, env)
 	}
+	return nil
 }
 
 // configureNuxeoEnvName defines a NUXEO_ENV_NAME environment variable in the passed container iff
 // nodeSet.NuxeoConfig.NuxeoName was specified in the CR
-func configureNuxeoEnvName(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) {
+func configureNuxeoEnvName(nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) error {
 	if nodeSet.NuxeoConfig.NuxeoName != "" {
 		env := corev1.EnvVar{
 			Name:  "NUXEO_ENV_NAME",
 			Value: nodeSet.NuxeoConfig.NuxeoName,
 		}
-		nuxeoContainer.Env = append(nuxeoContainer.Env, env)
+		return util.OnlyAddEnvVar(nuxeoContainer, env)
 	}
+	return nil
 }
 
 // configureNuxeoConf handles the nuxeo.conf configuration from the Nuxeo CR. The function initializes a
@@ -113,12 +122,14 @@ func configureNuxeoEnvName(nuxeoContainer *corev1.Container, nodeSet v1alpha1.No
 // field is initialized then the volume and mount are still initialized here, but the volume source is
 // expected to have been provided by the configurer, external to the operator.
 func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet,
-	backingNuxeoConf string) error {
-	if !shouldReconNuxeoConf(nodeSet, backingNuxeoConf) && nodeSet.NuxeoConfig.NuxeoConf.ValueFrom == (corev1.VolumeSource{}) {
+	backingNuxeoConf string, tlsNuxeoConf string) error {
+	if !shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) &&
+		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom == (corev1.VolumeSource{}) {
 		// there is no nuxeo.conf configuration anywhere in the CR
 		return nil
 	}
-	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf) && nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) {
+	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) &&
+		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) {
 		return goerrors.New("external nuxeo.conf volume source clashes with operator-managed nuxeo.conf configuration")
 	}
 	if nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) &&
@@ -140,7 +151,7 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1a
 	vol := corev1.Volume{
 		Name: nuxeoConfVolumeName,
 	}
-	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf) {
+	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) {
 		cmName := nuxeoConfCMName(nux, nodeSet.Name)
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
 			DefaultMode: util.Int32Ptr(420),
@@ -155,8 +166,7 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1a
 		// source or secret volume source.
 		vol.VolumeSource = nodeSet.NuxeoConfig.NuxeoConf.ValueFrom
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
-	return nil
+	return util.OnlyAddVol(dep, vol)
 }
 
 // configureJvmPki adds a new - or appends to an existing - JAVA_OPTS env var in the passed container's env var
@@ -201,7 +211,7 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 		Name:  "JAVA_OPTS",
 		Value: optVal,
 	}
-	if err := util.MergeOrAdd(nuxeoContainer, env, " "); err != nil {
+	if err := util.MergeOrAddEnvVar(nuxeoContainer, env, " "); err != nil {
 		return err
 	}
 	// create a volume and volume mount for the keystore/truststore if defined
@@ -211,7 +221,9 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 			ReadOnly:  true,
 			MountPath: "/etc/pki/jvm",
 		}
-		nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, jvmPkiVolMnt)
+		if err := util.OnlyAddVolMnt(nuxeoContainer, jvmPkiVolMnt); err != nil {
+			return err
+		}
 		jvmPkiVol := corev1.Volume{
 			Name: "jvm-pki",
 			VolumeSource: corev1.VolumeSource{
@@ -234,7 +246,7 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 					Path: keyStoreName,
 				})
 		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, jvmPkiVol)
+		return util.OnlyAddVol(dep, jvmPkiVol)
 	}
 	return nil
 }
@@ -267,7 +279,9 @@ func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Con
 			MountPath: "/docker-entrypoint-initnuxeo.d/" + pkg.PackageName,
 			SubPath:   pkg.PackageName,
 		}
-		nuxeoContainer.VolumeMounts = append(nuxeoContainer.VolumeMounts, volMnt)
+		if err := util.OnlyAddVolMnt(nuxeoContainer, volMnt); err != nil {
+			return err
+		}
 		vol := corev1.Volume{
 			Name: mntName,
 		}
@@ -290,7 +304,9 @@ func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Con
 				}},
 			}
 		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+		if err := util.OnlyAddVol(dep, vol); err != nil {
+			return err
+		}
 	}
 	return nil
 }

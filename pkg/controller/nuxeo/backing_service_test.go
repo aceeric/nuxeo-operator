@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TestBackingServiceECK defines a Nuxeo CR with one backing service for ECK. It creates two simulated secrets
@@ -27,7 +26,7 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 	nux := suite.backingServiceSuiteNewNuxeoES()
 	dep := genTestDeploymentForBackingSvc()
 	err := createECKSecrets(suite)
-	require.Nil(suite.T(), err, "Error creating orphaned PVC: %v")
+	require.Nil(suite.T(), err, "Error creating orphaned PVC")
 	nuxeoConf, err := configureBackingServices(&suite.r, nux, &dep, log)
 	require.Nil(suite.T(), err, "configureBackingServices returned non-nil")
 	require.Equal(suite.T(), suite.nuxeoConf, nuxeoConf, "backing service nuxeo.conf should have been returned")
@@ -69,9 +68,9 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 func (suite *backingServiceSuite) TestReconcileNodeSetsWithBackingSvc() {
 	nux := suite.backingServiceSuiteNewNuxeoES()
 	_ = createECKSecrets(suite)
-	result, err := suite.r.reconcileNodeSets(nux, log)
+	requeue, err := suite.r.reconcileNodeSets(nux, log)
 	require.Nil(suite.T(), err, "reconcileNodeSets returned non-nil")
-	require.Equal(suite.T(), reconcile.Result{Requeue: true}, result, "reconcileNodeSets returned unexpected result")
+	require.Equal(suite.T(), true, requeue, "reconcileNodeSets returned unexpected result")
 	dep := appsv1.Deployment{}
 	depName := deploymentName(nux, nux.Spec.NodeSets[0])
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: depName, Namespace: suite.namespace}, &dep)
@@ -290,9 +289,9 @@ func (suite *backingServiceSuite) TestPreConfig() {
 		},
 	}
 	_ = createECKSecrets(suite)
-	result, err := suite.r.reconcileNodeSets(nux, log)
+	requeue, err := suite.r.reconcileNodeSets(nux, log)
 	require.Nil(suite.T(), err, "reconcileNodeSets returned non-nil")
-	require.Equal(suite.T(), reconcile.Result{Requeue: true}, result, "reconcileNodeSets returned unexpected result")
+	require.Equal(suite.T(), true, requeue, "reconcileNodeSets returned unexpected result")
 	dep := appsv1.Deployment{}
 	depName := deploymentName(nux, nux.Spec.NodeSets[0])
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: depName, Namespace: suite.namespace}, &dep)

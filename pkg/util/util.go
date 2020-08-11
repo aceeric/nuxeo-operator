@@ -34,15 +34,7 @@ func SetIsOpenShift(_isOpenShift bool) {
 
 var NuxeoServiceAccountName = "nuxeo"
 
-// ObjectsDiffer generates a YAML from each passed object then generates an MD5 sum of each YAML and returns
-// true if the MD5 sums differ, and false if the MD5 sums are the same. If the YAML generation fails, then the
-// resulting error is returned, otherwise a nil error is returned. This function is intended for comparing
-// CR specs. The underlying assumption is that any difference in a spec is actionable for the operator. So this
-// handles two cases: 1) the Nuxeo CR is modified, and a dependent CR should look different as a result. 2) A
-// cluster CR owned by the Nuxeo CR is modified independently of the Operator and is therefore out of sync
-// with how the Operator would expect it to look. Note that this works in most cases but not all. For example,
-// a PVC can be generated with nil values in the Spec Volume field and the cluster will fill the volume field
-// in. So this function is only useful for Specs that the cluster doesn't alter.
+// Used for debugging
 func ObjectsDiffer(expected interface{}, actual interface{}) (bool, error) {
 	var expMd5, actMd5 [md5.Size]byte
 	var err error
@@ -84,8 +76,7 @@ func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error) {
 	return nil, goerrors.New("could not find a container named 'nuxeo' in the deployment")
 }
 
-// GetEnv searches the environment variable array in the passed container for an env var with the passed name.
-// If found, returns a ref to the env var, else returns nil.
+// gets the named environment variable from the passed container or nil
 func GetEnv(container *corev1.Container, envName string) *corev1.EnvVar {
 	for i := 0; i < len(container.Env); i++ {
 		if container.Env[i].Name == envName {
@@ -95,35 +86,91 @@ func GetEnv(container *corev1.Container, envName string) *corev1.EnvVar {
 	return nil
 }
 
-// MergeOrAdd searches the environment variable array in the passed container for an entry whose name matches
+// gets the named volume mount from the passed container or nil
+func getVolMnt(container *corev1.Container, mntName string) *corev1.VolumeMount {
+	for i := 0; i < len(container.VolumeMounts); i++ {
+		if container.VolumeMounts[i].Name == mntName {
+			return &container.VolumeMounts[i]
+		}
+	}
+	return nil
+}
+
+// gets the named volume mount from the passed deployment or nil
+func getVol(dep *appsv1.Deployment, volName string) *corev1.Volume {
+	for i := 0; i < len(dep.Spec.Template.Spec.Volumes); i++ {
+		if dep.Spec.Template.Spec.Volumes[i].Name == volName {
+			return &dep.Spec.Template.Spec.Volumes[i]
+		}
+	}
+	return nil
+}
+
+// gets the named container from the passed deployment or nil
+func getContainer(dep *appsv1.Deployment, containerName string) *corev1.Container {
+	for i := 0; i < len(dep.Spec.Template.Spec.Containers); i++ {
+		if dep.Spec.Template.Spec.Containers[i].Name == containerName {
+			return &dep.Spec.Template.Spec.Containers[i]
+		}
+	}
+	return nil
+}
+
+// MergeOrAddEnvVar searches the environment variable array in the passed container for an entry whose name matches
 // the name of the passed environment variable struct. If found in the container array, the value of the passed
 // variable is appended to the value of the existing variable, separated by the passed separator. Otherwise
 // the passed environment variable struct is appended to the container env var array. E.g. given a container
 // with an existing env var corev1.EnvVar{Name: "Z", Value "abc,123"}, then:
-//   MergeOrAdd(someContainer, corev1.EnvVar{Name: "Z", Value "xyz,456"}, ",")
+//   MergeOrAddEnvVar(someContainer, corev1.EnvVar{Name: "Z", Value "xyz,456"}, ",")
 // updates the container's variable value to: "abc,123,xyz,456"
-func MergeOrAdd(container *corev1.Container, env corev1.EnvVar, separator string) error {
+func MergeOrAddEnvVar(container *corev1.Container, env corev1.EnvVar, separator string) error {
 	if env.ValueFrom != nil {
-		return goerrors.New("MergeOrAdd cannot be used for 'ValueFrom' environment variables")
+		return goerrors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
 	}
 	if existingEnv := GetEnv(container, env.Name); existingEnv == nil {
 		container.Env = append(container.Env, env)
 	} else {
 		if existingEnv.ValueFrom != nil {
-			return goerrors.New("MergeOrAdd cannot be used for 'ValueFrom' environment variables")
+			return goerrors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
 		}
 		existingEnv.Value += separator + env.Value
 	}
 	return nil
 }
 
-// Adds the passed environment variable to the passed container only if not already present. If already present
-// in the container, returns an error
-func OnlyAdd(container *corev1.Container, env corev1.EnvVar) error {
+// Adds the passed environment variable to the passed container if not present, otherwise errors
+func OnlyAddEnvVar(container *corev1.Container, env corev1.EnvVar) error {
 	if existingEnv := GetEnv(container, env.Name); existingEnv != nil {
 		return goerrors.New("duplicate environment variable: "+env.Name)
 	}
 	container.Env = append(container.Env, env)
+	return nil
+}
+
+// Adds the passed volume mount to the passed container if not present in the container, otherwise errors
+func OnlyAddVolMnt(container *corev1.Container, mnt corev1.VolumeMount) error {
+	if existingMnt := getVolMnt(container, mnt.Name); existingMnt != nil {
+		return goerrors.New("duplicate volume mount: "+mnt.Name)
+	}
+	container.VolumeMounts = append(container.VolumeMounts, mnt)
+	return nil
+}
+
+// Adds the passed volume to the passed deployment if not present in the container, otherwise errors
+func OnlyAddVol(dep *appsv1.Deployment, vol corev1.Volume) error {
+	if existingVol:= getVol(dep, vol.Name); existingVol != nil {
+		return goerrors.New("duplicate volume: "+vol.Name)
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
+	return nil
+}
+
+// Adds the passed container to the passed deployment if not present in the deployment, otherwise errors
+func OnlyAddContainer(dep *appsv1.Deployment, container corev1.Container) error {
+	if existingContainer := getContainer(dep, container.Name); existingContainer != nil {
+		return goerrors.New("duplicate container: "+existingContainer.Name)
+	}
+	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, container)
 	return nil
 }
 

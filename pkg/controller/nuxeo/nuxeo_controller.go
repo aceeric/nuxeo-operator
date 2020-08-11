@@ -67,7 +67,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Deployment
 	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &v1alpha1.Nuxeo{},
@@ -76,7 +75,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Service
 	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &v1alpha1.Nuxeo{},
@@ -85,10 +83,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// todo-me Watch for changes to ServiceAccount?
-	// todo-me Watch for changes to Owned Secrets?
+	err = c.Watch(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &v1alpha1.Nuxeo{},
+	})
+	if err != nil {
+		return err
+	}
 
-	// Watch for changes to ConfigMap
 	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &v1alpha1.Nuxeo{},
@@ -97,7 +99,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to OpenShift Route
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &v1alpha1.Nuxeo{},
+	})
+	if err != nil {
+		return err
+	}
+
 	if util.IsOpenShift() {
 		err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
 			IsController: true,
@@ -107,7 +116,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			return err
 		}
 	} else {
-		// Watch for changes to Kubernetes Ingress
 		err = c.Watch(&source.Kind{Type: &v1beta1.Ingress{}}, &handler.EnqueueRequestForOwner{
 			IsController: true,
 			OwnerType:    &v1alpha1.Nuxeo{},
@@ -136,8 +144,10 @@ type ReconcileNuxeo struct {
 // completion it will remove the work from the queue.
 // todo-me investigate whether/when to return non-nil err. Stack trace resulting from non-nil error
 //  seems of limited use
-// todo-me review all (reconcile.Result, error) returns - most should only return error
 func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	emptyResult := reconcile.Result{}
+
+	// todo-me logging consistency
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Nuxeo")
 
@@ -147,7 +157,7 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Nuxeo resource not found. Ignoring since object must be deleted")
-			return reconcile.Result{}, nil
+			return emptyResult, nil
 		}
 		reqLogger.Error(err, "Failed to get Nuxeo")
 		return reconcile.Result{Requeue: true}, err
@@ -155,41 +165,44 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	// only configure service/ingress/route for the interactive NodeSet
 	var interactiveNodeSet v1alpha1.NodeSet
 	if interactiveNodeSet, err = getInteractiveNodeSet(instance.Spec.NodeSets, reqLogger); err != nil {
-		return reconcile.Result{}, err
+		return emptyResult, err
 	}
-	if _, err = reconcileService(r, instance.Spec.Service, interactiveNodeSet, instance, reqLogger); err != nil {
-		return reconcile.Result{}, err
+	if err = reconcileService(r, instance.Spec.Service, interactiveNodeSet, instance, reqLogger); err != nil {
+		return emptyResult, err
 	}
-	if _, err = reconcileAccess(r, instance.Spec.Access, interactiveNodeSet, instance, reqLogger); err != nil {
-		return reconcile.Result{}, err
+	if err = reconcileAccess(r, instance.Spec.Access, interactiveNodeSet, instance, reqLogger); err != nil {
+		return emptyResult, err
 	}
-	if _, err = reconcileServiceAccount(r, instance, reqLogger); err != nil {
-		return reconcile.Result{}, err
+	if err = reconcileServiceAccount(r, instance, reqLogger); err != nil {
+		return emptyResult, err
 	}
-	if _, err = reconcilePvc(r, instance); err != nil {
-		return reconcile.Result{}, err
+	if err = reconcilePvc(r, instance); err != nil {
+		return emptyResult, err
 	}
 	if err = reconcileClid(r, instance, reqLogger); err != nil {
-		return reconcile.Result{}, err
+		return emptyResult, err
 	}
-	if result, err := r.reconcileNodeSets(instance, reqLogger); err != nil {
-		return reconcile.Result{}, err
-	} else if result == (reconcile.Result{Requeue: true}) {
-		return result, nil
+	if requeue, err := r.reconcileNodeSets(instance, reqLogger); err != nil {
+		return emptyResult, err
+	} else if requeue {
+		return reconcile.Result{Requeue: true}, nil
 	}
-	return updateNuxeoStatus(r, instance, reqLogger)
+	if err := updateNuxeoStatus(r, instance, reqLogger); err != nil {
+		return emptyResult, err
+	}
+	return emptyResult, nil
 }
 
 // Reconcile each NodeSet to a Deployment
-func (r *ReconcileNuxeo) reconcileNodeSets(instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (reconcile.Result, error) {
+func (r *ReconcileNuxeo) reconcileNodeSets(instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (bool, error) {
 	for _, nodeSet := range instance.Spec.NodeSets {
-		if result, err := reconcileNodeSet(r, nodeSet, instance, instance.Spec.RevProxy, reqLogger); err != nil {
-			return result, err
-		} else if result == (reconcile.Result{Requeue: true}) {
-			return result, nil
+		if requeue, err := reconcileNodeSet(r, nodeSet, instance, instance.Spec.RevProxy, reqLogger); err != nil {
+			return requeue, err
+		} else if requeue {
+			return requeue, nil
 		}
 	}
-	return reconcile.Result{}, nil
+	return false, nil
 }
 
 // returns the interactive NodeSet from the passed array, or non-nil error if a) there is no interactive NodeSet

@@ -3,7 +3,6 @@ package nuxeo
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -11,24 +10,7 @@ import (
 )
 
 // Tests the addVolumeAndItems function
-func (suite *mergeUtilSuite) TestVolumeMerge() {
-	vol := corev1.Volume{
-		Name: suite.volName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: suite.secretName,
-				Items: []corev1.KeyToPath{{
-					Key:  "X",
-					Path: "Y",
-				}},
-			},
-		},
-	}
-	dep := genTestDeploymentForMergeUtilSuite(suite.volName, suite.secretName)
-	err := addVolumeAndItems(&dep, vol)
-	require.Nil(suite.T(), err, "addVolumeAndItems failed")
-	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes), "Incorrect volume configuration\n")
-	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Volumes[0].Secret.Items), "Incorrect volume item configuration\n")
+func (suite *mergeUtilSuite) TestTodo() {
 }
 
 // mergeUtilSuite is the MergeUtil test suite structure

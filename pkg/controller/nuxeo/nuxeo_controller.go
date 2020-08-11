@@ -148,7 +148,7 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	emptyResult := reconcile.Result{}
 
 	// todo-me logging consistency
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := log.WithValues("Namespace", request.Namespace, "Nuxeo", request.Name)
 	reqLogger.Info("Reconciling Nuxeo")
 
 	// Get the Nuxeo CR from the request namespace

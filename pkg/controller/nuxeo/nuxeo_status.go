@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,20 +18,18 @@ func updateNuxeoStatus(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, reqLogger logr.Lo
 		client.InNamespace(nux.Namespace),
 	}
 	availableNodes := int32(0)
-	if err := r.client.List(context.TODO(), &deployments, opts...); err == nil {
+	if err := r.client.List(context.TODO(), &deployments, opts...); err != nil {
+		return errors.Wrap(err, "Failed to list deployments for Nuxeo")
+	} else {
 		for _, dep := range deployments.Items {
 			if nux.IsOwner(dep.ObjectMeta) {
 				availableNodes += dep.Status.AvailableReplicas
 			}
 		}
 		nux.Status.AvailableNodes = availableNodes
-	} else {
-		reqLogger.Error(err, "Failed to list deployments for Nuxeo", "Namespace", nux.Namespace, "Name", nux.Name)
-		return err
 	}
 	if err := r.client.Status().Update(context.TODO(), nux); err != nil {
-		reqLogger.Error(err, "Failed to update Nuxeo status", "Namespace", nux.Namespace, "Name", nux.Name)
-		return err
+		return errors.Wrap(err, "Failed to update Nuxeo status")
 	}
 	return nil
 }

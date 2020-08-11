@@ -13,8 +13,8 @@ func initUnitTestReconcile() ReconcileNuxeo {
 	objs := []runtime.Object{&v1alpha1.Nuxeo{}}
 	s := scheme.Scheme
 	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.Nuxeo{})
-	// required for the route tests
 	_  = registerOpenShiftRoute()
+	_ = registerKubernetesIngress()
 	cl := fake.NewFakeClientWithScheme(s, objs...)
 	return ReconcileNuxeo{
 		client: cl,

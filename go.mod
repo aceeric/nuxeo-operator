@@ -9,6 +9,7 @@ require (
 	github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87
 	github.com/operator-framework/operator-sdk v0.17.1
 	github.com/pavel-v-chernykh/keystore-go v2.1.0+incompatible
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1

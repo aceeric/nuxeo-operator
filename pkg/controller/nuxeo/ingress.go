@@ -1,15 +1,12 @@
 package nuxeo
 
 import (
-	"context"
 	goerrors "errors"
 
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 	"nuxeo-operator/pkg/util"
@@ -19,31 +16,17 @@ import (
 // reconcileIngress configures access to the Nuxeo cluster via a Kubernetes Ingress
 func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
-	found := &v1beta1.Ingress{}
 	ingressName := ingressName(instance, nodeSet)
-	expected, err := r.defaultIngress(instance, access, forcePassthrough, ingressName, nodeSet)
-	if err != nil {
-		return err
-	}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ingressName, Namespace: instance.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Ingress", "Namespace", expected.Namespace, "Name", expected.Name)
-		err = r.client.Create(context.TODO(), expected)
-		if err != nil {
-			reqLogger.Error(err, "Failed to create new Ingress", "Namespace", expected.Namespace, "Name", expected.Name)
+	if access != (v1alpha1.NuxeoAccess{}) {
+		if expected, err := r.defaultIngress(instance, access, forcePassthrough, ingressName, nodeSet); err != nil {
+			return err
+		} else {
+			_, err = addOrUpdate(r, ingressName, instance.Namespace, expected, &v1beta1.Ingress{}, util.IngressComparer, reqLogger)
 			return err
 		}
-		// Ingress created successfully
-		return nil
-	} else if err != nil {
-		reqLogger.Error(err, "Error attempting to get Ingress for Nuxeo cluster: "+ingressName)
-		return err
+	} else {
+		return removeIfPresent(r, instance, ingressName, instance.Namespace, &v1beta1.Ingress{}, reqLogger)
 	}
-	if !util.IngressComparer(expected, found) {
-		reqLogger.Info("Updating Ingress", "Namespace", expected.Namespace, "Name", expected.Name)
-		return r.client.Update(context.TODO(), found)
-	}
-	return nil
 }
 
 // defaultIngress generates and returns an Ingress struct from the passed params. If the passed 'access' struct

@@ -3,17 +3,18 @@ module nuxeo-operator
 go 1.14
 
 require (
-	github.com/fullstorydev/grpcurl v1.6.0 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.1.0
+	github.com/golang/protobuf v1.3.5 // indirect
 	github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87
 	github.com/operator-framework/operator-sdk v0.17.1
 	github.com/pavel-v-chernykh/keystore-go v2.1.0+incompatible
-	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	golang.org/x/tools v0.0.0-20200426102838-f3a5411a4c3b // indirect
+	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
 	k8s.io/api v0.17.4
+	k8s.io/apiextensions-apiserver v0.17.4
 	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6

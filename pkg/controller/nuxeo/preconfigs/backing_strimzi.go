@@ -7,7 +7,8 @@ import (
 
 // Returns a backing service struct configured to connect to Strimzi Kafka. The resource name in the
 // passed pre-config is the name of a 'kafka.strimzi.io' resource in the namespace.
-func StrimziBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBase string) (v1alpha1.BackingService, error) {
+func StrimziBacking(preCfg v1alpha1.PreconfiguredBackingService,
+	backingMountBase string) (v1alpha1.BackingService, error) {
 	opts, err := ParsePreconfigOpts(preCfg)
 	if err != nil {
 		return v1alpha1.BackingService{}, err
@@ -30,7 +31,8 @@ func StrimziBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBas
 			"kafka.security.protocol=SASL_SSL\n" +
 			"kafka.sasl.mechanism=SCRAM-SHA-512\n" +
 			"kafka.bootstrap.servers=" + preCfg.Resource + "-kafka-bootstrap:9093\n" +
-			"kafka.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + user + "\" password=\"${env:KAFKA_USER_PASS}\";\n"
+			"kafka.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" +
+			user + "\" password=\"${env:KAFKA_USER_PASS}\";\n"
 
 		res := []v1alpha1.BackingServiceResource{{
 			GroupVersionKind: metav1.GroupVersionKind{

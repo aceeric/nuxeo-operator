@@ -1,7 +1,7 @@
 package preconfigs
 
 import (
-	goerrors "errors"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,8 +21,8 @@ var opts = map[v1alpha1.PreconfigType]map[string][]string{
 	},
 	v1alpha1.Crunchy: {
 		"user": {}, // a secret containing keys 'username' and 'password'
-		"ca": {},   // a secret containing key 'ca.crt' for one-way tls
-		"tls": {},  // a secret containing keys 'tls.crt' and 'tls.key' for mutual tls
+		"ca":   {}, // a secret containing key 'ca.crt' for one-way tls
+		"tls":  {}, // a secret containing keys 'tls.crt' and 'tls.key' for mutual tls
 	},
 }
 
@@ -37,14 +37,14 @@ func preConfigOpts(typ v1alpha1.PreconfigType, crSetting map[string]string) (map
 	toReturn := map[string]string{}
 	known, ok := opts[typ]
 	if !ok {
-		return nil, goerrors.New(fmt.Sprintf("unknown pre-config type: '%v'", typ))
+		return nil, errors.New(fmt.Sprintf("unknown pre-config type: '%v'", typ))
 	}
 OUTER:
 	for k, v := range crSetting {
 		cfg := strings.ToLower(k)
 		thisSetting, ok := known[cfg]
 		if !ok {
-			return nil, goerrors.New(fmt.Sprintf("unknown setting: '%v'", cfg))
+			return nil, errors.New(fmt.Sprintf("unknown setting: '%v'", cfg))
 		}
 		if len(thisSetting) == 0 { // no validation - all values ok
 			toReturn[cfg] = v
@@ -56,7 +56,7 @@ OUTER:
 					continue OUTER
 				}
 			}
-			return nil, goerrors.New(fmt.Sprintf("unsupported setting value '%v' for '%v'", val, cfg))
+			return nil, errors.New(fmt.Sprintf("unsupported setting value '%v' for '%v'", val, cfg))
 		}
 	}
 	return validatePreConfig(typ, toReturn)
@@ -69,9 +69,9 @@ func validatePreConfig(typ v1alpha1.PreconfigType, opts map[string]string) (map[
 		auth, _ := opts["auth"]
 		user, _ := opts["user"]
 		if (auth == "anonymous" || auth == "") && user != "" {
-			return nil, goerrors.New("user not allowed for anonymous Strimzi auth")
+			return nil, errors.New("user not allowed for anonymous Strimzi auth")
 		} else if (auth != "anonymous" && auth != "") && user == "" {
-			return nil, goerrors.New("user required for Strimzi sasl or tls auth")
+			return nil, errors.New("user required for Strimzi sasl or tls auth")
 		}
 	case v1alpha1.ECK:
 		// no additional validations
@@ -81,12 +81,14 @@ func validatePreConfig(typ v1alpha1.PreconfigType, opts map[string]string) (map[
 		ca, _ := opts["ca"]
 		tls, _ := opts["tls"]
 		switch {
-		case user != "" && ca == "" && tls == "": fallthrough // user/pass auth no encrypt
-		case user != "" && ca != "" && tls == "": fallthrough // user/pass auth TLS encrypt
-		case user == "" && ca != "" && tls != "":             // mutual TLS
+		case user != "" && ca == "" && tls == "":
+			fallthrough // user/pass auth no encrypt
+		case user != "" && ca != "" && tls == "":
+			fallthrough // user/pass auth TLS encrypt
+		case user == "" && ca != "" && tls != "": // mutual TLS
 			return opts, nil
 		default:
-			return nil, goerrors.New("unsupported Crunchy authentication/encryption configuration")
+			return nil, errors.New("unsupported Crunchy authentication/encryption configuration")
 		}
 	}
 	return opts, nil

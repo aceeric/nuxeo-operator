@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
-	goerrors "errors"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -36,7 +36,7 @@ func (suite *certSuite) TestTrustStore() {
 			require.Equal(suite.T(), originalPemEncodedCert, pemFromStore, "cert didn't encode or decode correctly")
 			gotCert = true
 		default:
-			require.Fail(suite.T(),"Unexpected store entry")
+			require.Fail(suite.T(), "Unexpected store entry")
 		}
 	}
 	require.True(suite.T(), gotCert, "trust store missing cert")
@@ -67,7 +67,7 @@ func (suite *certSuite) TestKeyStore() {
 			require.Equal(suite.T(), originalPemEncodedCert, pemFromStore, "cert didn't encode or decode correctly")
 			gotCert = true
 		default:
-			require.Fail(suite.T(),"Unexpected store entry")
+			require.Fail(suite.T(), "Unexpected store entry")
 		}
 	}
 	require.True(suite.T(), gotCert && gotKey, "keystore missing cert and/or key")
@@ -162,9 +162,9 @@ func readStore(storeBytes []byte, password string) (keystore.KeyStore, error) {
 
 // PEM-encodes the passed certificate(s). Returns an error if the expected cert count doesn't
 // match the passed count.
-func certificatesToPEM(certs [] keystore.Certificate, cnt int) ([]byte, error) {
+func certificatesToPEM(certs []keystore.Certificate, cnt int) ([]byte, error) {
 	if len(certs) != cnt {
-		return nil, goerrors.New(fmt.Sprintf("actual cert count %v did not match expected %v", len(certs), cnt))
+		return nil, errors.New(fmt.Sprintf("actual cert count %v did not match expected %v", len(certs), cnt))
 	}
 	var pemBytes []byte
 	for _, cert := range certs {
@@ -176,7 +176,7 @@ func certificatesToPEM(certs [] keystore.Certificate, cnt int) ([]byte, error) {
 			pemBytes = append(pemBytes, b...)
 		}
 	}
-	return pemBytes,nil
+	return pemBytes, nil
 }
 
 // returns a byte array in PEM encoding of all the certs in the passed array
@@ -199,7 +199,7 @@ func trustedCertEntryToPEM(k *keystore.TrustedCertificateEntry, cnt int) ([]byte
 		return nil, err
 	} else {
 		if len(certs) != cnt {
-			return nil, goerrors.New(fmt.Sprintf("actual cert count %v did not match expected %v", len(certs), cnt))
+			return nil, errors.New(fmt.Sprintf("actual cert count %v did not match expected %v", len(certs), cnt))
 		}
 		return pemEncodeX509Certs(certs)
 	}
@@ -210,7 +210,7 @@ func privateKeyEntryToPEM(k *keystore.PrivateKeyEntry) ([]byte, error) {
 	if pk, err := x509.ParsePKCS1PrivateKey(k.PrivKey); err != nil {
 		return nil, err
 	} else if keyBytes := x509.MarshalPKCS1PrivateKey(pk); keyBytes == nil {
-		return nil, goerrors.New("x509.MarshalPKCS1PrivateKey failed")
+		return nil, errors.New("x509.MarshalPKCS1PrivateKey failed")
 	} else {
 		return pemEncode("RSA PRIVATE KEY", keyBytes)
 	}

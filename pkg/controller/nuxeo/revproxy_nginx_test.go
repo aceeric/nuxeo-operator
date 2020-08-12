@@ -1,7 +1,6 @@
 package nuxeo
 
 import (
-	_ "context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,7 +16,8 @@ import (
 func (suite *nginxRevProxySpecSuite) TestBasicNginxRevProxy() {
 	nux := suite.nginxRevProxySpecSuiteNewNuxeo()
 	dep := genTestDeploymentForNginxSuite()
-	configureNginx(&dep, nux.Spec.RevProxy.Nginx)
+	err := configureNginx(&dep, nux.Spec.RevProxy.Nginx)
+	require.Nil(suite.T(), err, "configureNginx failed")
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers), "Container not created")
 	nginx := dep.Spec.Template.Spec.Containers[1]
 	require.Equal(suite.T(), "nginx", nginx.Name, "Container name incorrect")
@@ -30,6 +30,31 @@ func (suite *nginxRevProxySpecSuite) TestBasicNginxRevProxy() {
 		}
 	}
 	require.Equal(suite.T(), 2, volCnt, "Deployment volumes incorrect")
+}
+
+// TestNginxRevProxyNoCM is the same as TestBasicNginxRevProxy except it does not specify a config map, causing
+// the operator to auto-generate one
+func (suite *nginxRevProxySpecSuite) TestNginxRevProxyNoCM() {
+	nux := suite.nginxRevProxySpecSuiteNewNuxeo()
+	nux.Spec.RevProxy.Nginx.ConfigMap = "" // cause the operator to auto-gen
+	dep := genTestDeploymentForNginxSuite()
+	nginxCmName, err := reconcileNginxCM(&suite.r, nux, nux.Spec.RevProxy.Nginx.ConfigMap)
+	require.Nil(suite.T(), err, "reconcileNginxCM failed")
+	nux.Spec.RevProxy.Nginx.ConfigMap = nginxCmName
+	err = configureNginx(&dep, nux.Spec.RevProxy.Nginx)
+	require.Nil(suite.T(), err, "configureNginx failed")
+	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers), "Container not created")
+	nginx := dep.Spec.Template.Spec.Containers[1]
+	require.Equal(suite.T(), "nginx", nginx.Name, "Container name incorrect")
+	autoGen := false
+	expCMName := defaultNginxCMName(nux.Name)
+	for _, vol := range dep.Spec.Template.Spec.Volumes {
+		if vol.Name == "nginx-conf" && vol.VolumeSource.ConfigMap.LocalObjectReference.Name == expCMName {
+			autoGen = true
+			break
+		}
+	}
+	require.True(suite.T(), autoGen, "Auto-gen ConfigMap failed")
 }
 
 // nginxRevProxySpecSuite is the NginxRevProxySpec test suite structure

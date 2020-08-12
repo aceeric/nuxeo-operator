@@ -79,8 +79,8 @@ func createVolumeMountForStorage(storageType v1alpha1.NuxeoStorage, volumeName s
 	return volMnt
 }
 
-// getMountPathForStorageType returns a Nuxeo-standard filesystem path for the passed storage type. E.g. 'NuxeoStorageBinaries'
-// go in /var/lib/nuxeo/binaries, etc.
+// getMountPathForStorageType returns a Nuxeo-standard filesystem path for the passed storage type. E.g.
+// 'NuxeoStorageBinaries' = /var/lib/nuxeo/binaries, etc.
 func getMountPathForStorageType(storageType v1alpha1.NuxeoStorage) string {
 	switch storageType {
 	case v1alpha1.NuxeoStorageBinaries:

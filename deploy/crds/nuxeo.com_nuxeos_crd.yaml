@@ -54,8 +54,7 @@ spec:
                     x-kubernetes-int-or-string: true
                   termination:
                     description: Specifies the TLS termination type. E.g. 'edge',
-                      'passthrough', etc. todo-me consider operator-defined (platform-agnostic)
-                      Type and associated constants rather than OpenShift
+                      'passthrough', etc.
                     type: string
                   tlsSecret:
                     description: 'Specifies the name of a secret with fields required
@@ -271,6 +270,17 @@ spec:
                                   - store
                                   - type
                                   type: object
+                                value:
+                                  description: Supports the ability to define environment
+                                    variable with values directly from upstream resources.
+                                    For example, an upstream resource (not a secret
+                                    or config map) might contain a port number that
+                                    is needed for backing service connectivity. By
+                                    setting this to true, the operator will define
+                                    an environment variable named by the Env field,
+                                    and set the value directly, rather then providing
+                                    the value from a secret/CM.
+                                  type: boolean
                               type: object
                             type: array
                           version:
@@ -6555,7 +6565,8 @@ spec:
                       configMap:
                         description: Defines a ConfigMap that contains an 'nginx.conf'
                           key, and a 'proxy.conf' key, each of which provide required
-                          configuration to the Nginx container
+                          configuration to the Nginx container. If not provided, then
+                          the operator will auto-generate a ConfigMap with defaults
                         type: string
                       image:
                         description: Specifies the Nginx image. If not provided, defaults
@@ -6577,7 +6588,6 @@ spec:
                           Nginx TLS connection.
                         type: string
                     required:
-                    - configMap
                     - secret
                     type: object
                 type: object

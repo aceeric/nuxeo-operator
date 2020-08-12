@@ -1,9 +1,6 @@
 package nuxeo
 
 import (
-	"bytes"
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"nuxeo-operator/pkg/util"
@@ -24,7 +21,7 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) (string, err
 		Name: "tls-keystore",
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: tlsSecret,
+				SecretName:  tlsSecret,
 				DefaultMode: util.Int32Ptr(420),
 				Items: []corev1.KeyToPath{{
 					Key:  "keystore.jks",
@@ -63,16 +60,7 @@ func configureNuxeoForTLS(dep *appsv1.Deployment, tlsSecret string) (string, err
 		Value: "https",
 	}
 	tlsConfig := "nuxeo.server.https.port=8443\n" +
-		"nuxeo.server.https.keystoreFile=/etc/secrets/tls-keystore/keystore.jks\n"  +
+		"nuxeo.server.https.keystoreFile=/etc/secrets/tls-keystore/keystore.jks\n" +
 		"nuxeo.server.https.keystorePass=${env:TLS_KEYSTORE_PASS}\n"
 	return tlsConfig, util.MergeOrAddEnvVar(nuxeoContainer, templatesEnv, ",")
-}
-
-// mapToStr takes map A:1,B:2 and returns string "A=1\nB=2\n"
-func mapToStr(cfg map[string]string, delim string) string {
-	b := new(bytes.Buffer)
-	for key, value := range cfg {
-		_, _ = fmt.Fprintf(b, "%s=%s%s", key, value, delim)
-	}
-	return b.String()
 }

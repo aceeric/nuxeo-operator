@@ -93,13 +93,6 @@ olm-generate:
 bundle-generate:
 	operator-sdk bundle create --generate-only --package nuxeo-operator --channels alpha --default-channel alpha
 
-# https://sdk.operatorframework.io/docs/olm-integration/olm-deployment/#operator-sdk-run-packagemanifests-command-overview
-# todo-me doesn't work: Error: unknown flag: --manifests-dir
-.PHONY : bundle-test
-bundle-test:
-	operator-sdk run packagemanifests --olm-namespace openshift-operator-lifecycle-manager --operator-namespace nuxeo\
-		--operator-version $(OPERATOR_VERSION) --manifests-dir deploy/olm-catalog/nuxeo-operator
-
 .PHONY : bundle-build
 bundle-build:
 	if ! grep OPERATOR_IMAGE\

@@ -1,7 +1,6 @@
 package nuxeo
 
 import (
-	_ "context"
 	"testing"
 
 	"github.com/stretchr/testify/require"

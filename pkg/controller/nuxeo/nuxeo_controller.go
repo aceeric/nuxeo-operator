@@ -2,14 +2,14 @@ package nuxeo
 
 import (
 	"context"
-	goerrors "errors"
+	"errors"
 
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/networking/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -56,7 +56,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			return err
 		}
 	} else if !clusterHasIngress(mgr) {
-		return goerrors.New("unable to determine cluster type")
+		return errors.New("unable to determine cluster type")
 	} else if err := registerKubernetesIngress(); err != nil {
 		return err
 	}
@@ -136,67 +136,63 @@ type ReconcileNuxeo struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	logger logr.Logger
 }
 
 // Reconcile is the main reconciler. It reads the state of the cluster for a Nuxeo object and may alter
 // cluster state based on the state of the Nuxeo object Spec. Note: The Controller will requeue the Request
 // to be processed again if the returned error is non-nil or Result.Requeue is true, otherwise upon
 // completion it will remove the work from the queue.
-// todo-me investigate whether/when to return non-nil err. Stack trace resulting from non-nil error
-//  seems of limited use
 func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	emptyResult := reconcile.Result{}
-
-	// todo-me logging consistency
-	reqLogger := log.WithValues("Namespace", request.Namespace, "Nuxeo", request.Name)
-	reqLogger.Info("Reconciling Nuxeo")
+	r.logger = log.WithValues("Namespace", request.Namespace, "Nuxeo", request.Name)
+	r.logger.Info("Reconciling Nuxeo")
 
 	// Get the Nuxeo CR from the request namespace
 	instance := &v1alpha1.Nuxeo{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Nuxeo resource not found. Ignoring since object must be deleted")
+		if apierrors.IsNotFound(err) {
+			r.logger.Info("Nuxeo resource not found. Ignoring since object must be deleted")
 			return emptyResult, nil
 		}
-		reqLogger.Error(err, "Failed to get Nuxeo")
 		return reconcile.Result{Requeue: true}, err
 	}
 	// only configure service/ingress/route for the interactive NodeSet
 	var interactiveNodeSet v1alpha1.NodeSet
-	if interactiveNodeSet, err = getInteractiveNodeSet(instance.Spec.NodeSets, reqLogger); err != nil {
+	if interactiveNodeSet, err = getInteractiveNodeSet(instance.Spec.NodeSets); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileService(r, instance.Spec.Service, interactiveNodeSet, instance, reqLogger); err != nil {
+	if err = reconcileService(r, instance.Spec.Service, interactiveNodeSet, instance); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileAccess(r, instance.Spec.Access, interactiveNodeSet, instance, reqLogger); err != nil {
+	if err = reconcileAccess(r, instance.Spec.Access, interactiveNodeSet, instance); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileServiceAccount(r, instance, reqLogger); err != nil {
+	if err = reconcileServiceAccount(r, instance); err != nil {
 		return emptyResult, err
 	}
 	if err = reconcilePvc(r, instance); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileClid(r, instance, reqLogger); err != nil {
+	if err = reconcileClid(r, instance); err != nil {
 		return emptyResult, err
 	}
-	if requeue, err := r.reconcileNodeSets(instance, reqLogger); err != nil {
+	if requeue, err := r.reconcileNodeSets(instance); err != nil {
 		return emptyResult, err
 	} else if requeue {
 		return reconcile.Result{Requeue: true}, nil
 	}
-	if err := updateNuxeoStatus(r, instance, reqLogger); err != nil {
+	if err := updateNuxeoStatus(r, instance); err != nil {
 		return emptyResult, err
 	}
 	return emptyResult, nil
 }
 
 // Reconcile each NodeSet to a Deployment
-func (r *ReconcileNuxeo) reconcileNodeSets(instance *v1alpha1.Nuxeo, reqLogger logr.Logger) (bool, error) {
+func (r *ReconcileNuxeo) reconcileNodeSets(instance *v1alpha1.Nuxeo) (bool, error) {
 	for _, nodeSet := range instance.Spec.NodeSets {
-		if requeue, err := reconcileNodeSet(r, nodeSet, instance, instance.Spec.RevProxy, reqLogger); err != nil {
+		if requeue, err := reconcileNodeSet(r, nodeSet, instance, instance.Spec.RevProxy); err != nil {
 			return requeue, err
 		} else if requeue {
 			return requeue, nil
@@ -207,14 +203,12 @@ func (r *ReconcileNuxeo) reconcileNodeSets(instance *v1alpha1.Nuxeo, reqLogger l
 
 // returns the interactive NodeSet from the passed array, or non-nil error if a) there is no interactive NodeSet
 // defined, or b) there is more than one interactive NodeSet defined
-func getInteractiveNodeSet(nodeSets []v1alpha1.NodeSet, reqLogger logr.Logger) (v1alpha1.NodeSet, error) {
+func getInteractiveNodeSet(nodeSets []v1alpha1.NodeSet) (v1alpha1.NodeSet, error) {
 	toReturn := v1alpha1.NodeSet{}
 	for _, nodeSet := range nodeSets {
 		if nodeSet.Interactive {
 			if toReturn.Name != "" {
-				err := goerrors.New("exactly one interactive NodeSet is required")
-				reqLogger.Error(err, "Invalid Nuxeo CR")
-				return toReturn, err
+				return toReturn, errors.New("exactly one interactive NodeSet is required in the Nuxeo CR")
 			}
 			toReturn = nodeSet
 		}

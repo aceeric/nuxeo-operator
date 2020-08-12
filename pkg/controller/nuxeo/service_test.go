@@ -16,7 +16,7 @@ import (
 // when a Service does not already exist
 func (suite *serviceSuite) TestBasicServiceCreation() {
 	nux := suite.serviceSuiteNewNuxeo()
-	err := reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
+	err := reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux)
 	require.Nil(suite.T(), err, "reconcileService failed")
 	found := &corev1.Service{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: serviceName(nux, nux.Spec.NodeSets[0]),
@@ -30,10 +30,10 @@ func (suite *serviceSuite) TestBasicServiceCreation() {
 // Service object was updated by the reconciler
 func (suite *serviceSuite) TestServiceTargetPortChanged() {
 	nux := suite.serviceSuiteNewNuxeo()
-	_ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux)
 	newTargetPort := nux.Spec.Service.TargetPort + 1000
 	nux.Spec.Service.TargetPort = newTargetPort
-	_ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux, log)
+	_ = reconcileService(&suite.r, nux.Spec.Service, nux.Spec.NodeSets[0], nux)
 	found := &corev1.Service{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: serviceName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)

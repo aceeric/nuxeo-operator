@@ -1,7 +1,6 @@
 package nuxeo
 
 import (
-	_ "context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -66,7 +65,7 @@ func (suite *nuxeoTLSSuite) SetupSuite() {
 	suite.deploymentName = "testclust"
 	suite.tlsSecret = "testsecret"
 	suite.nuxeoConf = "nuxeo.server.https.port=8443\n" +
-		"nuxeo.server.https.keystoreFile=/etc/secrets/tls-keystore/keystore.jks\n"  +
+		"nuxeo.server.https.keystoreFile=/etc/secrets/tls-keystore/keystore.jks\n" +
 		"nuxeo.server.https.keystorePass=${env:TLS_KEYSTORE_PASS}\n"
 }
 
@@ -89,7 +88,7 @@ func (suite *nuxeoTLSSuite) nuxeoTLSSuiteNewNuxeo() *v1alpha1.Nuxeo {
 				Name:     suite.deploymentName,
 				Replicas: 1,
 				NuxeoConfig: v1alpha1.NuxeoConfig{
-					TlsSecret:      suite.tlsSecret,
+					TlsSecret: suite.tlsSecret,
 				},
 			}},
 		},

@@ -1,7 +1,7 @@
 package nuxeo
 
 import (
-	goerrors "errors"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -13,13 +13,13 @@ import (
 
 const (
 	nuxeoConfVolumeName = "nuxeo-conf"
-	nuxeoConfName = "nuxeo.conf"
+	nuxeoConfName       = "nuxeo.conf"
 )
+
 // handleConfig examines the NuxeoConfig field of the passed NodeSet and configures the passed Deployment accordingly
 // by updating the Nuxeo container and Deployment. This injects configuration settings to support things like
 // Java Opts, nuxeo.conf, etc. See 'NuxeoConfig' in the NodeSet for more info.
-func handleConfig(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet,
-	jvmPkiSecret corev1.Secret) error {
+func handleConfig(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet, jvmPkiSecret corev1.Secret) error {
 	var nuxeoContainer *corev1.Container
 	var err error
 
@@ -121,7 +121,7 @@ func configureNuxeoEnvName(nuxeoContainer *corev1.Container, nodeSet v1alpha1.No
 // code that reconciles the actual ConfigMap resource. If the nodeSet.NuxeoConfig.NuxeoConf.ValueFrom
 // field is initialized then the volume and mount are still initialized here, but the volume source is
 // expected to have been provided by the configurer, external to the operator.
-func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet,
+func configureNuxeoConf(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet,
 	backingNuxeoConf string, tlsNuxeoConf string) error {
 	if !shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom == (corev1.VolumeSource{}) {
@@ -130,12 +130,12 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1a
 	}
 	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) {
-		return goerrors.New("external nuxeo.conf volume source clashes with operator-managed nuxeo.conf configuration")
+		return errors.New("external nuxeo.conf volume source clashes with operator-managed nuxeo.conf")
 	}
 	if nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom.ConfigMap == nil &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom.Secret == nil {
-		return goerrors.New("only ConfigMap and Secret volume sources are currently supported")
+		return errors.New("only ConfigMap and Secret volume sources are currently supported")
 	}
 	volMnt := corev1.VolumeMount{
 		Name:      nuxeoConfVolumeName,
@@ -144,7 +144,7 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1a
 		SubPath:   nuxeoConfName,
 	}
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
-		return  err
+		return err
 	} else if err := addVolMnt(nuxeoContainer, volMnt); err != nil {
 		return err
 	}
@@ -152,9 +152,9 @@ func configureNuxeoConf(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1a
 		Name: nuxeoConfVolumeName,
 	}
 	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) {
-		cmName := nuxeoConfCMName(nux, nodeSet.Name)
+		cmName := nuxeoConfCMName(instance, nodeSet.Name)
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
-			DefaultMode: util.Int32Ptr(420),
+			DefaultMode:          util.Int32Ptr(420),
 			LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
 			Items: []corev1.KeyToPath{{
 				Key:  nuxeoConfName,
@@ -229,7 +229,7 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: util.Int32Ptr(420),
-					SecretName: jvmPkiSecret.Name,
+					SecretName:  jvmPkiSecret.Name,
 				}},
 		}
 		if trustStoreName != "" {
@@ -252,8 +252,8 @@ func configureJvmPki(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, j
 }
 
 // Given "PKCS12" (or "pkcs12"), returns ".p12", else returns storeType in lower case prefixed with a period.
-// E.g. given "FOO", returns ".certificatesToPEM". Given "", returns "". Note that the file name of the store is irrelevant to
-// Java, but by convention, most folks would expect to see .p12 or .jks in the container.
+// E.g. given "FOO", returns ".certificatesToPEM". Given "", returns "". Note that the file name of the store
+// is irrelevant to Java, but by convention, most folks would expect to see .p12 or .jks in the container.
 func storeTypeToFileExtension(storeType string) string {
 	lower := strings.ToLower(storeType)
 	if lower == "pkcs12" {
@@ -267,10 +267,11 @@ func storeTypeToFileExtension(storeType string) string {
 // configureOfflinePackages creates a volume and volume mount for each marketplace package in the list of
 // offline packages. The results is that each ZIP file is projected into /docker-entrypoint-initnuxeo.d in the Nuxeo
 // container, causing Nuxeo to
-func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Container, nodeSet v1alpha1.NodeSet) error {
+func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Container,
+	nodeSet v1alpha1.NodeSet) error {
 	for i, pkg := range nodeSet.NuxeoConfig.OfflinePackages {
 		if pkg.ValueFrom.ConfigMap == nil && pkg.ValueFrom.Secret == nil {
-			return goerrors.New("only ConfigMaps and Secrets are currently supported for offline packages")
+			return errors.New("only ConfigMaps and Secrets are currently supported for offline packages")
 		}
 		mntName := "offline-package-" + strconv.Itoa(i)
 		volMnt := corev1.VolumeMount{
@@ -288,7 +289,7 @@ func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Con
 		if pkg.ValueFrom.ConfigMap != nil {
 			vol.ConfigMap = &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: pkg.ValueFrom.ConfigMap.Name},
-				DefaultMode: util.Int32Ptr(420),
+				DefaultMode:          util.Int32Ptr(420),
 				Items: []corev1.KeyToPath{{
 					Key:  pkg.PackageName,
 					Path: pkg.PackageName,
@@ -296,7 +297,7 @@ func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Con
 			}
 		} else {
 			vol.Secret = &corev1.SecretVolumeSource{
-				SecretName: pkg.ValueFrom.Secret.SecretName,
+				SecretName:  pkg.ValueFrom.Secret.SecretName,
 				DefaultMode: util.Int32Ptr(420),
 				Items: []corev1.KeyToPath{{
 					Key:  pkg.PackageName,

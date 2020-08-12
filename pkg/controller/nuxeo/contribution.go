@@ -2,7 +2,7 @@ package nuxeo
 
 import (
 	"context"
-	goerrors "errors"
+	"errors"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,7 +16,7 @@ import (
 // like Secrets, ConfigMaps, and other Volume Sources. These are added to the NUXEO_TEMPLATES environment variable
 // in the Deployment descriptor. As a result. when Nuxeo starts, these contributions will be merged into the
 // nuxeo properties and the contributions will go into /opt/nuxeo/server/nxserver/config when Nuxeo starts.
-func configureContributions(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
+func configureContributions(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
 	var err error
 	var nuxeoContainer *corev1.Container
 	if len(nodeSet.Contributions) == 0 {
@@ -27,7 +27,7 @@ func configureContributions(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, dep *appsv1.
 	for _, contrib := range nodeSet.Contributions {
 		if contrib.VolumeSource.ConfigMap != nil || contrib.VolumeSource.Secret != nil {
 			if len(contrib.Templates) != 1 {
-				return goerrors.New("ConfigMap/Secret contributions can only supply one template name")
+				return errors.New("ConfigMap/Secret contributions can only supply one template name")
 			}
 			cfgMapSecretCnt += 1
 		} else {
@@ -35,9 +35,9 @@ func configureContributions(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, dep *appsv1.
 		}
 	}
 	if cfgMapSecretCnt != 0 && nonCfgMapSecretCnt != 0 {
-		return goerrors.New("cannot define both ConfigMap/Secret contributions and non-ConfigMap/Secret contributions")
+		return errors.New("cannot define both ConfigMap/Secret contributions and non-ConfigMap/Secret contributions")
 	} else if nonCfgMapSecretCnt > 1 {
-		return goerrors.New("only one non-ConfigMap/Secret contribution is supported")
+		return errors.New("only one non-ConfigMap/Secret contribution is supported")
 	}
 	if nuxeoContainer, err = util.GetNuxeoContainer(dep); err != nil {
 		return err
@@ -46,9 +46,9 @@ func configureContributions(r *ReconcileNuxeo, nux *v1alpha1.Nuxeo, dep *appsv1.
 	for _, contrib := range nodeSet.Contributions {
 		templates = append(templates, contrib.Templates...)
 		if contrib.VolumeSource.ConfigMap != nil {
-			err = configureCmContrib(r, dep, nux.Namespace, nuxeoContainer, contrib.Templates[0], contrib.VolumeSource.ConfigMap.Name)
+			err = configureCmContrib(r, dep, instance.Namespace, nuxeoContainer, contrib.Templates[0], contrib.VolumeSource.ConfigMap.Name)
 		} else if contrib.VolumeSource.Secret != nil {
-			err = configureSecretContrib(r, dep, nux.Namespace, nuxeoContainer, contrib.Templates[0], contrib.VolumeSource.Secret.SecretName)
+			err = configureSecretContrib(r, dep, instance.Namespace, nuxeoContainer, contrib.Templates[0], contrib.VolumeSource.Secret.SecretName)
 		} else {
 			// only one of these is supported for now
 			err = configureVolDeployment(dep, contrib.VolumeSource, nuxeoContainer)
@@ -115,7 +115,7 @@ func configureVolDeployment(dep *appsv1.Deployment, volSrc corev1.VolumeSource, 
 		return err
 	}
 	vol := corev1.Volume{
-		Name: "nuxeo-operator-config",
+		Name:         "nuxeo-operator-config",
 		VolumeSource: volSrc,
 	}
 	return util.OnlyAddVol(dep, vol)
@@ -138,17 +138,17 @@ func configureDeployment(dep *appsv1.Deployment, typ interface{}, nuxeoContainer
 	if _, ok := typ.(*corev1.ConfigMap); ok {
 		vol.ConfigMap = &corev1.ConfigMapVolumeSource{
 			LocalObjectReference: corev1.LocalObjectReference{Name: volSrc},
-			DefaultMode: util.Int32Ptr(420),
+			DefaultMode:          util.Int32Ptr(420),
 		}
 		mapKeysToItems(keys, &vol.ConfigMap.Items)
 	} else if _, ok := typ.(*corev1.Secret); ok {
 		vol.Secret = &corev1.SecretVolumeSource{
-			SecretName: volSrc,
+			SecretName:  volSrc,
 			DefaultMode: util.Int32Ptr(420),
 		}
 		mapKeysToItems(keys, &vol.Secret.Items)
 	} else {
-		return goerrors.New("configureDeployment only valid for ConfigMap and Secret volume sources")
+		return errors.New("configureDeployment only valid for ConfigMap and Secret volume sources")
 	}
 	return util.OnlyAddVol(dep, vol)
 }

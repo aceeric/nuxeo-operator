@@ -23,7 +23,7 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	nux := suite.nuxeoConfigSuiteNewNuxeo()
 	dep := genTestDeploymentForConfigSuite()
 	sec := genTestJvmPkiSecret()
-	err := handleConfig(nux, &dep, nux.Spec.NodeSets[0], sec)
+	err := handleConfig(&dep, nux.Spec.NodeSets[0], sec)
 	require.Nil(suite.T(), err, "handleConfig failed")
 	validActualEnvCnt := 0
 	for _, env := range dep.Spec.Template.Spec.Containers[0].Env {

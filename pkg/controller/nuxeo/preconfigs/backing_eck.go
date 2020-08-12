@@ -56,7 +56,7 @@ func EckBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBase st
 			Name: preCfg.Resource + "-es-elastic-user",
 			Projections: []v1alpha1.ResourceProjection{{
 				From: "elastic",
-				Env: "ELASTIC_PASSWORD",
+				Env:  "ELASTIC_PASSWORD",
 			}},
 		}
 		bsvc.NuxeoConf += "elasticsearch.restClient.username=elastic\n"
@@ -71,10 +71,10 @@ func EckBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBase st
 			Name: user,
 			Projections: []v1alpha1.ResourceProjection{{
 				From: "user",
-				Env: "ELASTIC_USER",
-			},{
+				Env:  "ELASTIC_USER",
+			}, {
 				From: "password",
-				Env: "ELASTIC_PASSWORD",
+				Env:  "ELASTIC_PASSWORD",
 			}},
 		}
 		bsvc.NuxeoConf += "elasticsearch.restClient.username=${env:ELASTIC_USER}\n"

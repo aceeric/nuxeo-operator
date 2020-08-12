@@ -17,7 +17,7 @@ import (
 // created that contains the matching nuxeo.conf content.
 func (suite *nuxeoConfSuite) TestBasicInlineNuxeoConf() {
 	nux := suite.nuxeoConfSuiteNewNuxeo()
-	err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", "", log)
+	err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", "")
 	require.Nil(suite.T(), err, "reconcileNuxeoConf failed")
 	found := &corev1.ConfigMap{}
 	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)
@@ -38,13 +38,26 @@ func (suite *nuxeoConfSuite) TestJoinCompact() {
 	s6 := "goodnight!\n\n\n\n"
 	act := joinCompact("\n", s0, s1, s2, s3, s4, s5, s6)
 	exp := "Good morning,\nand in case I don't see ya,\nGood afternoon,\ngood evening,\nand\ngoodnight!\n"
-	require.Equal(suite.T(), exp, act,"joinCompact Failed")
+	require.Equal(suite.T(), exp, act, "joinCompact Failed")
 }
 
+// TestExternalNuxeoConf tests when an external source for nuxeo conf is defined by the configurer and another
+// Nuxeo CR setting is configured that requires the operator to own nuxeo.conf - these are incompatible together
 func (suite *nuxeoConfSuite) TestExternalNuxeoConf() {
-	// todo-me test when a nuxeo conf ConfigMap is defined by the configurer and so the operator should not reconcile
-	//  but other settings (backing services and clustering) require the Operator to be able to take ownership
-	//  of the nuxeo.conf ConfigMap
+	nux := suite.nuxeoConfSuiteNewNuxeo()
+	// this indicates that the operator should own a nuxeo.conf ConfigMap
+	nux.Spec.NodeSets[0].ClusterEnabled = true
+	// this indicates that the configurer is mounting an externally provisioned nuxeo.conf source (in this
+	// case a dummy empty dir) which is in conflict with operator-managed nuxeo.conf above
+	nux.Spec.NodeSets[0].NuxeoConfig.NuxeoConf = v1alpha1.NuxeoConfigSetting{
+		ValueFrom: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				Medium: corev1.StorageMediumDefault,
+			},
+		},
+	}
+	err := configureNuxeoConf(nux, nil, nux.Spec.NodeSets[0], "", "")
+	require.NotNil(suite.T(), err, "nuxeo.conf conflict not detected")
 }
 
 // nuxeoConfSuite is the NuxeoConf test suite structure

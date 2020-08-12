@@ -188,14 +188,16 @@ type NuxeoAccess struct {
 	// +kubebuilder:validation:Optional
 	// Specifies the TLS termination type. E.g. 'edge', 'passthrough', etc.
 	// +optional
-	// todo-me consider operator-defined (platform-agnostic) Type and associated constants rather than OpenShift
 	Termination routev1.TLSTerminationType `json:"termination,omitempty"`
 }
 
 // NginxRevProxySpec defines the configuration elements needed to configure the Nginx reverse proxy.
 type NginxRevProxySpec struct {
+	// +kubebuilder:validation:Optional
 	// Defines a ConfigMap that contains an 'nginx.conf' key, and a 'proxy.conf' key, each of which provide required
-	// configuration to the Nginx container
+	// configuration to the Nginx container. If not provided, then the operator will auto-generate a ConfigMap with
+	// defaults
+	// +optional
 	ConfigMap string `json:"configMap"`
 
 	// References a secret containing keys 'tls.key', 'tls.cert', and 'dhparam' which are used to terminate
@@ -402,7 +404,13 @@ type ResourceProjection struct {
 	// +optional
 	Env string `json:"env"`
 
-	// todo-me mount as value to support getting port/service from crunchy cluster and mounting as env/value
+	// +kubebuilder:validation:Optional
+	// Supports the ability to define environment variable with values directly from upstream resources. For
+	// example, an upstream resource (not a secret or config map) might contain a port number that is needed
+	// for backing service connectivity. By setting this to true, the operator will define an environment variable
+	// named by the Env field, and set the value directly, rather then providing the value from a secret/CM.
+	// +optional
+	Value bool `json:"value"`
 
 	// +kubebuilder:validation:Optional
 	// If the backing service resource can be used without transformation, and the desire is to mount it as a file,
@@ -430,7 +438,6 @@ const (
 	Strimzi PreconfigType = "Strimzi"
 	// Crunchy Postgres
 	Crunchy PreconfigType = "Crunchy"
-	// todo-me some other Postgres variant, Mongo, and Redis
 )
 
 type PreconfiguredBackingService struct {

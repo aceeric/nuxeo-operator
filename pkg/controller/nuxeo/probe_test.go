@@ -19,15 +19,22 @@ func (suite *probeSuite) TestProbes() {
 	dep := genTestDeploymentForProbeSuite()
 	err := addProbes(&dep, nux.Spec.NodeSets[0], false)
 	require.Nil(suite.T(), err, "addProbes failed")
-	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].LivenessProbe, defaultProbe(false),
+	require.Equal(suite.T(), defaultProbe(false), dep.Spec.Template.Spec.Containers[0].LivenessProbe,
 		"No explicit LivenessProbe was defined so a default should have been generated - but it was not. Or, it was generated incorrectly")
 	// explicit probe - should match
-	require.Equal(suite.T(), dep.Spec.Template.Spec.Containers[0].ReadinessProbe, nux.Spec.NodeSets[0].ReadinessProbe,
+	require.Equal(suite.T(), nux.Spec.NodeSets[0].ReadinessProbe, dep.Spec.Template.Spec.Containers[0].ReadinessProbe,
 		"Explicit ReadinessProbe was defined. Actual ReadinessProbe should have been identical but was not")
 }
 
 func (suite *probeSuite) TestProbesHttps() {
-	// todo-me test with useHttp=true
+	nux := suite.probeSuiteNewNuxeo()
+	dep := genTestDeploymentForProbeSuite()
+	err := addProbes(&dep, nux.Spec.NodeSets[0], true)
+	require.Nil(suite.T(), err, "addProbes failed")
+	require.Equal(suite.T(), int32(8443), dep.Spec.Template.Spec.Containers[0].LivenessProbe.Handler.HTTPGet.Port.IntVal,
+		"Probe not configured for HTTPS")
+	require.Equal(suite.T(), corev1.URISchemeHTTPS, dep.Spec.Template.Spec.Containers[0].LivenessProbe.Handler.HTTPGet.Scheme,
+		"Probe not configured for HTTPS")
 }
 
 // probeSuite is the Probe test suite structure

@@ -12,8 +12,8 @@ import (
 // Tests that valid options for Strimzi can be parsed
 func (suite *backingOptSuite) TestBackingOptsGood() {
 	goodOpts := map[string]string{
-		"auth":       "Scram-SHa-512",
-		"user":       "FOO",
+		"auth": "Scram-SHa-512",
+		"user": "FOO",
 	}
 	pbs := v1alpha1.PreconfiguredBackingService{
 		Type:     v1alpha1.Strimzi,
@@ -39,8 +39,8 @@ func (suite *backingOptSuite) TestBackingOptsUnknownType() {
 // Tests that an invalid value for a known setting is rejected
 func (suite *backingOptSuite) TestBackingOptsBad() {
 	goodOpts := map[string]string{
-		"auth":       "this is not valid",
-		"user":       "FOO",
+		"auth": "this is not valid",
+		"user": "FOO",
 	}
 	pbs := v1alpha1.PreconfiguredBackingService{
 		Type:     v1alpha1.Strimzi,
@@ -53,9 +53,9 @@ func (suite *backingOptSuite) TestBackingOptsBad() {
 // Tests that an unknown setting is rejected
 func (suite *backingOptSuite) TestBackingOptsUnknownSetting() {
 	goodOpts := map[string]string{
-		"auth":       "anonymous",
-		"user":       "FOO",
-		"invalid":    "",
+		"auth":    "anonymous",
+		"user":    "FOO",
+		"invalid": "",
 	}
 	pbs := v1alpha1.PreconfiguredBackingService{
 		Type:     v1alpha1.Strimzi,

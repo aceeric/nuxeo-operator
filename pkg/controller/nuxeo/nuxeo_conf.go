@@ -3,7 +3,6 @@ package nuxeo
 import (
 	"strings"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
@@ -20,16 +19,16 @@ import (
 // then the function makes sure a ConfigMap does not exist in the cluster. The ConfigMap is given a hard-coded
 // name: nuxeo cluster name + "-" + node set name + "-nuxeo-conf". E.g.: 'my-nuxeo-cluster-nuxeo-conf'.
 func reconcileNuxeoConf(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet, backingNuxeoConf string,
-	tlsNuxeoConf string, reqLogger logr.Logger) error {
-	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf){
+	tlsNuxeoConf string) error {
+	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) {
 		expected := r.defaultNuxeoConfCM(instance, nodeSet.Name, nodeSet.NuxeoConfig.NuxeoConf.Value,
 			nodeSet.ClusterEnabled, backingNuxeoConf, tlsNuxeoConf)
 		_, err := addOrUpdate(r, expected.Name, instance.Namespace, expected, &corev1.ConfigMap{},
-			util.ConfigMapComparer, reqLogger)
+			util.ConfigMapComparer)
 		return err
 	} else {
 		cmName := nuxeoConfCMName(instance, nodeSet.Name)
-		return removeIfPresent(r, instance, cmName, instance.Namespace, &corev1.ConfigMap{}, reqLogger)
+		return removeIfPresent(r, instance, cmName, instance.Namespace, &corev1.ConfigMap{})
 	}
 }
 
@@ -42,9 +41,9 @@ func shouldReconNuxeoConf(nodeSet v1alpha1.NodeSet, backingNuxeoConf string, tls
 // defaultNuxeoConfCM generates a ConfigMap struct in a standard internally-defined form to hold the passed
 // inline nuxeo conf string data, and/or clustering config settings. The generated struct is configured to be
 // owned by the passed 'nux'. A ref to the generated struct is returned.
-func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName string,
+func (r *ReconcileNuxeo) defaultNuxeoConfCM(instance *v1alpha1.Nuxeo, nodeSetName string,
 	inlineNuxeoConf string, clusterEnabled bool, bindingNuxeoConf string, tlsNuxeoConf string) *corev1.ConfigMap {
-	cmName := nuxeoConfCMName(nux, nodeSetName)
+	cmName := nuxeoConfCMName(instance, nodeSetName)
 	clusterNuxeoConf := ""
 	if clusterEnabled {
 		// configureClustering() creates POD_UID. configureClustering will also ensure that a binary
@@ -52,29 +51,29 @@ func (r *ReconcileNuxeo) defaultNuxeoConfCM(nux *v1alpha1.Nuxeo, nodeSetName str
 		// See storage.go
 		clusterNuxeoConf =
 			"repository.binary.store=${env:NUXEO_BINARY_STORE}\n" +
-			"nuxeo.cluster.enabled=true\n" +
-			"nuxeo.cluster.nodeid=${env:POD_UID}\n"
+				"nuxeo.cluster.enabled=true\n" +
+				"nuxeo.cluster.nodeid=${env:POD_UID}\n"
 	}
 	allNuxeoConf := joinCompact("\n", inlineNuxeoConf, clusterNuxeoConf, bindingNuxeoConf, tlsNuxeoConf)
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
-			Namespace: nux.Namespace,
+			Namespace: instance.Namespace,
 		},
 		Data: map[string]string{"nuxeo.conf": allNuxeoConf},
 	}
-	_ = controllerutil.SetControllerReference(nux, cm, r.scheme)
+	_ = controllerutil.SetControllerReference(instance, cm, r.scheme)
 	return cm
 }
 
 // standardizes the generation of name for the operator-managed nuxeo.conf ConfigMap
-func nuxeoConfCMName(nux *v1alpha1.Nuxeo, nodeSetName string) string {
-	return nux.Name + "-" + nodeSetName + "-nuxeo-conf"
+func nuxeoConfCMName(instance *v1alpha1.Nuxeo, nodeSetName string) string {
+	return instance.Name + "-" + nodeSetName + "-nuxeo-conf"
 }
 
 // Joins together strings like Go strings.Join, but removes leading and trailing whitespace (including
 // newlines) from individual components to remove interior whitespace, providing a tidier representation.
-func joinCompact(separator string, items ...string) string{
+func joinCompact(separator string, items ...string) string {
 	ret := ""
 	for _, str := range items {
 		if s := strings.TrimSpace(str); len(s) != 0 {

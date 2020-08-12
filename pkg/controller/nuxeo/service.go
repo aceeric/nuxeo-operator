@@ -1,10 +1,9 @@
 package nuxeo
 
 import (
-	goerrors "errors"
+	"errors"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -19,13 +18,13 @@ import (
 // Otherwise, the fall-through case is that a Service exists that matches the ServiceSpec and so in this
 // case - cluster state is not modified.
 func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alpha1.NodeSet,
-	instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
+	instance *v1alpha1.Nuxeo) error {
 	svcName := serviceName(instance, nodeSet)
 	expected, err := r.defaultService(instance, svc, svcName)
 	if err != nil {
 		return err
 	}
-	_, err = addOrUpdate(r, svcName, instance.Namespace, expected, &corev1.Service{}, util.ServiceComparer, reqLogger)
+	_, err = addOrUpdate(r, svcName, instance.Namespace, expected, &corev1.Service{}, util.ServiceComparer)
 	return err
 }
 
@@ -35,22 +34,23 @@ func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alp
 //    kind: Service
 //  metadata:
 //    name: <from the svcName arg>
-//    namespace: <nux.ObjectMeta.Namespace>
+//    namespace: <instance.ObjectMeta.Namespace>
 //  spec:
 //    type: ClusterIP
 //    selector:
 //      app: "nuxeo",
-//		nuxeoCr: <nux.ObjectMeta.Name>,
+//		nuxeoCr: <instance.ObjectMeta.Name>,
 //      interactive: "true"
 //    ports:
 //      - name: web
 //        port: 80 (or 443)
 //        targetPort: 8080 (or 8443)
-func (r *ReconcileNuxeo) defaultService(nux *v1alpha1.Nuxeo, svc v1alpha1.ServiceSpec, svcName string) (*corev1.Service, error) {
+func (r *ReconcileNuxeo) defaultService(instance *v1alpha1.Nuxeo, svc v1alpha1.ServiceSpec,
+	svcName string) (*corev1.Service, error) {
 	var svcType = corev1.ServiceTypeClusterIP
 	var port int32 = 80
 	var targetPort int32 = 8080
-	if nux.Spec.RevProxy != (v1alpha1.RevProxySpec{}) {
+	if instance.Spec.RevProxy != (v1alpha1.RevProxySpec{}) {
 		port = 443
 		targetPort = 8443
 	}
@@ -64,7 +64,7 @@ func (r *ReconcileNuxeo) defaultService(nux *v1alpha1.Nuxeo, svc v1alpha1.Servic
 		s := corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      svcName,
-				Namespace: nux.Namespace,
+				Namespace: instance.Namespace,
 			},
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{{
@@ -76,24 +76,24 @@ func (r *ReconcileNuxeo) defaultService(nux *v1alpha1.Nuxeo, svc v1alpha1.Servic
 						IntVal: targetPort,
 					},
 				}},
-				Selector: labelsForNuxeo(nux, true),
+				Selector: labelsForNuxeo(instance, true),
 				Type:     corev1.ServiceTypeClusterIP,
 			},
 		}
-		_ = controllerutil.SetControllerReference(nux, &s, r.scheme)
+		_ = controllerutil.SetControllerReference(instance, &s, r.scheme)
 		return &s, nil
 	case "NodePort":
 		fallthrough
 	case "LoadBalancer":
 		fallthrough
 	default:
-		return nil, goerrors.New(fmt.Sprintf("Unsupported Service Type: %v", svcType))
+		return nil, errors.New(fmt.Sprintf("Unsupported Service Type: %v", svcType))
 	}
 }
 
 // serviceName generates a service name from the passed Nuxeo CR, and the passed NodeSet. The generated
 // name consists of the passed Nuxeo CR name + dash + the passed 'nodeSet' name + dash + 'service'. E.g. if
-// 'nux.Name' is 'my-nuxeo' and 'nodeSet.Name' is 'cluster' then the function returns 'my-nuxeo-cluster-service'.
-func serviceName(nux *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet) string {
-	return nux.Name + "-" + nodeSet.Name + "-service"
+// 'instance.Name' is 'my-nuxeo' and 'nodeSet.Name' is 'cluster' then the function returns 'my-nuxeo-cluster-service'.
+func serviceName(instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet) string {
+	return instance.Name + "-" + nodeSet.Name + "-service"
 }

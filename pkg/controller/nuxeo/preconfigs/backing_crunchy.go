@@ -5,11 +5,9 @@ import (
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
 )
 
-// Generates a backing service struct for integrating with Crunchy Postgres. Presently some connection
-// params are hard-coded.
-// todo-me implement projection of values from PgCluster resource into the container
-//  as environment variables with static values (e.g. host, service) since these are not sensitive
-func CrunchyBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBase string) (v1alpha1.BackingService, error) {
+// Generates a backing service struct for integrating with Crunchy Postgres.
+func CrunchyBacking(preCfg v1alpha1.PreconfiguredBackingService,
+	backingMountBase string) (v1alpha1.BackingService, error) {
 	opts, err := ParsePreconfigOpts(preCfg)
 	if err != nil {
 		return v1alpha1.BackingService{}, err
@@ -17,9 +15,21 @@ func CrunchyBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBas
 	user, _ := opts["user"]
 	ca, _ := opts["ca"]
 	tls, _ := opts["tls"]
-	var resources []v1alpha1.BackingServiceResource
+	resources := []v1alpha1.BackingServiceResource{{
+		GroupVersionKind: metav1.GroupVersionKind{
+			Group:   "crunchydata.com",
+			Version: "v1",
+			Kind:    "Pgcluster",
+		},
+		Name:        preCfg.Resource,
+		Projections: []v1alpha1.ResourceProjection{{
+			From: "{.spec.port}",
+			Env:  "PGPORT",
+			Value: true,
+		}},
+	}}
 	nxconf := "nuxeo.db.host=" + preCfg.Resource + "\n" +
-		"nuxeo.db.port=5432\n" +
+		"nuxeo.db.port=${env:PGPORT}\n" +
 		"nuxeo.db.name=nuxeo\n"
 	bsvc := v1alpha1.BackingService{
 		Name:     "crunchy",
@@ -61,7 +71,7 @@ func CrunchyBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBas
 		resources = append(resources, res)
 		if tls == "" {
 			// one way TLS
-			nxconf += "nuxeo.db.jdbc.url=jdbc:postgresql://${nuxeo.db.host}:5432/nuxeo" +
+			nxconf += "nuxeo.db.jdbc.url=jdbc:postgresql://${nuxeo.db.host}:${nuxeo.db.port}/nuxeo" +
 				"?user=${nuxeo.db.user}&password=${nuxeo.db.password}" +
 				"&ssl=true" +
 				"&sslmode=verify-ca" +
@@ -87,7 +97,7 @@ func CrunchyBacking(preCfg v1alpha1.PreconfiguredBackingService, backingMountBas
 		resources = append(resources, res)
 		nxconf += "nuxeo.db.user=\n" +
 			"nuxeo.db.password=\n" +
-			"nuxeo.db.jdbc.url=jdbc:postgresql://${nuxeo.db.host}:5432/nuxeo" +
+			"nuxeo.db.jdbc.url=jdbc:postgresql://${nuxeo.db.host}:${nuxeo.db.port}/nuxeo" +
 			"?ssl=true" +
 			"&sslmode=verify-ca" +
 			"&sslrootcert=" + backingMountBase + "crunchy/ca.crt" +

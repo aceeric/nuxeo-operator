@@ -117,13 +117,19 @@ Version 0.6.1 will be a clean-up iteration.
 
 | Feature                                                      | Status   |
 | ------------------------------------------------------------ | -------- |
-| Address all "todo-me" in the code |  |
-| Refactor all reconcile functions into the common reconciler with resource-specific comparers (started in 0.6.0) |  |
-| Update the test/kustomize directory to support native Kubernetes (right now just supports OpenShift) | |
+| Address all "todo-me" in the code | in-progress |
+| Refactor all reconcile functions into the common reconciler with resource-specific comparers (started in 0.6.0) | complete |
+| Update test/kustomize directory to support native Kubernetes (right now just supports OpenShift) | |
 | Consider a sidecar array for flexible sidecar configuration |  |
+| Migrate to Operator SDK v1.0.0 |  |
 | Build out the Status field in the Nuxeo CR to be comparable with other resources available on OperatorHub | |
 | Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |        |
-| Add the Nuxeo Operator image to Docker Hub to simplify installing the operator into a cluster (avoids needing to create Operator images in the Kubernetes/OpenShift cluster internal registry) | |
+| Change CRD group from nuxeo.com to something else (Nuxeo is trademarked) | |
+| Add the Operator image to Docker Hub to simplify installing the operator into a cluster (avoids needing to create Operator images in the Kubernetes/OpenShift cluster internal registry) | |
+| Test with Mongo backing service support. Consider a pre-config for it | |
+| Add a test/kustomize configuration for Strimzi + Crunchy + ECK with explicit config | |
+| Consider a pre-config of https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | |
+
 
 
 #### Version 0.7.x.y...
@@ -139,7 +145,7 @@ This iteration makes the Operator available as a Community Operator. This will g
 | Build on kustomize testing from 0.6.0 to provide exemplars for bringing up Nuxeo Clusters using kustomize (https://kubectl.docs.kubernetes.io/pages/examples/kustomize.html) |        |
 | kpt (https://googlecontainertools.github.io/kpt/) vs kustomize? | |
 | Review and augment e2e tests                        |        |
-| Support multi-architecture build. Incorporate lint, gofmt, etc. into the build process |        |
+| Support multi-architecture build. Incorporate lint (https://golangci.com?), gofmt, etc. into the build process |        |
 | GitHub build & test automation |        |
 | Review the license |        |
 | Refactor all the documentation into a user guide | |

@@ -3,7 +3,8 @@ package util
 import (
 	"bytes"
 	"crypto/md5"
-	goerrors "errors"
+	"errors"
+	"fmt"
 
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
@@ -28,8 +29,12 @@ func IsOpenShift() bool {
 }
 
 // Sets operator state indicating that the operator believes it is running in an OpenShift cluster.
-func SetIsOpenShift(_isOpenShift bool) {
-	cluster = openShift
+func SetIsOpenShift(isOpenShift bool) {
+	if isOpenShift {
+		cluster = openShift
+	} else {
+		cluster = kubernetes
+	}
 }
 
 var NuxeoServiceAccountName = "nuxeo"
@@ -73,7 +78,7 @@ func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error) {
 			return &dep.Spec.Template.Spec.Containers[i], nil
 		}
 	}
-	return nil, goerrors.New("could not find a container named 'nuxeo' in the deployment")
+	return nil, errors.New("could not find a container named 'nuxeo' in the deployment")
 }
 
 // gets the named environment variable from the passed container or nil
@@ -125,13 +130,13 @@ func getContainer(dep *appsv1.Deployment, containerName string) *corev1.Containe
 // updates the container's variable value to: "abc,123,xyz,456"
 func MergeOrAddEnvVar(container *corev1.Container, env corev1.EnvVar, separator string) error {
 	if env.ValueFrom != nil {
-		return goerrors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
+		return errors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
 	}
 	if existingEnv := GetEnv(container, env.Name); existingEnv == nil {
 		container.Env = append(container.Env, env)
 	} else {
 		if existingEnv.ValueFrom != nil {
-			return goerrors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
+			return errors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
 		}
 		existingEnv.Value += separator + env.Value
 	}
@@ -141,7 +146,7 @@ func MergeOrAddEnvVar(container *corev1.Container, env corev1.EnvVar, separator 
 // Adds the passed environment variable to the passed container if not present, otherwise errors
 func OnlyAddEnvVar(container *corev1.Container, env corev1.EnvVar) error {
 	if existingEnv := GetEnv(container, env.Name); existingEnv != nil {
-		return goerrors.New("duplicate environment variable: "+env.Name)
+		return errors.New("duplicate environment variable: "+env.Name)
 	}
 	container.Env = append(container.Env, env)
 	return nil
@@ -150,7 +155,7 @@ func OnlyAddEnvVar(container *corev1.Container, env corev1.EnvVar) error {
 // Adds the passed volume mount to the passed container if not present in the container, otherwise errors
 func OnlyAddVolMnt(container *corev1.Container, mnt corev1.VolumeMount) error {
 	if existingMnt := getVolMnt(container, mnt.Name); existingMnt != nil {
-		return goerrors.New("duplicate volume mount: "+mnt.Name)
+		return errors.New("duplicate volume mount: "+mnt.Name)
 	}
 	container.VolumeMounts = append(container.VolumeMounts, mnt)
 	return nil
@@ -159,7 +164,7 @@ func OnlyAddVolMnt(container *corev1.Container, mnt corev1.VolumeMount) error {
 // Adds the passed volume to the passed deployment if not present in the container, otherwise errors
 func OnlyAddVol(dep *appsv1.Deployment, vol corev1.Volume) error {
 	if existingVol:= getVol(dep, vol.Name); existingVol != nil {
-		return goerrors.New("duplicate volume: "+vol.Name)
+		return errors.New("duplicate volume: "+vol.Name)
 	}
 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
 	return nil
@@ -168,7 +173,7 @@ func OnlyAddVol(dep *appsv1.Deployment, vol corev1.Volume) error {
 // Adds the passed container to the passed deployment if not present in the deployment, otherwise errors
 func OnlyAddContainer(dep *appsv1.Deployment, container corev1.Container) error {
 	if existingContainer := getContainer(dep, container.Name); existingContainer != nil {
-		return goerrors.New("duplicate container: "+existingContainer.Name)
+		return errors.New("duplicate container: "+existingContainer.Name)
 	}
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, container)
 	return nil
@@ -176,23 +181,24 @@ func OnlyAddContainer(dep *appsv1.Deployment, container corev1.Container) error 
 
 // GetJsonPathValue applies the passed JSONPath expression to the passed runtime object and returns the
 // result of the parse. It's less friendly than the kubectl get -o=jsonpath= in that the passed JSON path
-// has to be included in curly braces. A variety of errors are returned but an empty return value and nil
-// error can also indicate that the provided JSON path didn't find anything in the passed resource.
-// todo-me clone RelaxedJSONPathExpression: https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/get/customcolumn.go
+// has to be in the canonical format: "{.path...}" meaning 1) enclosed in curly braces and 2) starting with
+// a period. A variety of errors are returned but an empty return value and nil error can also indicate
+// that the provided JSON path didn't find anything in the passed resource.
 func GetJsonPathValue(obj runtime.Object, jsonPath string) ([]byte, error) {
-	if len(jsonPath) < 3 {
-		return nil, goerrors.New("invalid JSONPath expression: " + jsonPath)
-	}
-	if jsonPath[0:1]+jsonPath[len(jsonPath)-1:] != "{}" {
-		return nil, goerrors.New("JSONPath expression must be curly-brace enclosed: " + jsonPath)
-	}
-	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil {
+	if len(jsonPath) < 3 || jsonPath[0:2]+jsonPath[len(jsonPath)-1:] != "{.}" {
+		return nil, fmt.Errorf("invalid JSONPath expression: '%v'", jsonPath)
+	} else if unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj); err != nil {
 		return nil, err
+	} else {
+		return GetJsonPathValueU(unstructured, jsonPath)
 	}
+}
+
+// Same as GetJsonPathValue, except takes an unstructured instead of a runtime object
+func GetJsonPathValueU(unstructured map[string]interface{}, jsonPath string) ([]byte, error) {
 	jp := jsonpath.New("jp")
 	// parse the JSON path expression
-	err = jp.Parse(jsonPath)
+	err := jp.Parse(jsonPath)
 	if err != nil {
 		return nil, err
 	}
@@ -224,4 +230,13 @@ func SetInt32If(v *int32, ifVal int32, thenVal int32) {
 	if *v == ifVal {
 		*v = thenVal
 	}
+}
+
+// mapToStr takes map A:1,B:2 and returns string "A=1\nB=2\n"
+func mapToStr(cfg map[string]string, delim string) string {
+	b := new(bytes.Buffer)
+	for key, value := range cfg {
+		_, _ = fmt.Fprintf(b, "%s=%s%s", key, value, delim)
+	}
+	return b.String()
 }

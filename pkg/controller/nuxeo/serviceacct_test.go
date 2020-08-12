@@ -17,7 +17,7 @@ import (
 // when a ServiceAccount does not already exist
 func (suite *serviceAccountSuite) TestBasicServiceAccountCreation() {
 	nux := suite.serviceAccountSuiteNewNuxeo()
-	err := reconcileServiceAccount(&suite.r, nux, log)
+	err := reconcileServiceAccount(&suite.r, nux)
 	require.Nil(suite.T(), err, "reconcileServiceAccount failed")
 	found := &corev1.ServiceAccount{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: util.NuxeoServiceAccountName, Namespace: suite.namespace}, found)

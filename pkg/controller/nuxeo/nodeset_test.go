@@ -17,7 +17,7 @@ import (
 // when a Deployment does not already exist
 func (suite *nodeSetSuite) TestBasicDeploymentCreation() {
 	nux := suite.nodeSetSuiteNewNuxeo()
-	requeue, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy, log)
+	requeue, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
 	require.Nil(suite.T(), err, "reconcileNodeSet failed")
 	require.Equal(suite.T(), true, requeue, "reconcileNodeSet returned unexpected result")
 	found := &appsv1.Deployment{}
@@ -31,10 +31,10 @@ func (suite *nodeSetSuite) TestBasicDeploymentCreation() {
 // TestDeploymentUpdated creates a Deployment, updates the Nuxeo CR, and verifies the Deployment was updated
 func (suite *nodeSetSuite) TestDeploymentUpdated() {
 	nux := suite.nodeSetSuiteNewNuxeo()
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy, log)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
 	newReplicas := nux.Spec.NodeSets[0].Replicas + 2
 	nux.Spec.NodeSets[0].Replicas = newReplicas
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy, log)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
 	found := &appsv1.Deployment{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
@@ -48,7 +48,7 @@ func (suite *nodeSetSuite) TestDeploymentUpdated() {
 func (suite *nodeSetSuite) TestDeploymentClustering() {
 	var err error
 	nux := suite.nodeSetSuiteNewNuxeoClustered()
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy, log)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
 	found := &appsv1.Deployment{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
@@ -62,7 +62,7 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 		}
 	}
 	require.Equal(suite.T(), 2, envCount, "Environment incorrectly defined")
-	err = reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", "", log)
+	err = reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", "")
 	require.Nil(suite.T(), err, "reconcileNuxeoConf failed")
 	foundCMap := &corev1.ConfigMap{}
 	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)
@@ -74,12 +74,13 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 	require.Equal(suite.T(), nuxeoConfExpected, foundCMap.Data["nuxeo.conf"], "nuxeo.conf ConfigMap has incorrect values")
 }
 
+// TestDeploymentClusteringNoBinaries validates that when clustering is defined, the configurer also defined
+// storage for Nuxeo binaries
 func (suite *nodeSetSuite) TestDeploymentClusteringNoBinaries() {
-	// todo-me test clustering when binaries not defined - should err b/c binaries myst be shared in cluster config
-}
-
-func (suite *nodeSetSuite) TestInteractiveChanged() {
-	// todo-me test when a nodeset is changed from interactive true to false and back
+	nux := suite.nodeSetSuiteNewNuxeoClustered()
+	nux.Spec.NodeSets[0].Storage = []v1alpha1.NuxeoStorageSpec{}
+	_, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
+	require.NotNil(suite.T(), err, "TODO")
 }
 
 // TestRevProxyDeploymentCreation is the same as TestBasicDeploymentCreation except it includes an Nginx rev proxy
@@ -91,7 +92,7 @@ func (suite *nodeSetSuite) TestRevProxyDeploymentCreation() {
 			ImagePullPolicy: corev1.PullAlways,
 		},
 	}
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy, log)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
 	found := &appsv1.Deployment{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)

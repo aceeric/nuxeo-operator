@@ -2,10 +2,10 @@ package nuxeo
 
 import (
 	"context"
-	goerrors "errors"
+	"errors"
+	"fmt"
 
-	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"nuxeo-operator/pkg/apis/nuxeo/v1alpha1"
@@ -35,27 +35,25 @@ const (
 // Caller is expected to have set the Nuxeo CR as the owner of 'expected' if that is the intent (this function
 // performs no modifications to 'expected')
 func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runtime.Object, found runtime.Object,
-	comparer comparer, reqLogger logr.Logger) (reconOp, error) {
+	comparer comparer) (reconOp, error) {
 	var kind string
 	var err error
 	if kind, err = getKind(r.scheme, expected); err != nil {
 		return NA, err
 	}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new " + kind)
+	if err != nil && apierrors.IsNotFound(err) {
+		r.logger.Info("Creating a new " + kind)
 		err = r.client.Create(context.TODO(), expected)
 		if err != nil {
-			reqLogger.Error(err, "Failed to create "+kind)
 			return NA, err
 		}
 		return Created, nil
 	} else if err != nil {
-		reqLogger.Error(err, "Error attempting to get "+kind)
 		return NA, err
 	}
 	if !comparer(expected, found) {
-		reqLogger.Info("Updating " + kind)
+		r.logger.Info("Updating " + kind)
 		if err = r.client.Update(context.TODO(), found); err != nil {
 			return Updated, err
 		}
@@ -67,25 +65,21 @@ func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runt
 // arg.) If such an object exists, and it is owned by the passed Nuxeo instance, then the object is removed.
 // Otherwise cluster state is not modified.
 func removeIfPresent(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, name string, namespace string,
-	found runtime.Object, reqLogger logr.Logger) error {
-	var kind string
+	found runtime.Object) error {
 	var err error
 	var uids []string
-	if kind, err = getKind(r.scheme, found); err != nil {
+	if _, err = getKind(r.scheme, found); err != nil {
 		return err
 	}
 	if err = r.client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, found); err == nil {
 		if uids, err = getOwnerRefs(found); err != nil {
-			reqLogger.Error(err, "Error attempting to get owner refs for "+kind)
 			return err
 		} else if instance.IsOwnerUids(uids) {
 			if err := r.client.Delete(context.TODO(), found); err != nil {
-				reqLogger.Error(err, "Error attempting to delete "+kind)
 				return err
 			}
 		}
-	} else if !errors.IsNotFound(err) {
-		reqLogger.Error(err, "Error attempting to get "+kind)
+	} else if !apierrors.IsNotFound(err) {
 		return err
 	}
 	return nil
@@ -98,11 +92,11 @@ func getOwnerRefs(obj runtime.Object) ([]string, error) {
 		return nil, err
 	} else {
 		if m, ok := unstructured["metadata"]; !ok {
-			return nil, goerrors.New("no metadata in passed object")
+			return nil, errors.New("no metadata in passed object")
 		} else {
 			metadata, ok := m.(map[string]interface{})
 			if !ok {
-				return nil, goerrors.New("unexpected metadata structure")
+				return nil, errors.New("unexpected metadata structure")
 			}
 			if ownerRefs, ok := metadata["ownerReferences"]; !ok {
 				// no owner refs
@@ -122,11 +116,12 @@ func getOwnerRefs(obj runtime.Object) ([]string, error) {
 // Gets the Kind for the passed object. Returns non-nil error if any error was encountered attempting to do that.
 func getKind(scheme *runtime.Scheme, obj runtime.Object) (string, error) {
 	// use the scheme to get the GVK of the object then get the Kind from the GVK
-	if gvk, _, err := scheme.ObjectKinds(obj); err != nil {
-		return "", err
-	} else if len(gvk) > 1 {
-		return "", goerrors.New("unexpected result from scheme.ObjectKinds")
-	} else {
-		return gvk[0].Kind, nil
+	gvk, _, err := scheme.ObjectKinds(obj)
+	if err == nil && len(gvk) > 1 {
+		err = errors.New("scheme.ObjectKinds returned more than one item")
 	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get kind for object %v", obj)
+	}
+	return gvk[0].Kind, nil
 }

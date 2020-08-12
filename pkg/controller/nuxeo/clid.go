@@ -1,7 +1,6 @@
 package nuxeo
 
 import (
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,8 +18,8 @@ const (
 // Nuxeo container at a hard-coded mount point: /var/lib/nuxeo/data/instance.clid. The volume references
 // a hard-coded ConfigMap name managed by the operator: "nuxeo-clid". See the reconcileClid() function
 // for the code that reconciles that actual ConfigMap.
-func handleClid(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
-	if nux.Spec.Clid == "" {
+func handleClid(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
+	if instance.Spec.Clid == "" {
 		return nil
 	}
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
@@ -53,26 +52,26 @@ func handleClid(nux *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 // reconcileClid creates, updates, or deletes the CLID ConfigMap. If the Clid is specified in the CR, then the
 // corresponding CM is added/updated in the cluster. If Clid is not specified, then it is removed from the
 // cluster if present
-func reconcileClid(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, reqLogger logr.Logger) error {
+func reconcileClid(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) error {
 	if instance.Spec.Clid != "" {
 		expected := r.defaultClidCM(instance, instance.Spec.Clid)
 		_, err := addOrUpdate(r, nuxeoClidConfigMapName, instance.Namespace, expected, &corev1.ConfigMap{},
-			util.ConfigMapComparer, reqLogger)
+			util.ConfigMapComparer)
 		return err
 	} else {
-		return removeIfPresent(r, instance, nuxeoClidConfigMapName, instance.Namespace, &corev1.ConfigMap{}, reqLogger)
+		return removeIfPresent(r, instance, nuxeoClidConfigMapName, instance.Namespace, &corev1.ConfigMap{})
 	}
 }
 
 // defaultClidCM creates and returns a ConfigMap struct named "nuxeo-clid" to hold the passed CLID string
-func (r *ReconcileNuxeo) defaultClidCM(nux *v1alpha1.Nuxeo, clidValue string) *corev1.ConfigMap {
+func (r *ReconcileNuxeo) defaultClidCM(instance *v1alpha1.Nuxeo, clidValue string) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nuxeoClidConfigMapName,
-			Namespace: nux.Namespace,
+			Namespace: instance.Namespace,
 		},
 		Data: map[string]string{clidKey: clidValue},
 	}
-	_ = controllerutil.SetControllerReference(nux, cm, r.scheme)
+	_ = controllerutil.SetControllerReference(instance, cm, r.scheme)
 	return cm
 }

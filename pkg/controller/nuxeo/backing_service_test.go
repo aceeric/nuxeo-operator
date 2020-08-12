@@ -27,7 +27,7 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 	dep := genTestDeploymentForBackingSvc()
 	err := createECKSecrets(suite)
 	require.Nil(suite.T(), err, "Error creating orphaned PVC")
-	nuxeoConf, err := configureBackingServices(&suite.r, nux, &dep, log)
+	nuxeoConf, err := configureBackingServices(&suite.r, nux, &dep)
 	require.Nil(suite.T(), err, "configureBackingServices returned non-nil")
 	require.Equal(suite.T(), suite.nuxeoConf, nuxeoConf, "backing service nuxeo.conf should have been returned")
 	secSecretName := nux.Name + "-secondary-" + suite.backing
@@ -68,7 +68,7 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 func (suite *backingServiceSuite) TestReconcileNodeSetsWithBackingSvc() {
 	nux := suite.backingServiceSuiteNewNuxeoES()
 	_ = createECKSecrets(suite)
-	requeue, err := suite.r.reconcileNodeSets(nux, log)
+	requeue, err := suite.r.reconcileNodeSets(nux)
 	require.Nil(suite.T(), err, "reconcileNodeSets returned non-nil")
 	require.Equal(suite.T(), true, requeue, "reconcileNodeSets returned unexpected result")
 	dep := appsv1.Deployment{}
@@ -182,7 +182,7 @@ func (suite *backingServiceSuite) TestProjectionMount() {
 	}
 	nux := suite.backingServiceSuiteNewNuxeoMounts()
 	dep := genTestDeploymentForBackingSvc()
-	_, err := configureBackingServices(&suite.r, nux, &dep, log)
+	_, err := configureBackingServices(&suite.r, nux, &dep)
 	require.Nil(suite.T(), err, "configureBackingServices returned non-nil")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes), "Incorrect volume count")
 	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes[0].Projected.Sources), "Incorrect projection count")
@@ -289,7 +289,7 @@ func (suite *backingServiceSuite) TestPreConfig() {
 		},
 	}
 	_ = createECKSecrets(suite)
-	requeue, err := suite.r.reconcileNodeSets(nux, log)
+	requeue, err := suite.r.reconcileNodeSets(nux)
 	require.Nil(suite.T(), err, "reconcileNodeSets returned non-nil")
 	require.Equal(suite.T(), true, requeue, "reconcileNodeSets returned unexpected result")
 	dep := appsv1.Deployment{}
@@ -307,6 +307,31 @@ func (suite *backingServiceSuite) TestPreConfig() {
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: suite.namespace}, &nuxeoConf)
 	require.Nil(suite.T(), err, "nuxeo.conf ConfigMap not created")
 	require.Equal(suite.T(), suite.nuxeoConf, nuxeoConf.Data["nuxeo.conf"], "nuxeo.conf data incorrect")
+}
+
+// TestEnvVal tests the ability to get a value from an upstream resource and project it into the Nuxeo container
+// as an environment variable with a direct value rather than as a ValueFrom. E.g.:
+//  containers:
+//  - name: nuxeo
+//    env:
+//    - name: DATABASE_PORT
+//      value: 5432
+// This is useful for upstream resource values that aren't sensitive. This test case creates a Nuxeo CR with a
+// backing service resource projection that references itself as the upstream resource. This would never happen
+// in the real world but it is convenient because it only requires one resource (the Nuxeo CR) to be created
+// for the test.
+func (suite *backingServiceSuite) TestEnvVal() {
+	nux := suite.backingServiceSuiteNewNuxeoEnvVal()
+	err := suite.r.client.Create(context.TODO(), nux)
+	require.Nil(suite.T(), err, "Error creating Nuxeo CR")
+	dep := genTestDeploymentForBackingSvc()
+	_, err = configureBackingServices(&suite.r, nux, &dep)
+	require.Nil(suite.T(), err, "configureBackingServices returned non-nil")
+	expectedEnv := corev1.EnvVar{
+		Name:  "BACKING_NAME",
+		Value: suite.backing,
+	}
+	require.Equal(suite.T(), expectedEnv, dep.Spec.Template.Spec.Containers[0].Env[0])
 }
 
 // backingServiceSuite is the BackingService test suite structure
@@ -348,7 +373,7 @@ func (suite *backingServiceSuite) SetupSuite() {
 		"elasticsearch.restClient.truststore.path=" + backingMountBase + "elastic/elastic.ca.jks\n" +
 		"elasticsearch.restClient.truststore.password=${env:ELASTIC_TS_PASS}\n" +
 		"elasticsearch.restClient.truststore.type=JKS\n" +
-  	    "elasticsearch.restClient.username=elastic\n"
+		"elasticsearch.restClient.username=elastic\n"
 	suite.nodeSetName = "test123"
 }
 
@@ -454,6 +479,34 @@ func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoMounts() *v1alpha1.
 					Projections: []v1alpha1.ResourceProjection{{
 						From:  "{.spec.ports[0].targetPort}",
 						Mount: "service.target.port",
+					}},
+				}},
+			}},
+		},
+	}
+}
+
+func (suite *backingServiceSuite) backingServiceSuiteNewNuxeoEnvVal() *v1alpha1.Nuxeo {
+	return &v1alpha1.Nuxeo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      suite.nuxeoName,
+			Namespace: suite.namespace,
+		},
+		Spec: v1alpha1.NuxeoSpec{
+			BackingServices: []v1alpha1.BackingService{{
+				Name: suite.backing,
+				Resources: []v1alpha1.BackingServiceResource{{
+					GroupVersionKind: metav1.GroupVersionKind{
+						Group:   "nuxeo.com",
+						Version: "v1alpha1",
+						Kind:    "Nuxeo",
+					},
+					// self-referencing
+					Name: suite.nuxeoName,
+					Projections: []v1alpha1.ResourceProjection{{
+						From:  "{.spec.backingServices[0].name}", // e.g.: suite.backing
+						Env:   "BACKING_NAME",
+						Value: true,
 					}},
 				}},
 			}},

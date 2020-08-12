@@ -2,7 +2,7 @@ package nuxeo
 
 import (
 	"context"
-	goerrors "errors"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -88,7 +88,7 @@ func addPvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.Pers
 	for _, expectedPvc := range expected {
 		if actualPvc := getPvc(actual, expectedPvc.Name); actualPvc != nil {
 			if !instance.IsOwner(actualPvc.ObjectMeta) {
-				return goerrors.New(fmt.Sprintf("Existing PVC '%v' is not owned by this Nuxeo '%v' and cannot be reconciled",
+				return errors.New(fmt.Sprintf("Existing PVC '%v' is not owned by this Nuxeo '%v' and cannot be reconciled",
 					actualPvc.Name, instance.UID))
 			}
 			if !util.PvcComparer(&expectedPvc, actualPvc) {

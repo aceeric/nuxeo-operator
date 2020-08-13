@@ -21,43 +21,18 @@ import (
 // Deployment exists and its state differs from the NodeSet, the Deployment is conformed to the NodeSet.
 // Otherwise, the fall-through case is that a Deployment exists that matches the NodeSet and so in this
 // case - cluster state is not modified.
-func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo,
-	revProxy v1alpha1.RevProxySpec) (bool, error) {
+//
+// Returns:
+//   requeue true to requeue, else false (true means success but requeue to update status)
+//   error or nil
+func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo) (bool, error) {
 	var expected *appsv1.Deployment
 	var err error
-	var backingNuxeoConf, tlsNuxeoConf string
 	depName := deploymentName(instance, nodeSet)
 	if expected, err = r.defaultDeployment(instance, depName, nodeSet); err != nil {
 		return false, err
 	}
-	if err = configureContributions(r, instance, expected, nodeSet); err != nil {
-		return false, err
-	}
-	if backingNuxeoConf, err = configureBackingServices(r, instance, expected); err != nil {
-		return false, err
-	}
-	if nodeSet.Interactive {
-		if revProxy.Nginx != (v1alpha1.NginxRevProxySpec{}) {
-			// nginx will terminate TLS
-			nginxCmName, err := reconcileNginxCM(r, instance, revProxy.Nginx.ConfigMap)
-			if err != nil {
-				return false, err
-			}
-			revProxy.Nginx.ConfigMap = nginxCmName
-			if err = configureNginx(expected, revProxy.Nginx); err != nil {
-				return false, err
-			}
-		} else if nodeSet.NuxeoConfig.TlsSecret != "" {
-			// nuxeo will terminate TLS
-			if tlsNuxeoConf, err = configureNuxeoForTLS(expected, nodeSet.NuxeoConfig.TlsSecret); err != nil {
-				return false, err
-			}
-		}
-	}
-	if err = configureNuxeoConf(instance, expected, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
-		return false, err
-	}
-	if err = reconcileNuxeoConf(r, instance, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
+	if err := configureDeploymentFromNuxeo(r, nodeSet, expected, instance); err != nil {
 		return false, err
 	}
 	if op, err := addOrUpdate(r, depName, instance.Namespace, expected, &appsv1.Deployment{},
@@ -69,10 +44,80 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 	return false, nil
 }
 
+// configureDeploymentFromNuxeo applies the various Nuxeo CR configurations to the passed 'expected' deployment
+// and reconciles any dependent resources that the operator generates to support those deployment configurations.
+// For example, if the operator generates a ConfigMap for nuxeo.conf, then that ConfigMap will be in the cluster
+// by the time the function exits so the caller can create the deployment and it should not error due to missing
+// dependencies.
+func configureDeploymentFromNuxeo(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, expected *appsv1.Deployment,
+	instance *v1alpha1.Nuxeo) error {
+	var backingNuxeoConf, tlsNuxeoConf string
+
+	if err := addProbes(expected, nodeSet); err != nil {
+		return err
+	}
+	if err := configureStorage(expected, nodeSet); err != nil {
+		return err
+	}
+	if nodeSet.NuxeoConfig.JvmPKISecret != "" {
+		jvmPkiSecret := corev1.Secret{}
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: nodeSet.NuxeoConfig.JvmPKISecret,
+			Namespace: instance.ObjectMeta.Namespace}, &jvmPkiSecret); err != nil {
+			return fmt.Errorf("configuration specifies JVM PKI secret that does not exist: %v",
+				nodeSet.NuxeoConfig.JvmPKISecret)
+		}
+		if err := configureConfig(expected, nodeSet, jvmPkiSecret); err != nil {
+			return err
+		}
+	}
+	if err := configureClid(instance, expected); err != nil {
+		return err
+	}
+	if err := configureClustering(expected, nodeSet); err != nil {
+		return err
+	}
+	if err := configureContributions(r, instance, expected, nodeSet); err != nil {
+		return err
+	}
+	if tmp, err := configureBackingServices(r, instance, expected); err != nil {
+		return err
+	} else {
+		backingNuxeoConf = tmp
+	}
+	if nodeSet.Interactive {
+		revProxy := instance.Spec.RevProxy
+		if revProxy.Nginx != (v1alpha1.NginxRevProxySpec{}) {
+			// nginx will terminate TLS
+			nginxCmName, err := reconcileNginxCM(r, instance, revProxy.Nginx.ConfigMap)
+			if err != nil {
+				return err
+			}
+			revProxy.Nginx.ConfigMap = nginxCmName
+			if err = configureNginx(expected, revProxy.Nginx); err != nil {
+				return err
+			}
+		} else if nodeSet.NuxeoConfig.TlsSecret != "" {
+			// nuxeo will terminate TLS
+			if tmp, err := configureNuxeoForTLS(expected, nodeSet.NuxeoConfig.TlsSecret); err != nil {
+				return err
+			} else {
+				tlsNuxeoConf = tmp
+			}
+		}
+	}
+	if err := configureNuxeoConf(instance, expected, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
+		return err
+	}
+	if err := reconcileNuxeoConf(r, instance, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
+		return err
+	}
+	return nil
+}
+
 // defaultDeployment returns a nuxeo Deployment object with hard-coded default values, and the passed arg
-// values. If the revProxy arg indicates that a reverse proxy is to be included in the deployment, then that results
-// in another (TLS sidecar) container being added to the deployment. Note - many cluster defaults are explicitly
-// specified here because it simplifies reconciliation
+// values. Note - many cluster defaults are explicitly specified here because it simplifies reconciliation. The
+// deployment generated is just a basic shell, and the caller will apply all the configurations to it from the
+// Nuxeo CR. The deployment always contains one container named "nuxeo".
 func (r *ReconcileNuxeo) defaultDeployment(instance *v1alpha1.Nuxeo, depName string,
 	nodeSet v1alpha1.NodeSet) (*appsv1.Deployment, error) {
 	nuxeoImage := "nuxeo:latest"
@@ -144,38 +189,6 @@ func (r *ReconcileNuxeo) defaultDeployment(instance *v1alpha1.Nuxeo, depName str
 			},
 		},
 	}
-	// liveness/readiness
-	useHttpsForProbes := false
-	if nodeSet.NuxeoConfig.TlsSecret != "" {
-		// if Nuxeo is going to terminate TLS, then it will be listening on HTTPS:8443. Otherwise Nuxeo
-		// listens on HTTP:8080. This affects how the probes are configured immediately below.
-		useHttpsForProbes = true
-	}
-	if err := addProbes(dep, nodeSet, useHttpsForProbes); err != nil {
-		return nil, err
-	}
-	if err := handleStorage(dep, nodeSet); err != nil {
-		return nil, err
-	}
-	jvmPkiSecret := corev1.Secret{}
-	if nodeSet.NuxeoConfig.JvmPKISecret != "" {
-		// if the config specifies a JVM PKI secret, get it here so lower layers in the call stack aren't doing
-		// a lot of cluster I/O and can instead be focused on basic struct initialization
-		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: nodeSet.NuxeoConfig.JvmPKISecret,
-			Namespace: instance.ObjectMeta.Namespace}, &jvmPkiSecret); err != nil {
-			return nil, fmt.Errorf("configuration specifies JVM PKI secret that does not exist: %v",
-				nodeSet.NuxeoConfig.JvmPKISecret)
-		}
-	}
-	if err := handleConfig(dep, nodeSet, jvmPkiSecret); err != nil {
-		return nil, err
-	}
-	if err := handleClid(instance, dep); err != nil {
-		return nil, err
-	}
-	if err := configureClustering(dep, nodeSet); err != nil {
-		return nil, err
-	}
 	_ = controllerutil.SetControllerReference(instance, dep, r.scheme)
 	return dep, nil
 }
@@ -221,19 +234,15 @@ func configureClustering(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 		return err
 	} else {
-		if env := util.GetEnv(nuxeoContainer, "POD_UID"); env != nil {
-			return errors.New("'POD_UID' environment variable already defined")
-		} else {
-			return util.OnlyAddEnvVar(nuxeoContainer, corev1.EnvVar{
-				Name: "POD_UID",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						APIVersion: "v1",
-						FieldPath:  "metadata.uid",
-					},
+		return util.OnlyAddEnvVar(nuxeoContainer, corev1.EnvVar{
+			Name: "POD_UID",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					APIVersion: "v1",
+					FieldPath:  "metadata.uid",
 				},
-			})
-		}
+			},
+		})
 	}
 }
 

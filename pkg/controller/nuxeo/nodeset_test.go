@@ -17,7 +17,7 @@ import (
 // when a Deployment does not already exist
 func (suite *nodeSetSuite) TestBasicDeploymentCreation() {
 	nux := suite.nodeSetSuiteNewNuxeo()
-	requeue, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
+	requeue, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux)
 	require.Nil(suite.T(), err, "reconcileNodeSet failed")
 	require.Equal(suite.T(), true, requeue, "reconcileNodeSet returned unexpected result")
 	found := &appsv1.Deployment{}
@@ -31,10 +31,10 @@ func (suite *nodeSetSuite) TestBasicDeploymentCreation() {
 // TestDeploymentUpdated creates a Deployment, updates the Nuxeo CR, and verifies the Deployment was updated
 func (suite *nodeSetSuite) TestDeploymentUpdated() {
 	nux := suite.nodeSetSuiteNewNuxeo()
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux)
 	newReplicas := nux.Spec.NodeSets[0].Replicas + 2
 	nux.Spec.NodeSets[0].Replicas = newReplicas
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux)
 	found := &appsv1.Deployment{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
@@ -48,7 +48,7 @@ func (suite *nodeSetSuite) TestDeploymentUpdated() {
 func (suite *nodeSetSuite) TestDeploymentClustering() {
 	var err error
 	nux := suite.nodeSetSuiteNewNuxeoClustered()
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux)
 	found := &appsv1.Deployment{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
@@ -79,7 +79,7 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 func (suite *nodeSetSuite) TestDeploymentClusteringNoBinaries() {
 	nux := suite.nodeSetSuiteNewNuxeoClustered()
 	nux.Spec.NodeSets[0].Storage = []v1alpha1.NuxeoStorageSpec{}
-	_, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
+	_, err := reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux)
 	require.NotNil(suite.T(), err, "TODO")
 }
 
@@ -92,7 +92,7 @@ func (suite *nodeSetSuite) TestRevProxyDeploymentCreation() {
 			ImagePullPolicy: corev1.PullAlways,
 		},
 	}
-	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux, nux.Spec.RevProxy)
+	_, _ = reconcileNodeSet(&suite.r, nux.Spec.NodeSets[0], nux)
 	found := &appsv1.Deployment{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentName(nux, nux.Spec.NodeSets[0]),
 		Namespace: suite.namespace}, found)
@@ -166,7 +166,7 @@ func (suite *nodeSetSuite) nodeSetSuiteNewNuxeoClustered() *v1alpha1.Nuxeo {
 				ClusterEnabled: true,
 				NuxeoConfig: v1alpha1.NuxeoConfig{
 					NuxeoConf: v1alpha1.NuxeoConfigSetting{
-						Value: suite.nuxeoConfContent,
+						Inline: suite.nuxeoConfContent,
 					},
 				},
 				Storage: []v1alpha1.NuxeoStorageSpec{{

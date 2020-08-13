@@ -23,8 +23,8 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 	nux := suite.nuxeoConfigSuiteNewNuxeo()
 	dep := genTestDeploymentForConfigSuite()
 	sec := genTestJvmPkiSecret()
-	err := handleConfig(&dep, nux.Spec.NodeSets[0], sec)
-	require.Nil(suite.T(), err, "handleConfig failed")
+	err := configureConfig(&dep, nux.Spec.NodeSets[0], sec)
+	require.Nil(suite.T(), err, "configureConfig failed")
 	validActualEnvCnt := 0
 	for _, env := range dep.Spec.Template.Spec.Containers[0].Env {
 		switch {
@@ -108,7 +108,7 @@ func (suite *nuxeoConfigSuite) nuxeoConfigSuiteNewNuxeo() *v1alpha1.Nuxeo {
 					NuxeoUrl:       suite.nuxeoUrl,
 					NuxeoName:      suite.nuxeoEnvName,
 					NuxeoConf: v1alpha1.NuxeoConfigSetting{
-						Value: suite.nuxeoConfContent,
+						Inline: suite.nuxeoConfContent,
 					},
 					// this is ignored by the unit test because the unit test tests at a lower layer than this is
 					// looked at by the operator but it seems better to init the struct the way it would actually

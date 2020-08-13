@@ -125,8 +125,8 @@ func getContainer(dep *appsv1.Deployment, containerName string) *corev1.Containe
 // the name of the passed environment variable struct. If found in the container array, the value of the passed
 // variable is appended to the value of the existing variable, separated by the passed separator. Otherwise
 // the passed environment variable struct is appended to the container env var array. E.g. given a container
-// with an existing env var corev1.EnvVar{Name: "Z", Value "abc,123"}, then:
-//   MergeOrAddEnvVar(someContainer, corev1.EnvVar{Name: "Z", Value "xyz,456"}, ",")
+// with an existing env var corev1.EnvVar{Name: "Z", Inline "abc,123"}, then:
+//   MergeOrAddEnvVar(someContainer, corev1.EnvVar{Name: "Z", Inline "xyz,456"}, ",")
 // updates the container's variable value to: "abc,123,xyz,456"
 func MergeOrAddEnvVar(container *corev1.Container, env corev1.EnvVar, separator string) error {
 	if env.ValueFrom != nil {

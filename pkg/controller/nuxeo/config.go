@@ -16,10 +16,10 @@ const (
 	nuxeoConfName       = "nuxeo.conf"
 )
 
-// handleConfig examines the NuxeoConfig field of the passed NodeSet and configures the passed Deployment accordingly
+// configureConfig examines the NuxeoConfig field of the passed NodeSet and configures the passed Deployment accordingly
 // by updating the Nuxeo container and Deployment. This injects configuration settings to support things like
 // Java Opts, nuxeo.conf, etc. See 'NuxeoConfig' in the NodeSet for more info.
-func handleConfig(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet, jvmPkiSecret corev1.Secret) error {
+func configureConfig(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet, jvmPkiSecret corev1.Secret) error {
 	var nuxeoContainer *corev1.Container
 	var err error
 

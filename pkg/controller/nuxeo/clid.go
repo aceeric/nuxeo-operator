@@ -14,11 +14,11 @@ const (
 	clidKey                = "instance.clid"
 )
 
-// handleClid configures the passed Deployment with a Volume and VolumeMount to project the CLID into the
+// configureClid configures the passed Deployment with a Volume and VolumeMount to project the CLID into the
 // Nuxeo container at a hard-coded mount point: /var/lib/nuxeo/data/instance.clid. The volume references
 // a hard-coded ConfigMap name managed by the operator: "nuxeo-clid". See the reconcileClid() function
 // for the code that reconciles that actual ConfigMap.
-func handleClid(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
+func configureClid(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 	if instance.Spec.Clid == "" {
 		return nil
 	}
@@ -52,7 +52,7 @@ func handleClid(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 // reconcileClid creates, updates, or deletes the CLID ConfigMap. If the Clid is specified in the CR, then the
 // corresponding CM is added/updated in the cluster. If Clid is not specified, then it is removed from the
 // cluster if present
-func reconcileClid(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) error {
+func (r *ReconcileNuxeo) reconcileClid(instance *v1alpha1.Nuxeo) error {
 	if instance.Spec.Clid != "" {
 		expected := r.defaultClidCM(instance, instance.Spec.Clid)
 		_, err := addOrUpdate(r, nuxeoClidConfigMapName, instance.Namespace, expected, &corev1.ConfigMap{},

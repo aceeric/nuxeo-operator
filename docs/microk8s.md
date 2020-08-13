@@ -14,8 +14,6 @@ Install with the 1.17 stable channel:
 $ sudo snap install microk8s --classic --channel=1.17/stable
 ```
 
-The reason to use 1.17 is documented here: https://kubernetes.io/docs/setup/release/notes/#other-api-changes in the bullet that talks about *CustomResourceDefinition schemas that use `x-kubernetes-list-map-keys`*. By default, MK8s installs with Kubernetes 1.18, and that version handles validation differently. This affects the Nuxeo CR, because it as of the current release it includes a `PodTemplate` spec.
-
 After installation, if you run `sudo microk8s inspect` it will produce:
 
 ```

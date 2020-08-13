@@ -172,10 +172,10 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err = reconcileServiceAccount(r, instance); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcilePvc(r, instance); err != nil {
+	if err = r.reconcilePvc(instance); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileClid(r, instance); err != nil {
+	if err = r.reconcileClid(instance); err != nil {
 		return emptyResult, err
 	}
 	if requeue, err := r.reconcileNodeSets(instance); err != nil {
@@ -189,10 +189,10 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	return emptyResult, nil
 }
 
-// Reconcile each NodeSet to a Deployment
+// Reconciles each NodeSet to a Deployment
 func (r *ReconcileNuxeo) reconcileNodeSets(instance *v1alpha1.Nuxeo) (bool, error) {
 	for _, nodeSet := range instance.Spec.NodeSets {
-		if requeue, err := reconcileNodeSet(r, nodeSet, instance, instance.Spec.RevProxy); err != nil {
+		if requeue, err := reconcileNodeSet(r, nodeSet, instance); err != nil {
 			return requeue, err
 		} else if requeue {
 			return requeue, nil

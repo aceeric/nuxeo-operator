@@ -12,6 +12,8 @@ REGISTRY_NAMESPACE     := custom-operators
 OPERATOR_IMAGE_NAME    := nuxeo-operator
 BUNDLE_IMAGE_NAME      := nuxeo-operator-manifest-bundle
 INDEX_IMAGE_NAME       := nuxeo-operator-index
+# until osdk v1.0.0 migration
+OPERATOR_SDK           := /usr/local/bin/operator-sdk-v0.18.0
 OPERATOR_SDK_SUPPORTED := v0.18.0
 OPERATOR_SDK_INSTALLED := $(shell operator-sdk version | cut -d, -f1 | cut -d: -f2 | sed "s/[[:blank:]]*\"//g")
 UNIT_TEST_ARGS         ?= -v -coverprofile cp.out
@@ -24,10 +26,11 @@ KUBECTL                ?= kubectl
 NS                     ?=
 DOCKERFILE             ?= ubi8-minimal.Dockerfile
 
-# Since Operator SDK is undergoing active development, check the version so that the Makefile is repeatable
-ifneq ($(OPERATOR_SDK_SUPPORTED),$(OPERATOR_SDK_INSTALLED))
-    $(error Requires operator-sdk: $(OPERATOR_SDK_SUPPORTED). Found: $(OPERATOR_SDK_INSTALLED))
-endif
+# put back when osdk v1.0.0 migration complete
+## Since Operator SDK is undergoing active development, check the version so that the Makefile is repeatable
+#ifneq ($(OPERATOR_SDK_SUPPORTED),$(OPERATOR_SDK_INSTALLED))
+#    $(error Requires operator-sdk: $(OPERATOR_SDK_SUPPORTED). Found: $(OPERATOR_SDK_INSTALLED))
+#endif
 
 # if installing the operator, require a namespace like NS=some-namespace
 ifeq ($(MAKECMDGOALS),operator-install)
@@ -56,14 +59,14 @@ operator-unit-test:
 .PHONY : operator-e2e-test
 operator-e2e-test:
 	-$(KUBECTL) create namespace operator-test
-	operator-sdk test local --debug $(ROOT)/test/e2e --operator-namespace operator-test $(E2E_TEST_ARGS)\
+	 $(OPERATOR_SDK) test local --debug $(ROOT)/test/e2e --operator-namespace operator-test $(E2E_TEST_ARGS)\
 		--image $(IMAGE_REGISTRY_CLUST)/$(IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)\
 		$(E2E_KUBE_CONFIG_ARG) --go-test-flags="--nuxeo-image=nuxeo:LTS-2019"
 
 .PHONY : operator-build
 operator-build:
-	operator-sdk generate k8s
-	operator-sdk generate crds
+	 $(OPERATOR_SDK) generate k8s
+	 $(OPERATOR_SDK) generate crds
 	CGO_ENABLED=0 go build -o $(ROOT)/build/_output/bin/nuxeo-operator $(ROOT)/cmd/manager
 
 .PHONY : operator-image-build
@@ -87,11 +90,11 @@ operator-install:
 
 .PHONY : olm-generate
 olm-generate:
-	operator-sdk generate csv --csv-version $(OPERATOR_VERSION) --interactive=false --update-crds --csv-channel alpha
+	 $(OPERATOR_SDK) generate csv --csv-version $(OPERATOR_VERSION) --interactive=false --update-crds --csv-channel alpha
 
 .PHONY : bundle-generate
 bundle-generate:
-	operator-sdk bundle create --generate-only --package nuxeo-operator --channels alpha --default-channel alpha
+	 $(OPERATOR_SDK) bundle create --generate-only --package nuxeo-operator --channels alpha --default-channel alpha
 
 .PHONY : bundle-build
 bundle-build:

@@ -117,11 +117,11 @@ Version 0.6.1 will be a clean-up iteration.
 
 | Feature                                                      | Status   |
 | ------------------------------------------------------------ | -------- |
-| Address all "todo-me" in the code | in-progress |
+| Address all "todo-me" in the code | complete |
 | Refactor all reconcile functions into the common reconciler with resource-specific comparers (started in 0.6.0) | complete |
 | Update test/kustomize directory to support native Kubernetes (right now just supports OpenShift) | |
 | Consider a sidecar array for flexible sidecar configuration |  |
-| Migrate to Operator SDK v1.0.0 |  |
+| Migrate to Operator SDK v1.0.0 (remove temp makefile work-arounds, re-evaluate build/Dockerfile) |  |
 | Build out the Status field in the Nuxeo CR to be comparable with other resources available on OperatorHub | |
 | Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |        |
 | Change CRD group from nuxeo.com to something else (Nuxeo is trademarked) | |

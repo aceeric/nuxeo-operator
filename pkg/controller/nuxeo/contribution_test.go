@@ -26,7 +26,7 @@ func (suite *contributionSuite) TestSecretConfigMapContribution() {
 	require.Nil(suite.T(), err, "genSecretForContrib failed")
 	dep := genTestDeploymentForContributionSuite()
 	err = configureContributions(&suite.r, nux, &dep, nux.Spec.NodeSets[0])
-	require.Nil(suite.T(), err, "handleConfig failed")
+	require.Nil(suite.T(), err, "configureConfig failed")
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Volumes),
 		"incorrect volume configuration")
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
@@ -43,7 +43,7 @@ func (suite *contributionSuite) TestPVCContribution() {
 	nux := suite.contributionSuitePvcNewNuxeo()
 	dep := genTestDeploymentForContributionSuite()
 	err = configureContributions(&suite.r, nux, &dep, nux.Spec.NodeSets[0])
-	require.Nil(suite.T(), err, "handleConfig failed")
+	require.Nil(suite.T(), err, "configureConfig failed")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes),
 		"incorrect volume configuration")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),

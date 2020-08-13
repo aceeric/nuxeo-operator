@@ -20,10 +20,16 @@ import (
 //  periodSeconds: 10
 //  successThreshold: 1
 //	failureThreshold: 3
-func addProbes(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet, useHttps bool) error {
+func addProbes(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 		return err
 	} else {
+		useHttps := false
+		if nodeSet.NuxeoConfig.TlsSecret != "" {
+			// if Nuxeo is going to terminate TLS, then it will be listening on HTTPS:8443. Otherwise Nuxeo
+			// listens on HTTP:8080. This affects how the probes are configured immediately below.
+			useHttps = true
+		}
 		nuxeoContainer.LivenessProbe = defaultProbe(useHttps)
 		if nodeSet.LivenessProbe != nil {
 			nodeSet.LivenessProbe.DeepCopyInto(nuxeoContainer.LivenessProbe)

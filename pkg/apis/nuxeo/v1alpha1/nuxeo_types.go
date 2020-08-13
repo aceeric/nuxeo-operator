@@ -106,9 +106,8 @@ type NodeSet struct {
 	ClusterEnabled bool `json:"clusterEnabled,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// Supports adding environment variables into the Nuxeo container created by the Operator for this NodeSet. If
-	// the PodTemplate is specified, these environment variables are ignored and the environment variables from the
-	// PodTemplate - whether they are explicitly defined or not - are used.
+	// Supports manually defining environment variables for the Nuxeo container created by the Operator for
+	// this NodeSet.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
@@ -229,13 +228,12 @@ type RevProxySpec struct {
 
 // NuxeoConfigSetting Supports configuration settings that can be specified with inline values, or from
 // Secrets or ConfigMaps
-// todo-me inline should either be a secret, or, configurer should have the option of specifying secret or cfgmap
 type NuxeoConfigSetting struct {
 	// +kubebuilder:validation:Optional
 	// Specifies an inline value for the setting. Either this, or the valueFrom must be specified, but not
 	// both.
 	// +optional
-	Value string `json:"value,omitempty"`
+	Inline string `json:"inline,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Source for the configuration settings's value. Either this, or the value must be specified, but not
@@ -297,7 +295,6 @@ type NuxeoConfig struct {
 	// +optional
 	NuxeoName string `json:"nuxeoName,omitempty"`
 
-	// todo-me raise up a level
 	// +kubebuilder:validation:Optional
 	// NuxeoConf specifies values to append to nuxeo.conf. Values can be provided inline, or from a Secret
 	// or ConfigMap
@@ -391,11 +388,6 @@ type ResourceProjection struct {
 	// +optional
 	From string `json:"from"`
 
-	// todo-me consider this to make explicit the key in the secondary secret that will hold the result of a jsonPath
-	//  projection otherwise the operator has to take JSONPath like .spec.backingServices[0].resources[0].name and
-	//  turn it into secondary secret key .spec.backingServices0.resources0.name
-	//  NewKey string `json:"newKey"`
-
 	// +kubebuilder:validation:Optional
 	// If the backing service resource is a Secret or ConfigMap, and the desire is to project the key value as an
 	// environment variable, then this is the name of the environment variable to project. The Operator will define
@@ -405,10 +397,10 @@ type ResourceProjection struct {
 	Env string `json:"env"`
 
 	// +kubebuilder:validation:Optional
-	// Supports the ability to define environment variable with values directly from upstream resources. For
+	// Supports the ability to define environment variables with values directly from upstream resources. For
 	// example, an upstream resource (not a secret or config map) might contain a port number that is needed
 	// for backing service connectivity. By setting this to true, the operator will define an environment variable
-	// named by the Env field, and set the value directly, rather then providing the value from a secret/CM.
+	// named by the Env field, and set the value directly in the env var, rather then as a value from.
 	// +optional
 	Value bool `json:"value"`
 
@@ -445,7 +437,7 @@ type PreconfiguredBackingService struct {
 	// type identifies the preconfigured backing service
 	Type PreconfigType `json:"type"`
 
-	// resource identifies the name of primary backing service resource. For example, for Elastic Cloud on
+	// resource identifies the name of the top-level backing service resource. For example, for Elastic Cloud on
 	// Kubernetes, this is the cluster resource that would be returned if one executed: 'kubectl get
 	// elasticsearch'. The Nuxeo Operator already knows the GVK, so all the configurer needs to provide
 	// is the resource name in the same namespace as the Nuxeo CR.
@@ -455,7 +447,7 @@ type PreconfiguredBackingService struct {
 	// Optional configuration settings that tune the backing service binding, depending on how the
 	// backing service was configured. For example, with Strimzi, it is possible to allow both plain text and
 	// tls connections. If you want Nuxeo to connect one way or the other, then specify that here. See
-	// the documentation for which settings are valid for the various pre-configured backing services.
+	// the documentation for the settings that are valid for the various pre-configured backing services.
 	// +optional
 	Settings map[string]string `json:"settings"`
 }
@@ -488,7 +480,9 @@ type BackingServiceResource struct {
 // or Secret and to reference that in the Nuxeo CR. An externally provisioned nuxeo.conf ConfigMap or Secret is not
 // compatible with backing services and will result in a reconciliation error. Only inlined nuxeo.conf content is
 // supported with backing services - because the Operator has to have ownership of the cluster resource holding
-// the nuxeo.conf content and it can't do that if the resource is provisioned by the configurer.
+// the nuxeo.conf content and it can't do that if the resource is provisioned by the configurer. (Because as of
+// Nuxeo 10.10 only one nuxeo.conf can exist in /docker-entrypoint-initnuxeo.d to be processed by the Nuxeo
+// startup script.)
 type BackingService struct {
 	// +kubebuilder:validation:Optional
 	// The name of the backing service, as well as the directory under which to mount any files. Required
@@ -526,7 +520,6 @@ type BackingService struct {
 
 // Defines the desired state of a Nuxeo cluster
 type NuxeoSpec struct {
-
 	// +kubebuilder:validation:Optional
 	// Overrides the default Nuxeo container image selected by the Operator. By default, the Operator
 	// uses 'nuxeo:latest' as the container image. To override that, include the image spec here. Any allowable

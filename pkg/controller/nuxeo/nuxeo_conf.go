@@ -15,13 +15,13 @@ import (
 // are true, then the function creates a ConfigMap struct to hold all nuxeo.conf entries. The content is placed
 // into the ConfigMap identified by the key 'nuxeo.conf'. The function then reconciles this with the cluster.
 // The caller must have defined a Volume and VolumeMount elsewhere to  reference the ConfigMap. (See the
-// handleConfig function for details.) If the Nuxeo CR indicates that an inline nuxeo.conf should not exist,
+// configureConfig function for details.) If the Nuxeo CR indicates that an inline nuxeo.conf should not exist,
 // then the function makes sure a ConfigMap does not exist in the cluster. The ConfigMap is given a hard-coded
 // name: nuxeo cluster name + "-" + node set name + "-nuxeo-conf". E.g.: 'my-nuxeo-cluster-nuxeo-conf'.
 func reconcileNuxeoConf(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet, backingNuxeoConf string,
 	tlsNuxeoConf string) error {
 	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) {
-		expected := r.defaultNuxeoConfCM(instance, nodeSet.Name, nodeSet.NuxeoConfig.NuxeoConf.Value,
+		expected := r.defaultNuxeoConfCM(instance, nodeSet.Name, nodeSet.NuxeoConfig.NuxeoConf.Inline,
 			nodeSet.ClusterEnabled, backingNuxeoConf, tlsNuxeoConf)
 		_, err := addOrUpdate(r, expected.Name, instance.Namespace, expected, &corev1.ConfigMap{},
 			util.ConfigMapComparer)
@@ -34,7 +34,7 @@ func reconcileNuxeoConf(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, nodeSet v1a
 
 // Returns true if the Operator should reconcile a nuxeo.conf ConfigMap or Secret to hold nuxeo.conf settings
 func shouldReconNuxeoConf(nodeSet v1alpha1.NodeSet, backingNuxeoConf string, tlsNuxeoConf string) bool {
-	return nodeSet.NuxeoConfig.NuxeoConf.Value != "" || nodeSet.ClusterEnabled || backingNuxeoConf != "" ||
+	return nodeSet.NuxeoConfig.NuxeoConf.Inline != "" || nodeSet.ClusterEnabled || backingNuxeoConf != "" ||
 		tlsNuxeoConf != ""
 }
 

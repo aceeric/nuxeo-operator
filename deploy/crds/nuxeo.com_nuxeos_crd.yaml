@@ -94,7 +94,9 @@ spec:
                     supported with backing services - because the Operator has to
                     have ownership of the cluster resource holding the nuxeo.conf
                     content and it can't do that if the resource is provisioned by
-                    the configurer."
+                    the configurer. (Because as of Nuxeo 10.10 only one nuxeo.conf
+                    can exist in /docker-entrypoint-initnuxeo.d to be processed by
+                    the Nuxeo startup script.)"
                   properties:
                     name:
                       description: The name of the backing service, as well as the
@@ -117,11 +119,11 @@ spec:
                         are all ignored.
                       properties:
                         resource:
-                          description: 'resource identifies the name of primary backing
-                            service resource. For example, for Elastic Cloud on Kubernetes,
-                            this is the cluster resource that would be returned if
-                            one executed: ''kubectl get elasticsearch''. The Nuxeo
-                            Operator already knows the GVK, so all the configurer
+                          description: 'resource identifies the name of the top-level
+                            backing service resource. For example, for Elastic Cloud
+                            on Kubernetes, this is the cluster resource that would
+                            be returned if one executed: ''kubectl get elasticsearch''.
+                            The Nuxeo Operator already knows the GVK, so all the configurer
                             needs to provide is the resource name in the same namespace
                             as the Nuxeo CR.'
                           type: string
@@ -133,8 +135,9 @@ spec:
                             service was configured. For example, with Strimzi, it
                             is possible to allow both plain text and tls connections.
                             If you want Nuxeo to connect one way or the other, then
-                            specify that here. See the documentation for which settings
-                            are valid for the various pre-configured backing services.
+                            specify that here. See the documentation for the settings
+                            that are valid for the various pre-configured backing
+                            services.
                           type: object
                         type:
                           description: type identifies the preconfigured backing service
@@ -272,14 +275,14 @@ spec:
                                   type: object
                                 value:
                                   description: Supports the ability to define environment
-                                    variable with values directly from upstream resources.
+                                    variables with values directly from upstream resources.
                                     For example, an upstream resource (not a secret
                                     or config map) might contain a port number that
                                     is needed for backing service connectivity. By
                                     setting this to true, the operator will define
                                     an environment variable named by the Env field,
-                                    and set the value directly, rather then providing
-                                    the value from a secret/CM.
+                                    and set the value directly in the env var, rather
+                                    then as a value from.
                                   type: boolean
                               type: object
                             type: array
@@ -1700,11 +1703,8 @@ spec:
                         type: object
                       type: array
                     env:
-                      description: Supports adding environment variables into the
-                        Nuxeo container created by the Operator for this NodeSet.
-                        If the PodTemplate is specified, these environment variables
-                        are ignored and the environment variables from the PodTemplate
-                        - whether they are explicitly defined or not - are used.
+                      description: Supports manually defining environment variables
+                        for the Nuxeo container created by the Operator for this NodeSet.
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -1969,11 +1969,10 @@ spec:
                             trustStorePassword, and trustStoreType.'
                           type: string
                         nuxeoConf:
-                          description: todo-me raise up a level NuxeoConf specifies
-                            values to append to nuxeo.conf. Values can be provided
-                            inline, or from a Secret or ConfigMap
+                          description: NuxeoConf specifies values to append to nuxeo.conf.
+                            Values can be provided inline, or from a Secret or ConfigMap
                           properties:
-                            value:
+                            inline:
                               description: Specifies an inline value for the setting.
                                 Either this, or the valueFrom must be specified, but
                                 not both.

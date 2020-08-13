@@ -18,7 +18,7 @@ import (
 // reconcilePvc examines the Storage definitions in each NodeSet of the passed Nuxeo CR, gathers a list of PVCs,
 // then conforms actual PVCs in the cluster to those expected PVCs. If the Nuxeo CR changes the definition of a PVC,
 // and there is an existing PVC with the same name, then the existing PVC is deleted and re-created.
-func reconcilePvc(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) error {
+func (r *ReconcileNuxeo) reconcilePvc(instance *v1alpha1.Nuxeo) error {
 	var expectedPvcs []corev1.PersistentVolumeClaim
 	for _, nodeSet := range instance.Spec.NodeSets {
 		for _, storage := range nodeSet.Storage {

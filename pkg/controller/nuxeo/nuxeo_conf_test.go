@@ -107,7 +107,7 @@ func (suite *nuxeoConfSuite) nuxeoConfSuiteNewNuxeo() *v1alpha1.Nuxeo {
 				NuxeoConfig: v1alpha1.NuxeoConfig{
 					NuxeoConf: v1alpha1.NuxeoConfigSetting{
 						// inline
-						Value: suite.nuxeoConfContent,
+						Inline: suite.nuxeoConfContent,
 					},
 				},
 			}},

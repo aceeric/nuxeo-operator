@@ -15,8 +15,8 @@ import (
 func (suite *clidSuite) TestBasicClid() {
 	nux := suite.clidSuiteNewNuxeo()
 	dep := genTestDeploymentForClidSuite()
-	err := handleClid(nux, &dep)
-	require.Nil(suite.T(), err, "handleClid failed")
+	err := configureClid(nux, &dep)
+	require.Nil(suite.T(), err, "configureClid failed")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
 		"Volume Mounts not correctly defined")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes),

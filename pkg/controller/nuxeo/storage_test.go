@@ -19,8 +19,8 @@ import (
 func (suite *nuxeoStorageSpecSuite) TestBasicNuxeoStorage() {
 	nux := suite.nuxeoStorageSpecSuiteNewNuxeo()
 	dep := genTestDeploymentForStorageSuite()
-	err := handleStorage(&dep, nux.Spec.NodeSets[0])
-	require.Nil(suite.T(), err, "handleStorage failed")
+	err := configureStorage(&dep, nux.Spec.NodeSets[0])
+	require.Nil(suite.T(), err, "configureStorage failed")
 	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes), "Volumes were not created")
 	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
 		"Volume mounts were not created")

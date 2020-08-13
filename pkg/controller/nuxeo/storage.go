@@ -9,10 +9,10 @@ import (
 	"nuxeo-operator/pkg/util"
 )
 
-// handleStorage supports the ability to define persistent storage for certain types of Nuxeo storage. For example,
+// configureStorage supports the ability to define persistent storage for certain types of Nuxeo storage. For example,
 // Nuxeo stores document attachments as binary blobs on the file system. This function and the underlying configuration
 // structures allow these blobs to be stored persistently.
-func handleStorage(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
+func configureStorage(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 		return err
 	} else {

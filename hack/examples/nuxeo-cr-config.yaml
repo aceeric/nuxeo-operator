@@ -10,5 +10,15 @@ spec:
   - name: cluster
     replicas: 1
     interactive: true
+    nuxeoConfig:
+      javaOpts: "-Xms8m"
+      nuxeoTemplates:
+      - custom
+      nuxeoPackages:
+      - nuxeo-web-ui
+      nuxeoUrl: "http://nuxeo-server.apps-crc.testing/nuxeo"
+      nuxeoName: "nuxeo-test"
+      nuxeoConf:
+        inline: |
           a.b.c=test1
           p.d.q=test2

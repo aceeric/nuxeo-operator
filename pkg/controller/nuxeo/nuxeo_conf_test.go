@@ -17,7 +17,7 @@ import (
 // created that contains the matching nuxeo.conf content.
 func (suite *nuxeoConfSuite) TestBasicInlineNuxeoConf() {
 	nux := suite.nuxeoConfSuiteNewNuxeo()
-	err := reconcileNuxeoConf(&suite.r, nux, nux.Spec.NodeSets[0], "", "")
+	err := suite.r.reconcileNuxeoConf(nux, nux.Spec.NodeSets[0], "", "")
 	require.Nil(suite.T(), err, "reconcileNuxeoConf failed")
 	found := &corev1.ConfigMap{}
 	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)

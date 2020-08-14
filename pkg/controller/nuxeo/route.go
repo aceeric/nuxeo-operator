@@ -2,7 +2,6 @@ package nuxeo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -15,18 +14,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool,
+func (r *ReconcileNuxeo) reconcileOpenShiftRoute(access v1alpha1.NuxeoAccess, forcePassthrough bool,
 	nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo) error {
 	routeName := routeName(instance, nodeSet)
 	if access != (v1alpha1.NuxeoAccess{}) {
 		if expected, err := r.defaultRoute(instance, access, forcePassthrough, routeName, nodeSet); err != nil {
 			return err
 		} else {
-			_, err = addOrUpdate(r, routeName, instance.Namespace, expected, &routev1.Route{}, util.RouteComparer)
+			_, err = r.addOrUpdate(routeName, instance.Namespace, expected, &routev1.Route{}, util.RouteComparer)
 			return err
 		}
 	} else {
-		return removeIfPresent(r, instance, routeName, instance.Namespace, &routev1.Route{})
+		return r.removeIfPresent(instance, routeName, instance.Namespace, &routev1.Route{})
 	}
 }
 
@@ -36,7 +35,7 @@ func reconcileOpenShiftRoute(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, for
 func (r *ReconcileNuxeo) defaultRoute(instance *v1alpha1.Nuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool,
 	routeName string, nodeSet v1alpha1.NodeSet) (*routev1.Route, error) {
 	if access.Termination != "" && forcePassthrough {
-		return nil, errors.New("invalid to explicitly specify route/ingress termination if Nuxeo is terminating TLS")
+		return nil, fmt.Errorf("invalid to explicitly specify route/ingress termination if Nuxeo is terminating TLS")
 	}
 	targetPort := intstr.IntOrString{
 		Type:   intstr.String,
@@ -75,7 +74,7 @@ func (r *ReconcileNuxeo) defaultRoute(instance *v1alpha1.Nuxeo, access v1alpha1.
 		s := &corev1.Secret{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: access.TLSSecret, Namespace: instance.Namespace}, s)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("TLS Secret not found: %v", access.TLSSecret))
+			return nil, fmt.Errorf("TLS Secret not found: %v", access.TLSSecret)
 		}
 		// accept "certificate" and "tls.crt" keys in the secret
 		var cert, key []byte

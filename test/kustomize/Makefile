@@ -15,6 +15,7 @@ all:
 	$(MAKE) crunchy-plain-test
 	$(MAKE) crunchy-tls-test
 # FAILS: $(MAKE) crunchy-mutual-tls-test
+	$(MAKE) strimzi-eck-crunchy-test
 
 # the following rules are used to do the small units of work. They are dependencies for the larger
 # rules invoked in the section that follows
@@ -103,6 +104,14 @@ crunchy-mutual-tls:
 	kustomize build $(ROOT)/stacks/crunchy-mutual-tls | $(KUBEAPPLY)
 	$(ROOT)/scripts/podup CRUNCHY && echo Crunchy database is up || (echo Crunchy not up; exit 1)
 
+# Strimzi mutual TLS, ECK built-in elastic user, Crunchy user/pass + Nuxeo
+.PHONY: strimzi-eck-crunchy
+strimzi-eck-crunchy:
+	kustomize build $(ROOT)/stacks/strimzi-eck-crunchy | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup ELASTIC && echo Elastic Cluster is up || (echo Elastic Cluster not up; exit 1)
+	$(ROOT)/scripts/podup KAFKA && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
+	$(ROOT)/scripts/podup CRUNCHY && echo Crunchy database is up || (echo Crunchy not up; exit 1)
+
 # Make sure Nuxeo clean start
 .PHONY: verify-nuxeo
 verify-nuxeo:
@@ -143,6 +152,10 @@ crunchy-tls-test: verify-images-ns clean operator-crunchy-4.4.0 security crunchy
 .PHONY: crunchy-mutual-tls-test
 crunchy-mutual-tls-test: verify-images-ns clean operator-crunchy-4.4.0 security crunchy-mutual-tls verify-nuxeo
 	echo COMPLETED CRUNCHY MUTUAL TLS TEST
+
+.PHONY: strimzi-eck-crunchy-test
+strimzi-eck-crunchy-test: verify-images-ns clean operator-crunchy-4.4.0 operator-strimzi-0.18.0 operator-eck-1.1.2 security strimzi-eck-crunchy verify-nuxeo
+	echo COMPLETED STRIMZI/ECK/CRUNCHY TEST
 
 # helper rules - only nuxeo-lts-2019-hf29-image must be run before running the tests because it creates an
 # imagestream. The outputs of all other rules are included in the repo. (You could bypass this dependency

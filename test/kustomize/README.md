@@ -1,6 +1,6 @@
-# Pre-Configured Backing Service Tests
+# Backing Service Tests
 
-This directory provides a Make file to test the backing services that the Nuxeo Operator has **pre-configured** support for. The idea is, with a minimal bit of configuration, you can connect Nuxeo to a backing service:
+This directory provides a Make file to test the Nuxeo backing service integration. Most of the tests demonstrate **pre-configured** backing service integration. The idea behind a pre-configured backing service is: with a minimal bit of configuration, you can connect Nuxeo to a backing service:
 
 ```shell
   backingServices:
@@ -9,11 +9,9 @@ This directory provides a Make file to test the backing services that the Nuxeo 
       resource: elastic
 ```
 
-The configuration above in a Nuxeo CR will connect Nuxeo to Elastic Search provisioned by Elastic Cloud for Kubernetes (ECK) using the built-in `elastic` user.  You're not constrained to using pre-configured backing services. Any backing service whose configuration is discoverable in the cluster can be integrated with Nuxeo using the more verbose backing services stanzas supported by the Nuxeo CR.
+The configuration above in a Nuxeo CR will connect Nuxeo to Elastic Search provisioned by Elastic Cloud for Kubernetes (ECK) using the ECK-provisioned built-in `elastic` user.  You're not constrained to using pre-configured backing services. Any backing service whose configuration is discoverable in the cluster can be integrated with Nuxeo using the more verbose backing services stanzas supported by the Nuxeo CR. (One of the tests demonstrates that.)
 
-However, there are a few backing services that the Nuxeo Operator has pre-configured support for. For each backing service, there are a couple of different connection options.
-
-This directory and Make file test those pre-configured backing services and connection options. The following pre-configured backing services / options are supported by the Nuxeo Operator at present:
+However, there are a few backing services that the Nuxeo Operator has pre-configured support for, and for each such backing service, there are a couple of different supported connection options. The following pre-configured backing services / options are supported by the Nuxeo Operator at present:
 
 1. ECK Elastic Search with the built-in `elastic` user
 2. ECK Elastic Search with a custom file realm user, where a cluster secret contains the user name and password of the file realm user for Nuxeo, and another secret contains that information in a specific hashed format required by Elastic Search.
@@ -39,7 +37,7 @@ The tests are run using a Make file in this directory. Each test does the same t
 
 1. Deletes the `backing` namespace if it exists so each test starts clean.
 2. Installs backing service operator(s) into the backing namespace using Kustomize and kubectl - each backing service creates the `backing` namespace if it doesn't already exist.
-3. Deploys an image puller RBAC that allows the `backing` namespace to pull the Nuxeo image from the `images` namespace. (Hence OpenShift)
+3. Deploys an image puller RBAC that allows the `backing` namespace to pull the Nuxeo image from the `images` namespace. (Hence OpenShift.)
 4. Deploys manifests for backing services, and for Nuxeo, using Kustomize.
 5. Waits for the Nuxeo Pod to come up, then curls Nuxeo waiting for an HTTP 200 status code, then checks for a clean start in the Nuxeo logs.
 
@@ -57,6 +55,7 @@ The following Make rules are presently available:
 | strimzi-mutual-tls-test    | Strimzi with mutual TLS, simple authorization                |
 | crunchy-plain-test         | Crunchy Postgres with plain username/password login, no encryption |
 | crunchy-tls-test           | Crunchy Postgres with plain username/password login, TLS encryption |
+| strimzi-eck-crunchy-test   | Strimzi Kafka, ECK Elastic Search, and Crunchy PostgreSQL with explicit backing service configuration rather than pre-configured backing services. This tests a full Nuxeo app stack, and also provide some insight into how to integrate with backing services explicitly. You can see the difference in verbosity between explicit and pre-configured backing service support. |
 
 ## Example
 

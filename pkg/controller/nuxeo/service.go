@@ -1,7 +1,6 @@
 package nuxeo
 
 import (
-	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -17,14 +16,14 @@ import (
 // Service exists and its state differs from the ServiceSpec, the Service is conformed to the ServiceSpec.
 // Otherwise, the fall-through case is that a Service exists that matches the ServiceSpec and so in this
 // case - cluster state is not modified.
-func reconcileService(r *ReconcileNuxeo, svc v1alpha1.ServiceSpec, nodeSet v1alpha1.NodeSet,
+func (r *ReconcileNuxeo) reconcileService(svc v1alpha1.ServiceSpec, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo) error {
 	svcName := serviceName(instance, nodeSet)
 	expected, err := r.defaultService(instance, svc, svcName)
 	if err != nil {
 		return err
 	}
-	_, err = addOrUpdate(r, svcName, instance.Namespace, expected, &corev1.Service{}, util.ServiceComparer)
+	_, err = r.addOrUpdate(svcName, instance.Namespace, expected, &corev1.Service{}, util.ServiceComparer)
 	return err
 }
 
@@ -87,7 +86,7 @@ func (r *ReconcileNuxeo) defaultService(instance *v1alpha1.Nuxeo, svc v1alpha1.S
 	case "LoadBalancer":
 		fallthrough
 	default:
-		return nil, errors.New(fmt.Sprintf("Unsupported Service Type: %v", svcType))
+		return nil, fmt.Errorf("unsupported Service Type: %v", svcType)
 	}
 }
 

@@ -180,7 +180,9 @@ spec:
                                 the Nuxeo Pod. Values can be projected as environment
                                 variables, mounts, or transformed - which always results
                                 in a mount. There can be multiple projections from
-                                a single resource.
+                                a single resource. E.g. one resource might contain
+                                one value that is projected as an env var, and another
+                                value projected as a filesystem object.
                               properties:
                                 env:
                                   description: If the backing service resource is

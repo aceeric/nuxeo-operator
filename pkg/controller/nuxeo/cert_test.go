@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -164,7 +163,7 @@ func readStore(storeBytes []byte, password string) (keystore.KeyStore, error) {
 // match the passed count.
 func certificatesToPEM(certs []keystore.Certificate, cnt int) ([]byte, error) {
 	if len(certs) != cnt {
-		return nil, errors.New(fmt.Sprintf("actual cert count %v did not match expected %v", len(certs), cnt))
+		return nil, fmt.Errorf("actual cert count %v did not match expected %v", len(certs), cnt)
 	}
 	var pemBytes []byte
 	for _, cert := range certs {
@@ -199,7 +198,7 @@ func trustedCertEntryToPEM(k *keystore.TrustedCertificateEntry, cnt int) ([]byte
 		return nil, err
 	} else {
 		if len(certs) != cnt {
-			return nil, errors.New(fmt.Sprintf("actual cert count %v did not match expected %v", len(certs), cnt))
+			return nil, fmt.Errorf("actual cert count %v did not match expected %v", len(certs), cnt)
 		}
 		return pemEncodeX509Certs(certs)
 	}
@@ -210,7 +209,7 @@ func privateKeyEntryToPEM(k *keystore.PrivateKeyEntry) ([]byte, error) {
 	if pk, err := x509.ParsePKCS1PrivateKey(k.PrivKey); err != nil {
 		return nil, err
 	} else if keyBytes := x509.MarshalPKCS1PrivateKey(pk); keyBytes == nil {
-		return nil, errors.New("x509.MarshalPKCS1PrivateKey failed")
+		return nil, fmt.Errorf("x509.MarshalPKCS1PrivateKey failed")
 	} else {
 		return pemEncode("RSA PRIVATE KEY", keyBytes)
 	}

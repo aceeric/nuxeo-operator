@@ -2,7 +2,6 @@ package nuxeo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -59,10 +58,10 @@ func (r *ReconcileNuxeo) reconcilePvc(instance *v1alpha1.Nuxeo) error {
 	if err := r.client.List(context.TODO(), &actualPvcs, opts...); err != nil {
 		return err
 	} else {
-		if err := addPvcs(r, instance, expectedPvcs, actualPvcs.Items); err != nil {
+		if err := r.addPvcs(instance, expectedPvcs, actualPvcs.Items); err != nil {
 			return err
 		}
-		if err := deletePvcs(r, instance, expectedPvcs, actualPvcs.Items); err != nil {
+		if err := r.deletePvcs(instance, expectedPvcs, actualPvcs.Items); err != nil {
 			return err
 		}
 	}
@@ -83,13 +82,13 @@ func getPvc(pvcs []corev1.PersistentVolumeClaim, pvcName string) *corev1.Persist
 // addPvcs creates expected PVCs in the cluster if 1) not already existent, or 2) the specs differ. If there
 // is an existing PVC for an expected PVC (same name) and that existing PVC is not owned by the passed Nuxeo
 // CR, then that is an error condition, and a non-nil error is returned.
-func addPvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.PersistentVolumeClaim,
+func (r *ReconcileNuxeo) addPvcs(instance *v1alpha1.Nuxeo, expected []corev1.PersistentVolumeClaim,
 	actual []corev1.PersistentVolumeClaim) error {
 	for _, expectedPvc := range expected {
 		if actualPvc := getPvc(actual, expectedPvc.Name); actualPvc != nil {
 			if !instance.IsOwner(actualPvc.ObjectMeta) {
-				return errors.New(fmt.Sprintf("Existing PVC '%v' is not owned by this Nuxeo '%v' and cannot be reconciled",
-					actualPvc.Name, instance.UID))
+				return fmt.Errorf("existing PVC '%v' is not owned by this Nuxeo '%v' and cannot be reconciled",
+					actualPvc.Name, instance.UID)
 			}
 			if !util.PvcComparer(&expectedPvc, actualPvc) {
 				if err := r.client.Delete(context.TODO(), actualPvc); err != nil {
@@ -111,7 +110,7 @@ func addPvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.Pers
 // deletePvcs removes orphaned PVCs. The use case is: a Nuxeo CR is deployed with a PVC defined for, say, Data.
 // Someone edits the Nuxeo CR and changes the name of the PVC. This function removes the previous PVC. Only PVCs
 // owned by the passed Nuxeo CR are removed.
-func deletePvcs(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, expected []corev1.PersistentVolumeClaim,
+func (r *ReconcileNuxeo) deletePvcs(instance *v1alpha1.Nuxeo, expected []corev1.PersistentVolumeClaim,
 	actual []corev1.PersistentVolumeClaim) error {
 	for _, actualPvc := range actual {
 		if expectedPvc := getPvc(expected, actualPvc.Name); expectedPvc == nil && instance.IsOwner(actualPvc.ObjectMeta) {

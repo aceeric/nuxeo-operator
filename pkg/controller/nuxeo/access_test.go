@@ -18,10 +18,10 @@ import (
 func (suite *accessSuite) TestBasicAccess() {
 	nux := suite.accessSuiteNewNuxeo()
 	util.SetIsOpenShift(false)
-	err := reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux)
+	err := suite.r.reconcileAccess(nux.Spec.Access, nux.Spec.NodeSets[0], nux)
 	require.Nil(suite.T(), err, "reconcileAccess (Kubernetes) failed")
 	util.SetIsOpenShift(true)
-	err = reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux)
+	err = suite.r.reconcileAccess(nux.Spec.Access, nux.Spec.NodeSets[0], nux)
 	require.Nil(suite.T(), err, "reconcileAccess (OpenShift) failed")
 }
 

@@ -11,13 +11,13 @@ import (
 // reconcileServiceAccount creates a service account for the Nuxeo deployments to run under. At present, there isn't
 // anything in the service account spec - so this is just a placeholder in case any special service-related
 // capabilities are needed in the future
-func reconcileServiceAccount(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) error {
+func (r *ReconcileNuxeo) reconcileServiceAccount(instance *v1alpha1.Nuxeo) error {
 	svcAcctName := util.NuxeoServiceAccountName
 	expected, err := r.defaultServiceAccount(instance, svcAcctName)
 	if err != nil {
 		return err
 	}
-	_, err = addOrUpdate(r, svcAcctName, instance.Namespace, expected, &corev1.ServiceAccount{}, util.NopComparer)
+	_, err = r.addOrUpdate(svcAcctName, instance.Namespace, expected, &corev1.ServiceAccount{}, util.NopComparer)
 	return err
 }
 

@@ -4,6 +4,10 @@
 # executes before the pod actually gets created and causes an immediate error. And looping in Make
 # is cumbersome. So the looping is handled here. Arg one is some logical thing to wait for.
 #
+
+# arg two is to support 'kubectl' and 'microk8s kubectl'
+KUBECTL="$2"
+
 case "$1" in
   PGO) # PGO operator
     expr="-l name=postgres-operator"
@@ -29,7 +33,7 @@ case "$1" in
 esac
 max=120
 for ((i=0; i<$max; i++)); do
-  if kubectl wait pod -n backing "$expr" --for condition=ready --timeout=1s &>/dev/null; then
+  if $KUBECTL wait pod -n backing "$expr" --for condition=ready --timeout=1s &>/dev/null; then
     exit 0
   fi
   sleep 1s

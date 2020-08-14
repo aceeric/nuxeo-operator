@@ -41,7 +41,8 @@ func ServiceComparer(expected runtime.Object, found runtime.Object) bool {
 	return true
 }
 
-// Ingress comparer (ingress annotations control passthrough)
+// Ingress comparer (ingress annotations control passthrough) so - while these annotations are not
+// part of the spec - if they change then its a reconcilement event.
 func IngressComparer(expected runtime.Object, found runtime.Object) bool {
 	same := true
 	const nginxPassthroughAnnotation = "nginx.ingress.kubernetes.io/ssl-passthrough"
@@ -80,8 +81,14 @@ func RouteComparer(expected runtime.Object, found runtime.Object) bool {
 	return true
 }
 
-// Deployment comparer
+// Deployment comparer. The Nuxeo Operator doesn't annotate Spec > Template > Metadata > Annotations but
+// Kubernetes uses that to trigger a rolling update if someone executes 'kubectl rollout restart deployment
+// nuxeo-cluster' so this code nils the found annotations so the comparer doesn't consider them. If anything
+// else in the deployment changes - triggering creation of a new deployment - then this will result in the
+// annotations being reset to empty which is consistent with the state of a new deployment created by the
+// operator.
 func DeploymentComparer(expected runtime.Object, found runtime.Object) bool {
+	found.(*appsv1.Deployment).Spec.Template.Annotations = nil
 	if !reflect.DeepEqual(expected.(*appsv1.Deployment).Spec, found.(*appsv1.Deployment).Spec) {
 		expected.(*appsv1.Deployment).Spec.DeepCopyInto(&found.(*appsv1.Deployment).Spec)
 		return false
@@ -114,6 +121,6 @@ func PvcComparer(expected runtime.Object, found runtime.Object) bool {
 }
 
 // objects are always the same
-func NopComparer(expected runtime.Object, found runtime.Object) bool {
+func NopComparer(runtime.Object, runtime.Object) bool {
 	return true
 }

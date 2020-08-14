@@ -8,12 +8,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// updateNuxeoStatus updates the status field in the Nuxeo CR being watched by the operator. This is a
-// very crude implementation and will be expanded in a later version
+// updateNuxeoStatus updates the status field in the Nuxeo CR being watched by the operator
 func (r *ReconcileNuxeo) updateNuxeoStatus(instance *v1alpha1.Nuxeo) error {
 	deployments := appsv1.DeploymentList{}
 	opts := []client.ListOption{
 		client.InNamespace(instance.Namespace),
+	}
+	desiredNodes := int32(0)
+	for _, nodeSet := range instance.Spec.NodeSets {
+		desiredNodes += nodeSet.Replicas
 	}
 	availableNodes := int32(0)
 	if err := r.client.List(context.TODO(), &deployments, opts...); err != nil {
@@ -24,7 +27,16 @@ func (r *ReconcileNuxeo) updateNuxeoStatus(instance *v1alpha1.Nuxeo) error {
 				availableNodes += dep.Status.AvailableReplicas
 			}
 		}
+		instance.Status.DesiredNodes = desiredNodes
 		instance.Status.AvailableNodes = availableNodes
+		switch {
+		case availableNodes == 0:
+			instance.Status.Status = v1alpha1.StatusUnavailable
+		case availableNodes == desiredNodes:
+			instance.Status.Status = v1alpha1.StatusHealthy
+		default:
+			instance.Status.Status = v1alpha1.StatusDegraded
+		}
 	}
 	if err := r.client.Status().Update(context.TODO(), instance); err != nil {
 		return err

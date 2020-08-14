@@ -121,9 +121,10 @@ Version 0.6.1 will be a clean-up iteration.
 | Refactor all reconcile functions into the common reconciler with resource-specific comparers (started in 0.6.0) | complete |
 | Add a test/kustomize configuration for Strimzi + Crunchy + ECK with explicit config | complete |
 | Update test/kustomize directory to support Kubernetes via MicroK8s | complete |
+| Build out the Status field in the Nuxeo CR to be comparable with other operators available on OperatorHub (with additional printer cols) | complete |
+| Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` | complete |
 | Consider a sidecar array for flexible sidecar configuration |  |
 | Migrate to Operator SDK v1.0.0 (remove temp makefile work-arounds, re-evaluate build/Dockerfile) |  |
-| Build out the Status field in the Nuxeo CR to be comparable with other resources available on OperatorHub | |
 | Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |        |
 | Change CRD group from nuxeo.com to something else (Nuxeo is trademarked) | |
 | Add the Operator image to Docker Hub to simplify installing the operator into a cluster (avoids needing to create Operator images in the Kubernetes/OpenShift cluster internal registry) | |

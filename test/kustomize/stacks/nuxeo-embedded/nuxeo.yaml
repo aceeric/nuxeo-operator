@@ -4,6 +4,7 @@ metadata:
   name: nuxeo
 spec:
   nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:LTS-2019-HF29
+  version: "10.10"
   access:
     hostname: nuxeo-server.apps-crc.testing
   nodeSets:

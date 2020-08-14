@@ -11,7 +11,20 @@ spec:
     singular: nuxeo
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.version
+      name: version
+      type: string
+    - jsonPath: .status.status
+      name: health
+      type: string
+    - jsonPath: .status.availableNodes
+      name: available
+      type: integer
+    - jsonPath: .status.desiredNodes
+      name: desired
+      type: integer
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Nuxeo is the Schema for the nuxeos API
@@ -6613,16 +6626,25 @@ spec:
                     - LoadBalancer
                     type: string
                 type: object
+              version:
+                description: The Nuxeo version. This isn't presently used but is forward-looking
+                  for when the Operator needs to implement different behaviors for
+                  different Nuxeo versions.
+                type: string
             required:
             - nodeSets
             type: object
           status:
             description: NuxeoStatus defines the observed state of a Nuxeo cluster.
-              This is preliminary and will be expanded in later versions
             properties:
               availableNodes:
                 format: int32
                 type: integer
+              desiredNodes:
+                format: int32
+                type: integer
+              status:
+                type: string
             type: object
         type: object
     served: true

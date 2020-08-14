@@ -532,6 +532,12 @@ type NuxeoSpec struct {
 	NuxeoImage string `json:"nuxeoImage,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// The Nuxeo version. This isn't presently used but is forward-looking for when the Operator needs to implement
+	// different behaviors for different Nuxeo versions.
+	// +optional
+	Version string `json:"version,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	// Image pull policy. If not specified, then if 'nuxeoImage' is specified with the :latest tag, then this is
 	// 'Always', otherwise it is 'IfNotPresent'. Note that this flows through to a Pod ultimately, and pull policy
 	// is immutable in a Pod spec. Therefore if any changes are made to this value in a Nuxeo CR once the
@@ -576,16 +582,29 @@ type NuxeoSpec struct {
 	BackingServices []BackingService `json:"backingServices,omitempty"`
 }
 
-// NuxeoStatus defines the observed state of a Nuxeo cluster. This is preliminary and will be expanded in later
-// versions
+type StatusValue string
+
+const (
+	StatusUnavailable StatusValue = "unavailable"
+	StatusHealthy                 = "healthy"
+	StatusDegraded                = "degraded"
+)
+
+// NuxeoStatus defines the observed state of a Nuxeo cluster.
 type NuxeoStatus struct {
-	AvailableNodes int32 `json:"availableNodes,omitempty"`
+	DesiredNodes   int32       `json:"desiredNodes,omitempty"`
+	AvailableNodes int32       `json:"availableNodes,omitempty"`
+	Status         StatusValue `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // Nuxeo is the Schema for the nuxeos API
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=nuxeos,scope=Namespaced
+// +kubebuilder:printcolumn:name="version",type="string",JSONPath=".spec.version"
+// +kubebuilder:printcolumn:name="health",type="string",JSONPath=".status.status"
+// +kubebuilder:printcolumn:name="available",type="integer",JSONPath=".status.availableNodes"
+// +kubebuilder:printcolumn:name="desired",type="integer",JSONPath=".status.desiredNodes"
 type Nuxeo struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -1,12 +1,25 @@
-ROOT      := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-KUBECTL   := kubectl
-KUBEAPPLY ?= $(KUBECTL) apply -f -
-NXIMGERR  := "These tests require image 'nuxeo' with tag 'LTS-2019-HF29' in the 'images' namespace"
+ROOT           := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+KUBECTL        := kubectl
+KUBEAPPLY      ?= $(KUBECTL) apply -f -
+NXIMGERR       := "These tests require image 'nuxeo' with tag 'LTS-2019-HF29' in the 'images' namespace"
+IMAGE_REGISTRY := default-route-openshift-image-registry.apps-crc.testing
+IMAGE_ORG      := images
+STACKS         ?= stacks
+FSGROUP_PATCH  := sed -e 's|disable_fsgroup: "false"|disable_fsgroup: "true"|'
 
-# at the present this Makefile only supports OpenShift
+# set Make variables for MicroK8s
+ifeq ($(TARGET_CLUSTER),MICROK8S)
+    IMAGE_REGISTRY := localhost:32000
+    MICROK8S       := $(shell which microk8s)
+    KUBECTL        := $(MICROK8S) kubectl
+    STACKS         := stacks-mk8s
+    # don't patch for Kubernetes/MicroK8s
+    FSGROUP_PATCH  := cat
+endif
 
 .PHONY: all
 all:
+	$(MAKE) nuxeo-embedded-test
 	$(MAKE) elastic-builtin-test
 	$(MAKE) elastic-filerealm-test
 	$(MAKE) strimzi-anonymous-test
@@ -25,100 +38,113 @@ all:
 clean:
 	$(KUBECTL) get ns backing >/dev/null 2>&1 && $(KUBECTL) delete ns backing || true
 
-# make sure the images ns exists
+# make sure the images ns exists if this is OpenShift/CRC - NOP for MicroK8s
 .PHONY: verify-images-ns
 verify-images-ns:
+ifneq ($(TARGET_CLUSTER),MICROK8S)
 	$(KUBECTL) get namespace images >/dev/null 2>&1 || (echo $(NXIMGERR); exit 1)
+else
+	true
+endif
 
 # stand up ECK Operator
 .PHONY: operator-eck-1.1.2
 operator-eck-1.1.2:
 	kustomize build $(ROOT)/operator-eck-1.1.2 | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup ECK && echo ECK Operator is up || (echo ECK Operator not up; exit 1)
+	$(ROOT)/scripts/podup ECK "$(KUBECTL)" && echo ECK Operator is up || (echo ECK Operator not up; exit 1)
 
 # stand up Strimzi Operator
 .PHONY: operator-strimzi-0.18.0
 operator-strimzi-0.18.0:
 	kustomize build $(ROOT)/operator-strimzi-0.18.0 | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup STRIMZI && echo Strimzi Operator is up || (echo Strimzi Operator not up; exit 1)
+	$(ROOT)/scripts/podup STRIMZI "$(KUBECTL)" && echo Strimzi Operator is up || (echo Strimzi Operator not up; exit 1)
 
 # stand up Crunchy Operator
-# kustomize cannot patch the 'disable_fsgroup' setting in 'pgo-deployer-cm' - which
-# OpenShift can't tolerate - so sed
+# kustomize cannot patch the 'disable_fsgroup' setting in 'pgo-deployer-cm' - which OpenShift can't tolerate - so if
+# OpenShift/CRC, it is patched here with sed. If Kubernetes/MK8s - no patch
 .PHONY: operator-crunchy-4.4.0
 operator-crunchy-4.4.0:
 	KUSTOMIZE_PLUGIN_HOME=$(ROOT) kustomize build --enable_alpha_plugins $(ROOT)/operator-crunchy-4.4.0\
-		| sed -e 's|disable_fsgroup: "false"|disable_fsgroup: "true"|' | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup PGO && echo Crunchy Operator is up || (echo Crunchy Operator not up; exit 1)
+		| $(FSGROUP_PATCH) | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup PGO "$(KUBECTL)" && echo Crunchy Operator is up || (echo Crunchy Operator not up; exit 1)
 
-# image puller role (OpenShift only)
+# image puller role - required for OpenShift/CRC - benign for Kubernetes/MicroK8s
 .PHONY: security
 security:
 	kustomize build $(ROOT)/security | $(KUBEAPPLY)
 
+# Nuxeo all embedded backing services (just a scaffolding sanity check)
+.PHONY: nuxeo-embedded
+nuxeo-embedded:
+	kustomize build $(ROOT)/$(STACKS)/nuxeo-embedded | $(KUBEAPPLY)
+
 # ElasticSearch built-in user + Nuxeo
 .PHONY: elastic-builtin
 elastic-builtin:
-	kustomize build $(ROOT)/stacks/elastic-builtin | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup ELASTIC && echo Elastic Cluster is up || (echo Elastic Cluster not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/elastic-builtin | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup ELASTIC "$(KUBECTL)" && echo Elastic Cluster is up || (echo Elastic Cluster not up; exit 1)
 
 # ElasticSearch filerealm user + Nuxeo
 .PHONY: elastic-filerealm
 elastic-filerealm:
-	kustomize build $(ROOT)/stacks/elastic-filerealm | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup ELASTIC && echo Elastic Cluster is up || (echo Elastic Cluster not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/elastic-filerealm | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup ELASTIC "$(KUBECTL)" && echo Elastic Cluster is up || (echo Elastic Cluster not up; exit 1)
 
 # Strimzi anon + Nuxeo
 .PHONY: strimzi-anonymous
 strimzi-anonymous:
-	kustomize build $(ROOT)/stacks/strimzi-anonymous | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup KAFKA && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/strimzi-anonymous | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup KAFKA "$(KUBECTL)" && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
 
 # Strimzi scram sha 512 TLS encrypt + Nuxeo
 .PHONY: strimzi-scram-sha-512
 strimzi-scram-sha-512:
-	kustomize build $(ROOT)/stacks/strimzi-scram-sha-512 | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup KAFKA && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/strimzi-scram-sha-512 | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup KAFKA "$(KUBECTL)" && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
 
 # Strimzi mutual tls + Nuxeo
 .PHONY: strimzi-mutual-tls
 strimzi-mutual-tls:
-	kustomize build $(ROOT)/stacks/strimzi-mutual-tls | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup KAFKA && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/strimzi-mutual-tls | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup KAFKA "$(KUBECTL)" && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
 
-# Crunchy user/pass + Nuxeo
+# Crunchy user/pass plain text + Nuxeo
 .PHONY: crunchy-plain
 crunchy-plain:
-	kustomize build $(ROOT)/stacks/crunchy-plain | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup CRUNCHY && echo Crunchy database is up || (echo Crunchy not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/crunchy-plain | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup CRUNCHY "$(KUBECTL)" && echo Crunchy database is up || (echo Crunchy not up; exit 1)
 
 # Crunchy user/pass over TLS + Nuxeo
 .PHONY: crunchy-tls
 crunchy-tls:
-	kustomize build $(ROOT)/stacks/crunchy-tls | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup CRUNCHY && echo Crunchy database is up || (echo Crunchy not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/crunchy-tls | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup CRUNCHY "$(KUBECTL)" && echo Crunchy database is up || (echo Crunchy not up; exit 1)
 
 # Crunchy mutual TLS + Nuxeo (does not work)
 .PHONY: crunchy-mutual-tls
 crunchy-mutual-tls:
-	kustomize build $(ROOT)/stacks/crunchy-mutual-tls | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup CRUNCHY && echo Crunchy database is up || (echo Crunchy not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/crunchy-mutual-tls | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup CRUNCHY "$(KUBECTL)" && echo Crunchy database is up || (echo Crunchy not up; exit 1)
 
-# Strimzi mutual TLS, ECK built-in elastic user, Crunchy user/pass + Nuxeo
+# Strimzi mutual TLS, ECK built-in elastic user, Crunchy user/pass plain text + Nuxeo
 .PHONY: strimzi-eck-crunchy
 strimzi-eck-crunchy:
-	kustomize build $(ROOT)/stacks/strimzi-eck-crunchy | $(KUBEAPPLY)
-	$(ROOT)/scripts/podup ELASTIC && echo Elastic Cluster is up || (echo Elastic Cluster not up; exit 1)
-	$(ROOT)/scripts/podup KAFKA && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
-	$(ROOT)/scripts/podup CRUNCHY && echo Crunchy database is up || (echo Crunchy not up; exit 1)
+	kustomize build $(ROOT)/$(STACKS)/strimzi-eck-crunchy | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup ELASTIC "$(KUBECTL)" && echo Elastic Cluster is up || (echo Elastic Cluster not up; exit 1)
+	$(ROOT)/scripts/podup KAFKA "$(KUBECTL)" && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
+	$(ROOT)/scripts/podup CRUNCHY "$(KUBECTL)" && echo Crunchy database is up || (echo Crunchy not up; exit 1)
 
 # Make sure Nuxeo clean start
 .PHONY: verify-nuxeo
 verify-nuxeo:
-	$(eval result = $(shell bash -c "$(ROOT)/scripts/verify-nuxeo"))
+	$(eval result = $(shell bash -c "$(ROOT)/scripts/verify-nuxeo \"$(KUBECTL)\""))
 	if [ FAIL = "$(result)" ]; then exit 1; else exit 0; fi
 
 # these rules each test one connectivity configuration
+
+.PHONY: nuxeo-embedded-test
+nuxeo-embedded-test: verify-images-ns clean nuxeo-embedded verify-nuxeo
+	echo COMPLETED NUXEO EMBEDDED TEST
 
 .PHONY: elastic-builtin-test
 elastic-builtin-test: verify-images-ns clean operator-eck-1.1.2 security elastic-builtin verify-nuxeo
@@ -158,10 +184,11 @@ strimzi-eck-crunchy-test: verify-images-ns clean operator-crunchy-4.4.0 operator
 	echo COMPLETED STRIMZI/ECK/CRUNCHY TEST
 
 # helper rules - only nuxeo-lts-2019-hf29-image must be run before running the tests because it creates an
-# imagestream. The outputs of all other rules are included in the repo. (You could bypass this dependency
-# by patching the Nuxeo image refs to pull directly from Docker Hub and then remove refs to the
-# 'verify-images-ns' and 'security' dependencies but eventually I will make this Make file Kubernetes-
-# compatible)
+# imagestream in OpenShift/CRC, or pushes an image into the registry for Kubernetes/MicroK8s. This image is
+# referenced in the Nuxeo yaml. The outputs of all other rules are included in the repo. (You could bypass
+# this dependency by patching the Nuxeo image in Kustomize to pull Nuxeo directly from Docker Hub and then
+# remove refs to the 'verify-images-ns' and 'security' dependencies - though - I don't believe the un-hotfixed
+# Nuxeo 2019 LTS image supports the Strimzi SCRAM-SHA-512/TLS test.)
 
 .PHONY: elastic-filerealm-secret
 elastic-filerealm-secret:
@@ -178,15 +205,17 @@ crunchy-tls-secrets:
 	$(eval result = $(shell bash -c "$(ROOT)/scripts/crt-crunchy-tls-secrets"))
 	if [ FAIL = "$(result)" ]; then exit 1; else exit 0; fi
 
-# requires you to be logged in to the OpenShift internal registry
+# if OpenShift - requires you to be logged in to the OpenShift internal registry
 .PHONY: nuxeo-lts-2019-hf29-image
 nuxeo-lts-2019-hf29-image:
+	# required for OpenShift/CRC, benign for Kubernetes/MicroK8s
 	-$(KUBECTL) create namespace images
 	# in case no HF's have been downloaded ensure the directory ref'd by the Dockerfile exists
 	mkdir -p $(ROOT)/nuxeo-build/hf
-	docker build --tag default-route-openshift-image-registry.apps-crc.testing/images/nuxeo:LTS-2019-HF29\
+	docker build --tag $(IMAGE_REGISTRY)/$(IMAGE_ORG)/nuxeo:LTS-2019-HF29\
 		--file $(ROOT)/nuxeo-build/Dockerfile $(ROOT)/nuxeo-build/
-	docker push default-route-openshift-image-registry.apps-crc.testing/images/nuxeo:LTS-2019-HF29
+	docker push $(IMAGE_REGISTRY)/$(IMAGE_ORG)/nuxeo:LTS-2019-HF29
+
 
 .PHONY: help
 help:

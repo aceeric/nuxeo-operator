@@ -120,7 +120,7 @@ Version 0.6.1 will be a clean-up iteration.
 | Address all "todo-me" in the code | complete |
 | Refactor all reconcile functions into the common reconciler with resource-specific comparers (started in 0.6.0) | complete |
 | Add a test/kustomize configuration for Strimzi + Crunchy + ECK with explicit config | complete |
-| Update test/kustomize directory to support native Kubernetes (right now just supports OpenShift) | |
+| Update test/kustomize directory to support Kubernetes via MicroK8s | complete |
 | Consider a sidecar array for flexible sidecar configuration |  |
 | Migrate to Operator SDK v1.0.0 (remove temp makefile work-arounds, re-evaluate build/Dockerfile) |  |
 | Build out the Status field in the Nuxeo CR to be comparable with other resources available on OperatorHub | |
@@ -139,6 +139,7 @@ This iteration makes the Operator available as a Community Operator. This will g
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Support day 2 operations: backing service password change, cert expiration |  |
+| Single / multi-namespace support                        |        |
 | Verify Prometheus monitoring support (Prometheus not available in CRC out of the box) |  |
 | Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |        |

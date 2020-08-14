@@ -1,0 +1,13 @@
+bases:
+- ../../stacks/strimzi-eck-crunchy
+
+patchesJson6902:
+- target:
+    group: nuxeo.com
+    version: v1alpha1
+    kind: Nuxeo
+    name:  nuxeo
+  patch: |-
+    - op: replace
+      path: /spec/nuxeoImage
+      value: localhost:32000/images/nuxeo:LTS-2019-HF29

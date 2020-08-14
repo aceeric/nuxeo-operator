@@ -378,7 +378,8 @@ type CertTransform struct {
 
 // ResourceProjection determines how a value from a backing service resource is projected into the Nuxeo Pod. Values
 // can be projected as environment variables, mounts, or transformed - which always results in a mount. There can
-// be multiple projections from a single resource.
+// be multiple projections from a single resource. E.g. one resource might contain one value that is projected
+// as an env var, and another value projected as a filesystem object.
 type ResourceProjection struct {
 	// +kubebuilder:validation:Optional
 	// If the backing service resource is a Secret or ConfigMap, this is the key of the resource value
@@ -432,6 +433,9 @@ const (
 	Crunchy PreconfigType = "Crunchy"
 )
 
+// A PreconfiguredBackingService is a short-hand way to bind Nuxeo to a backing service. It's a preconfigured
+// type that has corresponding go code in the operator to generate the generic backing structures to bing to
+// a backing service.
 type PreconfiguredBackingService struct {
 	// +kubebuilder:validation:Enum=ECK;Strimzi;Crunchy
 	// type identifies the preconfigured backing service

@@ -38,7 +38,7 @@ func (suite *nginxRevProxySpecSuite) TestNginxRevProxyNoCM() {
 	nux := suite.nginxRevProxySpecSuiteNewNuxeo()
 	nux.Spec.RevProxy.Nginx.ConfigMap = "" // cause the operator to auto-gen
 	dep := genTestDeploymentForNginxSuite()
-	nginxCmName, err := reconcileNginxCM(&suite.r, nux, nux.Spec.RevProxy.Nginx.ConfigMap)
+	nginxCmName, err := suite.r.reconcileNginxCM(nux, nux.Spec.RevProxy.Nginx.ConfigMap)
 	require.Nil(suite.T(), err, "reconcileNginxCM failed")
 	nux.Spec.RevProxy.Nginx.ConfigMap = nginxCmName
 	err = configureNginx(&dep, nux.Spec.RevProxy.Nginx)

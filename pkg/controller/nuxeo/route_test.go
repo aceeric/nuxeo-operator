@@ -18,7 +18,7 @@ import (
 // when a Route does not already exist
 func (suite *routeSuite) TestBasicRouteCreation() {
 	nux := suite.routeSuiteNewNuxeo()
-	err := reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	err := suite.r.reconcileOpenShiftRoute(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	require.Nil(suite.T(), err, "reconcileOpenShiftRoute failed")
 	found := &routev1.Route{}
 	expectedRouteName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "route"
@@ -34,11 +34,11 @@ func (suite *routeSuite) TestBasicRouteCreation() {
 func (suite *routeSuite) TestRouteHostChange() {
 	nux := suite.routeSuiteNewNuxeo()
 	// create the route
-	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileOpenShiftRoute(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	newHostName := "modified." + nux.Spec.Access.Hostname
 	nux.Spec.Access.Hostname = newHostName
 	// should update the route
-	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileOpenShiftRoute(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	expectedRouteName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "route"
 	found := &routev1.Route{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedRouteName, Namespace: suite.namespace}, found)
@@ -49,11 +49,11 @@ func (suite *routeSuite) TestRouteHostChange() {
 // Nuxeo CR and confirms the route was changed to support TLS.
 func (suite *routeSuite) TestRouteToTLS() {
 	nux := suite.routeSuiteNewNuxeo()
-	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileOpenShiftRoute(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	_ = createTlsSecret(suite)
 	nux.Spec.Access.TLSSecret = suite.tlsSecretName
 	nux.Spec.Access.Termination = routev1.TLSTerminationPassthrough
-	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileOpenShiftRoute(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	expectedRouteName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "route"
 	found := &routev1.Route{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedRouteName, Namespace: suite.namespace}, found)
@@ -66,7 +66,7 @@ func (suite *routeSuite) TestRouteFromTLS() {
 	_ = createTlsSecret(suite)
 	nux.Spec.Access.TLSSecret = suite.tlsSecretName
 	nux.Spec.Access.Termination = routev1.TLSTerminationPassthrough
-	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileOpenShiftRoute(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	expectedRouteName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "route"
 	found := &routev1.Route{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedRouteName, Namespace: suite.namespace}, found)
@@ -74,7 +74,7 @@ func (suite *routeSuite) TestRouteFromTLS() {
 	// un-configure TLS. Should cause the route to become plain HTTP
 	nux.Spec.Access.TLSSecret = ""
 	nux.Spec.Access.Termination = ""
-	_ = reconcileOpenShiftRoute(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileOpenShiftRoute(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	foundUpdated := &routev1.Route{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedRouteName, Namespace: suite.namespace}, foundUpdated)
 	require.Nil(suite.T(), foundUpdated.Spec.TLS, "Route not updated")
@@ -85,7 +85,7 @@ func (suite *routeSuite) TestRouteFromTLS() {
 func (suite *routeSuite) TestRouteForcePassthrough() {
 	nux := suite.routeSuiteNewNuxeo()
 	nux.Spec.NodeSets[0].NuxeoConfig.TlsSecret = "dummy"
-	_ = reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileAccess(nux.Spec.Access, nux.Spec.NodeSets[0], nux)
 	expectedRouteName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "route"
 	found := &routev1.Route{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedRouteName, Namespace: suite.namespace}, found)

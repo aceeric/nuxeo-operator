@@ -8,9 +8,9 @@ import (
 	"nuxeo-operator/pkg/util"
 )
 
-// addProbes adds liveness and readiness probes to the Nuxeo container spec in the passed deployment. If probes are
-// defined in the passed NodeSet spec then they are used. (If thresholds in the provided probes are not specified
-// they are defaulted. If no explicit probe in the Nuxeo CR, then probes are defaulted:
+// configureProbes adds liveness and readiness probes to the Nuxeo container spec in the passed deployment. If probes
+// are defined in the passed NodeSet spec then they are used. (If thresholds in the provided probes are not specified
+// they are defaulted.) If no explicit probe is defined in the Nuxeo CR, then probes are defaulted:
 //  httpGet:
 //    path: /nuxeo/runningstatus
 //    port: 8080 (or 8443)
@@ -20,7 +20,7 @@ import (
 //  periodSeconds: 10
 //  successThreshold: 1
 //	failureThreshold: 3
-func addProbes(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
+func configureProbes(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error {
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 		return err
 	} else {

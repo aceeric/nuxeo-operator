@@ -3,7 +3,7 @@ package nuxeo
 import (
 	"bytes"
 	"encoding/pem"
-	"errors"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -56,13 +56,13 @@ func toKeyStore(cert []byte, privateKey []byte, password string) ([]byte, error)
 		cnt++
 	}
 	if cnt == 0 {
-		return nil, errors.New("no certs found in cert array")
+		return nil, fmt.Errorf("no certs found in cert array")
 	}
 	if block, _ := pem.Decode(privateKey); block == nil {
-		return nil, errors.New("failed to decode passed key")
+		return nil, fmt.Errorf("failed to decode passed key")
 	} else {
 		if !strings.Contains(block.Type, "PRIVATE KEY") {
-			return nil, errors.New("passed key does not appear to be a PRIVATE KEY")
+			return nil, fmt.Errorf("passed key does not appear to be a PRIVATE KEY")
 		}
 		store[aliasStr] = &keystore.PrivateKeyEntry{
 			Entry: keystore.Entry{
@@ -96,7 +96,7 @@ func toTrustStore(cert []byte, password string) ([]byte, error) {
 		cnt++
 	}
 	if cnt == 0 {
-		return nil, errors.New("no certs found in cert array")
+		return nil, fmt.Errorf("no certs found in cert array")
 	}
 	buffer := bytes.Buffer{}
 	if err := keystore.Encode(&buffer, store, []byte(password)); err != nil {

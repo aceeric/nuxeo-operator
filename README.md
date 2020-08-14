@@ -119,6 +119,7 @@ Version 0.6.1 will be a clean-up iteration.
 | ------------------------------------------------------------ | -------- |
 | Address all "todo-me" in the code | complete |
 | Refactor all reconcile functions into the common reconciler with resource-specific comparers (started in 0.6.0) | complete |
+| Add a test/kustomize configuration for Strimzi + Crunchy + ECK with explicit config | complete |
 | Update test/kustomize directory to support native Kubernetes (right now just supports OpenShift) | |
 | Consider a sidecar array for flexible sidecar configuration |  |
 | Migrate to Operator SDK v1.0.0 (remove temp makefile work-arounds, re-evaluate build/Dockerfile) |  |
@@ -127,7 +128,6 @@ Version 0.6.1 will be a clean-up iteration.
 | Change CRD group from nuxeo.com to something else (Nuxeo is trademarked) | |
 | Add the Operator image to Docker Hub to simplify installing the operator into a cluster (avoids needing to create Operator images in the Kubernetes/OpenShift cluster internal registry) | |
 | Test with Mongo backing service support. Consider a pre-config for it | |
-| Add a test/kustomize configuration for Strimzi + Crunchy + ECK with explicit config | |
 | Consider a pre-config of https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | |
 
 

@@ -1,7 +1,6 @@
 package nuxeo
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -73,7 +72,7 @@ func addVolMnt(container *corev1.Container, mntToAdd corev1.VolumeMount) error {
 	for _, mnt := range container.VolumeMounts {
 		if mnt.Name == mntToAdd.Name {
 			if !reflect.DeepEqual(mnt, mntToAdd) {
-				return errors.New("collision trying to add volume mount " + mntToAdd.Name)
+				return fmt.Errorf("collision trying to add volume mount %v", mntToAdd.Name)
 			}
 			return nil // already present
 		}

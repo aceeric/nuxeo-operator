@@ -27,7 +27,7 @@ func (suite *backingServiceSuite) TestBackingServiceECK() {
 	dep := genTestDeploymentForBackingSvc()
 	err := createECKSecrets(suite)
 	require.Nil(suite.T(), err, "Error creating orphaned PVC")
-	nuxeoConf, err := configureBackingServices(&suite.r, nux, &dep)
+	nuxeoConf, err := suite.r.configureBackingServices(nux, &dep)
 	require.Nil(suite.T(), err, "configureBackingServices returned non-nil")
 	require.Equal(suite.T(), suite.nuxeoConf, nuxeoConf, "backing service nuxeo.conf should have been returned")
 	secSecretName := nux.Name + "-secondary-" + suite.backing
@@ -126,7 +126,7 @@ func (suite *backingServiceSuite) TestValueFromResource() {
 		}},
 		Name: suite.nuxeoName,
 	}
-	val, _, err = getValueFromResource(&suite.r, bsr, suite.namespace, bsr.Projections[0].From)
+	val, _, err = suite.r.getValueFromResource(bsr, suite.namespace, bsr.Projections[0].From)
 	require.Nil(suite.T(), err, "JSONPath parse error")
 	require.Equal(suite.T(), nux.Spec.BackingServices[0].Resources[0].Name, string(val), "Nuxeo not parsed")
 }
@@ -182,7 +182,7 @@ func (suite *backingServiceSuite) TestProjectionMount() {
 	}
 	nux := suite.backingServiceSuiteNewNuxeoMounts()
 	dep := genTestDeploymentForBackingSvc()
-	_, err := configureBackingServices(&suite.r, nux, &dep)
+	_, err := suite.r.configureBackingServices(nux, &dep)
 	require.Nil(suite.T(), err, "configureBackingServices returned non-nil")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes), "Incorrect volume count")
 	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes[0].Projected.Sources), "Incorrect projection count")
@@ -325,7 +325,7 @@ func (suite *backingServiceSuite) TestEnvVal() {
 	err := suite.r.client.Create(context.TODO(), nux)
 	require.Nil(suite.T(), err, "Error creating Nuxeo CR")
 	dep := genTestDeploymentForBackingSvc()
-	_, err = configureBackingServices(&suite.r, nux, &dep)
+	_, err = suite.r.configureBackingServices(nux, &dep)
 	require.Nil(suite.T(), err, "configureBackingServices returned non-nil")
 	expectedEnv := corev1.EnvVar{
 		Name:  "BACKING_NAME",

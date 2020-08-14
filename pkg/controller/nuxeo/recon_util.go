@@ -2,7 +2,6 @@ package nuxeo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,7 +33,7 @@ const (
 //
 // Caller is expected to have set the Nuxeo CR as the owner of 'expected' if that is the intent (this function
 // performs no modifications to 'expected')
-func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runtime.Object, found runtime.Object,
+func (r *ReconcileNuxeo) addOrUpdate(name string, namespace string, expected runtime.Object, found runtime.Object,
 	comparer comparer) (reconOp, error) {
 	var kind string
 	var err error
@@ -64,7 +63,7 @@ func addOrUpdate(r *ReconcileNuxeo, name string, namespace string, expected runt
 // removeIfPresent looks for an object in the cluster matching the passed name and type (as expressed in the 'found'
 // arg.) If such an object exists, and it is owned by the passed Nuxeo instance, then the object is removed.
 // Otherwise cluster state is not modified.
-func removeIfPresent(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, name string, namespace string,
+func (r *ReconcileNuxeo) removeIfPresent(instance *v1alpha1.Nuxeo, name string, namespace string,
 	found runtime.Object) error {
 	var err error
 	var uids []string
@@ -92,11 +91,11 @@ func getOwnerRefs(obj runtime.Object) ([]string, error) {
 		return nil, err
 	} else {
 		if m, ok := unstructured["metadata"]; !ok {
-			return nil, errors.New("no metadata in passed object")
+			return nil, fmt.Errorf("no metadata in passed object")
 		} else {
 			metadata, ok := m.(map[string]interface{})
 			if !ok {
-				return nil, errors.New("unexpected metadata structure")
+				return nil, fmt.Errorf("unexpected metadata structure")
 			}
 			if ownerRefs, ok := metadata["ownerReferences"]; !ok {
 				// no owner refs
@@ -118,7 +117,7 @@ func getKind(scheme *runtime.Scheme, obj runtime.Object) (string, error) {
 	// use the scheme to get the GVK of the object then get the Kind from the GVK
 	gvk, _, err := scheme.ObjectKinds(obj)
 	if err == nil && len(gvk) > 1 {
-		err = errors.New("scheme.ObjectKinds returned more than one item")
+		err = fmt.Errorf("scheme.ObjectKinds returned more than one item")
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to get kind for object %v", obj)

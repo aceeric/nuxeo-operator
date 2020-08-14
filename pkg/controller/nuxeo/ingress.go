@@ -1,7 +1,7 @@
 package nuxeo
 
 import (
-	"errors"
+	"fmt"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/api/networking/v1beta1"
@@ -13,18 +13,18 @@ import (
 )
 
 // reconcileIngress configures access to the Nuxeo cluster via a Kubernetes Ingress
-func reconcileIngress(r *ReconcileNuxeo, access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
+func (r *ReconcileNuxeo) reconcileIngress(access v1alpha1.NuxeoAccess, forcePassthrough bool, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo) error {
 	ingressName := ingressName(instance, nodeSet)
 	if access != (v1alpha1.NuxeoAccess{}) {
 		if expected, err := r.defaultIngress(instance, access, forcePassthrough, ingressName, nodeSet); err != nil {
 			return err
 		} else {
-			_, err = addOrUpdate(r, ingressName, instance.Namespace, expected, &v1beta1.Ingress{}, util.IngressComparer)
+			_, err = r.addOrUpdate(ingressName, instance.Namespace, expected, &v1beta1.Ingress{}, util.IngressComparer)
 			return err
 		}
 	} else {
-		return removeIfPresent(r, instance, ingressName, instance.Namespace, &v1beta1.Ingress{})
+		return r.removeIfPresent(instance, ingressName, instance.Namespace, &v1beta1.Ingress{})
 	}
 }
 
@@ -65,7 +65,7 @@ func (r *ReconcileNuxeo) defaultIngress(instance *v1alpha1.Nuxeo, access v1alpha
 	if access.Termination != "" || forcePassthrough {
 		if access.Termination != "" && access.Termination != routev1.TLSTerminationPassthrough &&
 			access.Termination != routev1.TLSTerminationEdge {
-			return nil, errors.New("only passthrough and edge termination are supported")
+			return nil, fmt.Errorf("only passthrough and edge termination are supported")
 		}
 		ingress.Spec.TLS = []v1beta1.IngressTLS{{
 			Hosts: []string{access.Hostname},
@@ -75,7 +75,7 @@ func (r *ReconcileNuxeo) defaultIngress(instance *v1alpha1.Nuxeo, access v1alpha
 		} else {
 			// the Ingress will terminate TLS
 			if access.TLSSecret == "" {
-				return nil, errors.New("the Ingress was configured for TLS termination but no secret was provided")
+				return nil, fmt.Errorf("the Ingress was configured for TLS termination but no secret was provided")
 			}
 			// secret needs keys 'tls.crt' and 'tls.key' and cert must have CN=<access.Hostname>
 			ingress.Spec.TLS[0].SecretName = access.TLSSecret

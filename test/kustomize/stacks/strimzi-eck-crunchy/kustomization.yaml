@@ -1,0 +1,16 @@
+bases:
+- ../crunchy-base
+
+resources:
+- crunchypg-nuxeo-secret.yaml
+- elasticsearch.yaml
+- kafkauser.yaml
+- strimzi.yaml
+
+patchesJson6902:
+- target:
+    group: nuxeo.com
+    version: v1alpha1
+    kind: Nuxeo
+    name:  nuxeo
+  path: set-nuxeo-backing-services.yaml

@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"crypto/md5"
-	"errors"
 	"fmt"
 
 	"github.com/ghodss/yaml"
@@ -78,7 +77,7 @@ func GetNuxeoContainer(dep *appsv1.Deployment) (*corev1.Container, error) {
 			return &dep.Spec.Template.Spec.Containers[i], nil
 		}
 	}
-	return nil, errors.New("could not find a container named 'nuxeo' in the deployment")
+	return nil, fmt.Errorf("could not find a container named 'nuxeo' in the deployment")
 }
 
 // gets the named environment variable from the passed container or nil
@@ -125,18 +124,21 @@ func getContainer(dep *appsv1.Deployment, containerName string) *corev1.Containe
 // the name of the passed environment variable struct. If found in the container array, the value of the passed
 // variable is appended to the value of the existing variable, separated by the passed separator. Otherwise
 // the passed environment variable struct is appended to the container env var array. E.g. given a container
-// with an existing env var corev1.EnvVar{Name: "Z", Inline "abc,123"}, then:
-//   MergeOrAddEnvVar(someContainer, corev1.EnvVar{Name: "Z", Inline "xyz,456"}, ",")
-// updates the container's variable value to: "abc,123,xyz,456"
+// with an existing env var corev1.EnvVar{Name: "Z", Value "abc,123"}, then:
+//
+//    MergeOrAddEnvVar(someContainer, corev1.EnvVar{Name: "Z", Value "xyz,456"}, ",")
+//
+// updates the variable value to: "abc,123,xyz,456". If either the passed environment variable or the existing one
+// (by name) is a 'ValueFrom' environment variable then an error is returned.
 func MergeOrAddEnvVar(container *corev1.Container, env corev1.EnvVar, separator string) error {
 	if env.ValueFrom != nil {
-		return errors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
+		return fmt.Errorf("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
 	}
 	if existingEnv := GetEnv(container, env.Name); existingEnv == nil {
 		container.Env = append(container.Env, env)
 	} else {
 		if existingEnv.ValueFrom != nil {
-			return errors.New("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
+			return fmt.Errorf("MergeOrAddEnvVar cannot be used for 'ValueFrom' environment variables")
 		}
 		existingEnv.Value += separator + env.Value
 	}
@@ -146,7 +148,7 @@ func MergeOrAddEnvVar(container *corev1.Container, env corev1.EnvVar, separator 
 // Adds the passed environment variable to the passed container if not present, otherwise errors
 func OnlyAddEnvVar(container *corev1.Container, env corev1.EnvVar) error {
 	if existingEnv := GetEnv(container, env.Name); existingEnv != nil {
-		return errors.New("duplicate environment variable: "+env.Name)
+		return fmt.Errorf("duplicate environment variable: %v", env.Name)
 	}
 	container.Env = append(container.Env, env)
 	return nil
@@ -155,7 +157,7 @@ func OnlyAddEnvVar(container *corev1.Container, env corev1.EnvVar) error {
 // Adds the passed volume mount to the passed container if not present in the container, otherwise errors
 func OnlyAddVolMnt(container *corev1.Container, mnt corev1.VolumeMount) error {
 	if existingMnt := getVolMnt(container, mnt.Name); existingMnt != nil {
-		return errors.New("duplicate volume mount: "+mnt.Name)
+		return fmt.Errorf("duplicate volume mount: %v", mnt.Name)
 	}
 	container.VolumeMounts = append(container.VolumeMounts, mnt)
 	return nil
@@ -164,7 +166,7 @@ func OnlyAddVolMnt(container *corev1.Container, mnt corev1.VolumeMount) error {
 // Adds the passed volume to the passed deployment if not present in the container, otherwise errors
 func OnlyAddVol(dep *appsv1.Deployment, vol corev1.Volume) error {
 	if existingVol:= getVol(dep, vol.Name); existingVol != nil {
-		return errors.New("duplicate volume: "+vol.Name)
+		return fmt.Errorf("duplicate volume: %v", vol.Name)
 	}
 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, vol)
 	return nil
@@ -173,7 +175,7 @@ func OnlyAddVol(dep *appsv1.Deployment, vol corev1.Volume) error {
 // Adds the passed container to the passed deployment if not present in the deployment, otherwise errors
 func OnlyAddContainer(dep *appsv1.Deployment, container corev1.Container) error {
 	if existingContainer := getContainer(dep, container.Name); existingContainer != nil {
-		return errors.New("duplicate container: "+existingContainer.Name)
+		return fmt.Errorf("duplicate container: %v", existingContainer.Name)
 	}
 	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, container)
 	return nil

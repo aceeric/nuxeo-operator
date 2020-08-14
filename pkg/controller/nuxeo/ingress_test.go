@@ -19,7 +19,7 @@ import (
 // when an Ingress does not already exist
 func (suite *ingressSuite) TestBasicIngressCreation() {
 	nux := suite.ingressSuiteNewNuxeo()
-	err := reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	err := suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	require.Nil(suite.T(), err, "reconcileIngress failed")
 	found := &v1beta1.Ingress{}
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
@@ -34,11 +34,11 @@ func (suite *ingressSuite) TestBasicIngressCreation() {
 func (suite *ingressSuite) TestIngressHostChange() {
 	nux := suite.ingressSuiteNewNuxeo()
 	// create the ingress
-	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	newHostName := "modified." + nux.Spec.Access.Hostname
 	nux.Spec.Access.Hostname = newHostName
 	// should update the ingress
-	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
 	found := &v1beta1.Ingress{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)
@@ -50,11 +50,11 @@ func (suite *ingressSuite) TestIngressHostChange() {
 // Nuxeo CR and confirms the ingress was changed to support TLS.
 func (suite *ingressSuite) TestIngressToTLS() {
 	nux := suite.ingressSuiteNewNuxeo()
-	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	_ = createTlsIngressSecret(suite)
 	nux.Spec.Access.TLSSecret = suite.tlsSecretName
 	nux.Spec.Access.Termination = routev1.TLSTerminationPassthrough
-	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
 	found := &v1beta1.Ingress{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)
@@ -66,7 +66,7 @@ func (suite *ingressSuite) TestIngressFromTLS() {
 	nux := suite.ingressSuiteNewNuxeo()
 	nux.Spec.Access.TLSSecret = suite.tlsSecretName
 	nux.Spec.Access.Termination = routev1.TLSTerminationPassthrough
-	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
 	found := &v1beta1.Ingress{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)
@@ -74,7 +74,7 @@ func (suite *ingressSuite) TestIngressFromTLS() {
 	// un-configure TLS. Should cause the ingress to become plain HTTP
 	nux.Spec.Access.TLSSecret = ""
 	nux.Spec.Access.Termination = ""
-	_ = reconcileIngress(&suite.r, nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
 	foundUpdated := &v1beta1.Ingress{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, foundUpdated)
 	require.Nil(suite.T(), foundUpdated.Spec.TLS, "Ingress not updated")
@@ -85,7 +85,7 @@ func (suite *ingressSuite) TestIngressFromTLS() {
 func (suite *ingressSuite) TestIngressForcePassthrough() {
 	nux := suite.ingressSuiteNewNuxeo()
 	nux.Spec.NodeSets[0].NuxeoConfig.TlsSecret = "dummy"
-	_ = reconcileAccess(&suite.r, nux.Spec.Access, nux.Spec.NodeSets[0], nux)
+	_ = suite.r.reconcileAccess(nux.Spec.Access, nux.Spec.NodeSets[0], nux)
 	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
 	found := &v1beta1.Ingress{}
 	_ = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)

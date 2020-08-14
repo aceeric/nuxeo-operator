@@ -1,7 +1,7 @@
 package nuxeo
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -130,12 +130,12 @@ func configureNuxeoConf(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment, nodeSe
 	}
 	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) {
-		return errors.New("external nuxeo.conf volume source clashes with operator-managed nuxeo.conf")
+		return fmt.Errorf("external nuxeo.conf volume source clashes with operator-managed nuxeo.conf")
 	}
 	if nodeSet.NuxeoConfig.NuxeoConf.ValueFrom != (corev1.VolumeSource{}) &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom.ConfigMap == nil &&
 		nodeSet.NuxeoConfig.NuxeoConf.ValueFrom.Secret == nil {
-		return errors.New("only ConfigMap and Secret volume sources are currently supported")
+		return fmt.Errorf("only ConfigMap and Secret volume sources are currently supported")
 	}
 	volMnt := corev1.VolumeMount{
 		Name:      nuxeoConfVolumeName,
@@ -271,7 +271,7 @@ func configureOfflinePackages(dep *appsv1.Deployment, nuxeoContainer *corev1.Con
 	nodeSet v1alpha1.NodeSet) error {
 	for i, pkg := range nodeSet.NuxeoConfig.OfflinePackages {
 		if pkg.ValueFrom.ConfigMap == nil && pkg.ValueFrom.Secret == nil {
-			return errors.New("only ConfigMaps and Secrets are currently supported for offline packages")
+			return fmt.Errorf("only ConfigMaps and Secrets are currently supported for offline packages")
 		}
 		mntName := "offline-package-" + strconv.Itoa(i)
 		volMnt := corev1.VolumeMount{

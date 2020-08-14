@@ -2,11 +2,9 @@ package nuxeo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -24,7 +22,7 @@ import (
 )
 
 const (
-	// all mount protections are under this directory in the Nuxeo container
+	// all backing service mount protections are under this directory in the Nuxeo container
 	backingMountBase = "/etc/nuxeo-operator/binding/"
 )
 
@@ -32,12 +30,12 @@ const (
 // and nuxeo.conf entries as needed to configure Nuxeo to connect to a backing service. Caller must handle
 // the nuxeo.conf returned from the function by storing it the Operator-owned nuxeo.conf ConfigMap. The returned
 // nuxeo.conf is a concatenation of all backing service nuxeo.conf entries (so it could be an empty string.)
-func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) (string, error) {
+func (r *ReconcileNuxeo) configureBackingServices(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) (string, error) {
 	nuxeoConf := ""
 	for idx, backingService := range instance.Spec.BackingServices {
 		var err error
 		if !backingSvcIsValid(backingService) {
-			return "", errors.New("invalid backing service definition at ordinal position " + strconv.Itoa(idx))
+			return "", fmt.Errorf("invalid backing service definition at ordinal position: %v",idx)
 		}
 		// if configurer provided a preconfigured backing service use that as if it were actually in the CR
 		if backingService.Preconfigured.Type != "" {
@@ -45,14 +43,14 @@ func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *
 				return "", err
 			}
 		}
-		if err = configureBackingService(r, instance, backingService, dep); err != nil {
+		if err = r.configureBackingService(instance, backingService, dep); err != nil {
 			return "", err
 		}
 		// accumulate each backing service's nuxeo.conf settings
 		nuxeoConf = joinCompact("\n", nuxeoConf, backingService.NuxeoConf)
 
 		if backingService.Template != "" {
-			// backing service requires a template
+			// backing service requires a template so add it to NUXEO_TEMPLATES env var
 			if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 				return "", err
 			} else {
@@ -72,10 +70,10 @@ func configureBackingServices(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, dep *
 // Configures one backing service. Iterates all resources and bindings, calls helpers to add environment variables
 // and mounts into the nuxeo container, and volumes in the passed deployment. May create a secondary secret if
 // needed.
-func configureBackingService(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, backingService v1alpha1.BackingService,
+func (r *ReconcileNuxeo) configureBackingService(instance *v1alpha1.Nuxeo, backingService v1alpha1.BackingService,
 	dep *appsv1.Deployment) error {
 	// 0-1 secondary secret per backing service
-	secondarySecret := defaultSecondarySecret(r, instance, backingService)
+	secondarySecret := r.defaultSecondarySecret(instance, backingService)
 	for _, resource := range backingService.Resources {
 		gvk := strings.ToLower(resource.Group + "." + resource.Version + "." + resource.Kind)
 		// validating the projections here ensures that the switch statement below works
@@ -87,33 +85,33 @@ func configureBackingService(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, backin
 			projection := resource.Projections[i]
 			switch {
 			case projection.Env != "" && projection.Value:
-				err = projectEnvVal(r, instance.Namespace, resource, projection, dep)
+				err = r.projectEnvVal(instance.Namespace, resource, projection, dep)
 			case (isSecret(resource) || isConfigMap(resource)) && projection.Env != "":
 				err = projectEnvFrom(resource, projection, dep)
 			case projection.Mount != "":
-				err = projectMount(r, instance.Namespace, backingService.Name, resource, projection, dep,
+				err = r.projectMount(instance.Namespace, backingService.Name, resource, projection, dep,
 					&secondarySecret)
 			case projection.Transform != (v1alpha1.CertTransform{}):
-				err = projectTransform(r, instance.Namespace, backingService.Name, resource, projection, dep,
+				err = r.projectTransform(instance.Namespace, backingService.Name, resource, projection, dep,
 					&secondarySecret)
 			default:
-				err = errors.New(fmt.Sprintf("no handler for projection at ordinal position %v in resource %s",
-					i, resource.Name))
+				err = fmt.Errorf("no handler for projection at ordinal position %v in resource %s", i,
+					resource.Name)
 			}
 			if err != nil {
 				return err
 			}
 		}
 	}
-	return reconcileSecondary(r, instance, &secondarySecret)
+	return r.reconcileSecondary(instance, &secondarySecret)
 }
 
-func projectEnvVal(r *ReconcileNuxeo, namespace string, resource v1alpha1.BackingServiceResource,
+func (r *ReconcileNuxeo) projectEnvVal(namespace string, resource v1alpha1.BackingServiceResource,
 	projection v1alpha1.ResourceProjection, dep *appsv1.Deployment) error {
 	env := corev1.EnvVar{
 		Name: projection.Env,
 	}
-	val, _, err := getValueFromResource(r, resource, namespace, projection.From)
+	val, _, err := r.getValueFromResource(resource, namespace, projection.From)
 	if err != nil {
 		return err
 	} else if val == nil {
@@ -157,7 +155,7 @@ func projectEnvFrom(resource v1alpha1.BackingServiceResource, projection v1alpha
 			},
 		}
 	} else {
-		return errors.New("illegal operation: projectEnvFrom called with resource other than ConfigMap or Secret")
+		return fmt.Errorf("illegal operation: projectEnvFrom called with resource other than ConfigMap or Secret")
 	}
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 		return err
@@ -191,7 +189,7 @@ func projectEnvFrom(resource v1alpha1.BackingServiceResource, projection v1alpha
 // them with explicit filesystem paths. The function also supports projecting values from non-ConfigMap and
 // non-Secret cluster resources. In this case, values are copied from the upstream resources into the passed
 // secondary secret and mounted from the secondary secret.
-func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string,
+func (r *ReconcileNuxeo) projectMount(namespace string, backingServiceName string,
 	resource v1alpha1.BackingServiceResource, projection v1alpha1.ResourceProjection, dep *appsv1.Deployment,
 	secondarySecret *corev1.Secret) error {
 
@@ -236,14 +234,14 @@ func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string
 		// must reconcile secondary secret
 		var val []byte
 		var newKey string
-		if val, _, err = getValueFromResource(r, resource, namespace, projection.From); err != nil || val == nil {
+		if val, _, err = r.getValueFromResource(resource, namespace, projection.From); err != nil || val == nil {
 			return err
 		}
 		if newKey, err = pathToKey(projection.From); err != nil {
 			return err
 		}
 		if _, ok := secondarySecret.Data[newKey]; ok {
-			return errors.New("secondary secret " + secondarySecret.Name + " already contains key " + newKey)
+			return fmt.Errorf("secondary secret %v already contains key %v", secondarySecret.Name, newKey)
 		}
 		// caller must reconcile
 		secondarySecret.Data[newKey] = val
@@ -278,7 +276,7 @@ func projectMount(r *ReconcileNuxeo, namespace string, backingServiceName string
 // then don't re-generate the keystore - just use the keystore (and password) that were already created. This
 // is accomplished by annotating the secondary secret - only for cases where this keystore conversion/password
 // gen is performed.
-func projectTransform(r *ReconcileNuxeo, namespace string, backingServiceName string,
+func (r *ReconcileNuxeo) projectTransform(namespace string, backingServiceName string,
 	resource v1alpha1.BackingServiceResource, projection v1alpha1.ResourceProjection, dep *appsv1.Deployment,
 	secondarySecret *corev1.Secret) error {
 	var resVer string
@@ -290,24 +288,24 @@ func projectTransform(r *ReconcileNuxeo, namespace string, backingServiceName st
 	passKey := projection.Transform.Password
 	// some basic validation to protect against logic errors in the operator
 	if _, ok := secondarySecret.Data[storeKey]; ok {
-		return errors.New("key " + storeKey + " already defined in secret " + secondarySecret.Name)
+		return fmt.Errorf("key %v already defined in secret %v", storeKey, secondarySecret.Name)
 	} else if _, ok := secondarySecret.Data[passKey]; ok {
-		return errors.New("key " + passKey + " already defined in secret " + secondarySecret.Name)
+		return fmt.Errorf("key %v already defined in secret %v", passKey, secondarySecret.Name)
 	}
 
 	// get the cert and possibly key from the cluster
 	var privateKey []byte
-	if cert, resVer, err = getValueFromResource(r, resource, namespace, projection.Transform.Cert); err != nil {
+	if cert, resVer, err = r.getValueFromResource(resource, namespace, projection.Transform.Cert); err != nil {
 		return err
 	}
 	if projection.Transform.Type == v1alpha1.KeyStore {
-		if privateKey, _, err = getValueFromResource(r, resource, namespace, projection.Transform.PrivateKey);
+		if privateKey, _, err = r.getValueFromResource(resource, namespace, projection.Transform.PrivateKey);
 			err != nil {
 			return err
 		}
 	}
-	if secondarySecretIsCurrent(r, secondarySecret.Name, namespace, resource, resVer) {
-		if err = loadSecondary(r, resource, namespace, secondarySecret, resVer, storeKey, passKey); err != nil {
+	if r.secondarySecretIsCurrent(secondarySecret.Name, namespace, resource, resVer) {
+		if err = r.loadSecondary(resource, namespace, secondarySecret, resVer, storeKey, passKey); err != nil {
 			return err
 		}
 	} else if err = populateSecondary(resource, secondarySecret, storeKey, passKey, resVer, cert, privateKey,
@@ -365,7 +363,7 @@ func projectTransform(r *ReconcileNuxeo, namespace string, backingServiceName st
 // Gets the existing secondary secret from the cluster and populates the passed keys in the the passed in-mem
 // secret struct so a subsequent reconcile of the secret has nothing to do. Also annotates the secret as would be
 // done on initial creation.
-func loadSecondary(r *ReconcileNuxeo, resource v1alpha1.BackingServiceResource, namespace string,
+func (r *ReconcileNuxeo) loadSecondary(resource v1alpha1.BackingServiceResource, namespace string,
 	secondarySecret *corev1.Secret, resVer string, keys ...string) error {
 	obj := corev1.Secret{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: secondarySecret.Name, Namespace: namespace},
@@ -453,15 +451,15 @@ func isConfigMap(resource v1alpha1.BackingServiceResource) bool {
 // ConfigMap, or b) a backing service value is transformed. In both cases, cluster storage is needed for the
 // value and so the Operator creates a "secondary secret" to hold such values. There is 0-1 secondary
 // secret per backing service.
-func reconcileSecondary(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, secondarySecret *corev1.Secret) error {
+func (r *ReconcileNuxeo) reconcileSecondary(instance *v1alpha1.Nuxeo, secondarySecret *corev1.Secret) error {
 	if len(secondarySecret.Data)+len(secondarySecret.StringData) != 0 {
 		// secondary secret has content so it should exist in the cluster
-		_, err := addOrUpdate(r, secondarySecret.Name, instance.Namespace, secondarySecret, &corev1.Secret{},
+		_, err := r.addOrUpdate(secondarySecret.Name, instance.Namespace, secondarySecret, &corev1.Secret{},
 			util.SecretComparer)
 		return err
 	} else {
 		// secondary secret has no content so it not should exist in the cluster
-		return removeIfPresent(r, instance, secondarySecret.Name, instance.Namespace, secondarySecret)
+		return r.removeIfPresent(instance, secondarySecret.Name, instance.Namespace, secondarySecret)
 	}
 }
 
@@ -474,12 +472,12 @@ func reconcileSecondary(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, secondarySe
 // resource does not exist in the cluster, a nil error is returned, and a nil value is returned.
 //
 // Returns [resource value] [resource version] [error]
-func getValueFromResource(r *ReconcileNuxeo, resource v1alpha1.BackingServiceResource, namespace string,
+func (r *ReconcileNuxeo) getValueFromResource(resource v1alpha1.BackingServiceResource, namespace string,
 	from string) ([]byte, string, error) {
 	gvk := strings.ToLower(resource.Group + "." + resource.Version + "." + resource.Kind)
 	if gvk == ".v1.secret" {
 		if from == "" {
-			return nil, "", errors.New("no key provided in projection")
+			return nil, "", fmt.Errorf("no key provided in projection")
 		}
 		obj := corev1.Secret{}
 		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: resource.Name, Namespace: namespace}, &obj);
@@ -492,7 +490,7 @@ func getValueFromResource(r *ReconcileNuxeo, resource v1alpha1.BackingServiceRes
 		return obj.Data[from], obj.ResourceVersion, nil
 	} else if gvk == ".v1.configmap" {
 		if from == "" {
-			return nil, "", errors.New("no key provided in projection")
+			return nil, "", fmt.Errorf("no key provided in projection")
 		}
 		obj := corev1.ConfigMap{}
 		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: resource.Name, Namespace: namespace}, &obj);
@@ -504,7 +502,7 @@ func getValueFromResource(r *ReconcileNuxeo, resource v1alpha1.BackingServiceRes
 		}
 		return []byte(obj.Data[from]), obj.ResourceVersion, nil
 	} else {
-		return getValueByPath(r, resource, namespace, from)
+		return r.getValueByPath(resource, namespace, from)
 	}
 }
 
@@ -520,10 +518,10 @@ func getValueFromResource(r *ReconcileNuxeo, resource v1alpha1.BackingServiceRes
 //  version - the resource version from the resource
 //  err     - non-nil if error, otherwise version *is* populated and value *may be* populated if
 //            the json path yielded a value
-func getValueByPath(r *ReconcileNuxeo, resource v1alpha1.BackingServiceResource, namespace string,
+func (r *ReconcileNuxeo) getValueByPath(resource v1alpha1.BackingServiceResource, namespace string,
 	from string) ([]byte, string, error) {
 	if from == "" {
-		return nil, "", errors.New("no path provided in projection")
+		return nil, "", fmt.Errorf("no path provided in projection")
 	}
 	u := unstructured.Unstructured{}
 	gvk := schema.GroupVersionKind{
@@ -549,7 +547,7 @@ func getValueByPath(r *ReconcileNuxeo, resource v1alpha1.BackingServiceResource,
 }
 
 // creates and returns a secondary secret struct in the format required by the Operator
-func defaultSecondarySecret(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo,
+func (r *ReconcileNuxeo) defaultSecondarySecret(instance *v1alpha1.Nuxeo,
 	backingService v1alpha1.BackingService) corev1.Secret {
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -579,7 +577,7 @@ func genAnnotationKey(resource v1alpha1.BackingServiceResource) string {
 // If secondary secret exists in-cluster, and has secondary secret annotation, and annotation resource version
 // is the same, then returns true, else false. If all these things are true then the secondary secret is current
 // with the upstream resource it got its value(s) from.
-func secondarySecretIsCurrent(r *ReconcileNuxeo, secondarySecret string, namespace string,
+func (r *ReconcileNuxeo) secondarySecretIsCurrent(secondarySecret string, namespace string,
 	resource v1alpha1.BackingServiceResource, resourceVersion string) bool {
 	obj := corev1.Secret{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: secondarySecret, Namespace: namespace}, &obj);

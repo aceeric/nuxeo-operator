@@ -107,7 +107,7 @@ func nginxVolumes(nginx v1alpha1.NginxRevProxySpec) []corev1.Volume {
 //
 // Returns the name of the nginx configmap which could be the passed name, or the auto-generated name, and an error
 // indicating any reconciliation errors (or nil)
-func reconcileNginxCM(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, configMapName string) (string, error) {
+func (r *ReconcileNuxeo) reconcileNginxCM(instance *v1alpha1.Nuxeo, configMapName string) (string, error) {
 	defaultCmName := defaultNginxCMName(instance.Name)
 	if configMapName == "" {
 		cm := &corev1.ConfigMap{
@@ -121,12 +121,12 @@ func reconcileNginxCM(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo, configMapName
 			},
 		}
 		_ = controllerutil.SetControllerReference(instance, cm, r.scheme)
-		_, err := addOrUpdate(r, cm.Name, instance.Namespace, cm, &corev1.ConfigMap{}, util.ConfigMapComparer)
+		_, err := r.addOrUpdate(cm.Name, instance.Namespace, cm, &corev1.ConfigMap{}, util.ConfigMapComparer)
 		return defaultCmName, err
 	} else {
 		// configurer specified nginx configmap so - in case previously it was not specified and therefore
 		// auto-generated, remove the auto-generated one if it exists
-		return configMapName, removeIfPresent(r, instance, defaultCmName, instance.Namespace, &corev1.ConfigMap{})
+		return configMapName, r.removeIfPresent(instance, defaultCmName, instance.Namespace, &corev1.ConfigMap{})
 	}
 }
 

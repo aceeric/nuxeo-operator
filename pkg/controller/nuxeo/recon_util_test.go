@@ -26,7 +26,7 @@ func (suite *reconUtilSuite) TestReconUtilSecret() {
 		Data: map[string][]byte{suite.secretKey: suite.secretData},
 		Type: v1.SecretTypeOpaque,
 	}
-	_, err = addOrUpdate(&suite.r, suite.secretName, suite.namespace, &exp, &v1.Secret{}, util.SecretComparer)
+	_, err = suite.r.addOrUpdate(suite.secretName, suite.namespace, &exp, &v1.Secret{}, util.SecretComparer)
 	require.Nil(suite.T(), err, "addOrUpdate failed with error")
 	created := v1.Secret{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: suite.secretName, Namespace: suite.namespace}, &created)
@@ -59,7 +59,7 @@ func (suite *reconUtilSuite) TestRemoveSecret() {
 	}
 	err := suite.r.client.Create(context.TODO(), &exp)
 	require.Nil(suite.T(), err, "failed to create secret")
-	err = removeIfPresent(&suite.r, nux, suite.secretName, suite.namespace, &exp)
+	err = suite.r.removeIfPresent(nux, suite.secretName, suite.namespace, &exp)
 	require.Nil(suite.T(), err, "removeIfPresent failed")
 }
 
@@ -75,11 +75,11 @@ func (suite *reconUtilSuite) TestShouldNotRemove() {
 		},
 		Data: map[string]string{"x": "y"},
 	}
-	err := removeIfPresent(&suite.r, nux, suite.cmName, suite.namespace, &cm)
+	err := suite.r.removeIfPresent(nux, suite.cmName, suite.namespace, &cm)
 	require.Nil(suite.T(), err, "removeIfPresent failed")
 	err = suite.r.client.Create(context.TODO(), &cm)
 	require.Nil(suite.T(), err, "failed to create object")
-	err = removeIfPresent(&suite.r, nux, suite.cmName, suite.namespace, &cm)
+	err = suite.r.removeIfPresent(nux, suite.cmName, suite.namespace, &cm)
 	require.Nil(suite.T(), err, "removeIfPresent failed")
 	exists := v1.ConfigMap{}
 	err = suite.r.client.Get(context.TODO(), types.NamespacedName{Name: suite.cmName, Namespace: suite.namespace}, &exists)

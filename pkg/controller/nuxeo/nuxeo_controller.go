@@ -2,7 +2,7 @@ package nuxeo
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
@@ -56,7 +56,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			return err
 		}
 	} else if !clusterHasIngress(mgr) {
-		return errors.New("unable to determine cluster type")
+		return fmt.Errorf("unable to determine cluster type")
 	} else if err := registerKubernetesIngress(); err != nil {
 		return err
 	}
@@ -163,13 +163,13 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	if interactiveNodeSet, err = getInteractiveNodeSet(instance.Spec.NodeSets); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileService(r, instance.Spec.Service, interactiveNodeSet, instance); err != nil {
+	if err = r.reconcileService(instance.Spec.Service, interactiveNodeSet, instance); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileAccess(r, instance.Spec.Access, interactiveNodeSet, instance); err != nil {
+	if err = r.reconcileAccess(instance.Spec.Access, interactiveNodeSet, instance); err != nil {
 		return emptyResult, err
 	}
-	if err = reconcileServiceAccount(r, instance); err != nil {
+	if err = r.reconcileServiceAccount(instance); err != nil {
 		return emptyResult, err
 	}
 	if err = r.reconcilePvc(instance); err != nil {
@@ -183,7 +183,7 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 	} else if requeue {
 		return reconcile.Result{Requeue: true}, nil
 	}
-	if err := updateNuxeoStatus(r, instance); err != nil {
+	if err := r.updateNuxeoStatus(instance); err != nil {
 		return emptyResult, err
 	}
 	return emptyResult, nil
@@ -192,7 +192,7 @@ func (r *ReconcileNuxeo) Reconcile(request reconcile.Request) (reconcile.Result,
 // Reconciles each NodeSet to a Deployment
 func (r *ReconcileNuxeo) reconcileNodeSets(instance *v1alpha1.Nuxeo) (bool, error) {
 	for _, nodeSet := range instance.Spec.NodeSets {
-		if requeue, err := reconcileNodeSet(r, nodeSet, instance); err != nil {
+		if requeue, err := r.reconcileNodeSet(nodeSet, instance); err != nil {
 			return requeue, err
 		} else if requeue {
 			return requeue, nil
@@ -208,7 +208,7 @@ func getInteractiveNodeSet(nodeSets []v1alpha1.NodeSet) (v1alpha1.NodeSet, error
 	for _, nodeSet := range nodeSets {
 		if nodeSet.Interactive {
 			if toReturn.Name != "" {
-				return toReturn, errors.New("exactly one interactive NodeSet is required in the Nuxeo CR")
+				return toReturn, fmt.Errorf("exactly one interactive NodeSet is required in the Nuxeo CR")
 			}
 			toReturn = nodeSet
 		}

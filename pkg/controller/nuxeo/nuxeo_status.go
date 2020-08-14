@@ -10,7 +10,7 @@ import (
 
 // updateNuxeoStatus updates the status field in the Nuxeo CR being watched by the operator. This is a
 // very crude implementation and will be expanded in a later version
-func updateNuxeoStatus(r *ReconcileNuxeo, instance *v1alpha1.Nuxeo) error {
+func (r *ReconcileNuxeo) updateNuxeoStatus(instance *v1alpha1.Nuxeo) error {
 	deployments := appsv1.DeploymentList{}
 	opts := []client.ListOption{
 		client.InNamespace(instance.Namespace),

@@ -55,11 +55,11 @@ func configureClid(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 func (r *ReconcileNuxeo) reconcileClid(instance *v1alpha1.Nuxeo) error {
 	if instance.Spec.Clid != "" {
 		expected := r.defaultClidCM(instance, instance.Spec.Clid)
-		_, err := addOrUpdate(r, nuxeoClidConfigMapName, instance.Namespace, expected, &corev1.ConfigMap{},
+		_, err := r.addOrUpdate(nuxeoClidConfigMapName, instance.Namespace, expected, &corev1.ConfigMap{},
 			util.ConfigMapComparer)
 		return err
 	} else {
-		return removeIfPresent(r, instance, nuxeoClidConfigMapName, instance.Namespace, &corev1.ConfigMap{})
+		return r.removeIfPresent(instance, nuxeoClidConfigMapName, instance.Namespace, &corev1.ConfigMap{})
 	}
 }
 

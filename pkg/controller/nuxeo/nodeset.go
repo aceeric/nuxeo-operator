@@ -2,7 +2,6 @@ package nuxeo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -25,17 +24,18 @@ import (
 // Returns:
 //   requeue true to requeue, else false (true means success but requeue to update status)
 //   error or nil
-func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo) (bool, error) {
+func (r *ReconcileNuxeo) reconcileNodeSet(nodeSet v1alpha1.NodeSet, instance *v1alpha1.Nuxeo) (bool, error) {
 	var expected *appsv1.Deployment
 	var err error
 	depName := deploymentName(instance, nodeSet)
 	if expected, err = r.defaultDeployment(instance, depName, nodeSet); err != nil {
 		return false, err
 	}
-	if err := configureDeploymentFromNuxeo(r, nodeSet, expected, instance); err != nil {
+	if err := r.configureDeploymentFromNuxeo(nodeSet, expected, instance); err != nil {
 		return false, err
 	}
-	if op, err := addOrUpdate(r, depName, instance.Namespace, expected, &appsv1.Deployment{},
+	//util.DebugDumpObj(expected)
+	if op, err := r.addOrUpdate(depName, instance.Namespace, expected, &appsv1.Deployment{},
 		util.DeploymentComparer); err != nil {
 		return false, err
 	} else if op == Created {
@@ -49,26 +49,26 @@ func reconcileNodeSet(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, instance *v1a
 // For example, if the operator generates a ConfigMap for nuxeo.conf, then that ConfigMap will be in the cluster
 // by the time the function exits so the caller can create the deployment and it should not error due to missing
 // dependencies.
-func configureDeploymentFromNuxeo(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, expected *appsv1.Deployment,
+func (r *ReconcileNuxeo) configureDeploymentFromNuxeo(nodeSet v1alpha1.NodeSet, expected *appsv1.Deployment,
 	instance *v1alpha1.Nuxeo) error {
 	var backingNuxeoConf, tlsNuxeoConf string
 
-	if err := addProbes(expected, nodeSet); err != nil {
+	if err := configureProbes(expected, nodeSet); err != nil {
 		return err
 	}
 	if err := configureStorage(expected, nodeSet); err != nil {
 		return err
 	}
+	jvmPkiSecret := corev1.Secret{}
 	if nodeSet.NuxeoConfig.JvmPKISecret != "" {
-		jvmPkiSecret := corev1.Secret{}
 		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: nodeSet.NuxeoConfig.JvmPKISecret,
 			Namespace: instance.ObjectMeta.Namespace}, &jvmPkiSecret); err != nil {
 			return fmt.Errorf("configuration specifies JVM PKI secret that does not exist: %v",
 				nodeSet.NuxeoConfig.JvmPKISecret)
 		}
-		if err := configureConfig(expected, nodeSet, jvmPkiSecret); err != nil {
-			return err
-		}
+	}
+	if err := configureConfig(expected, nodeSet, jvmPkiSecret); err != nil {
+		return err
 	}
 	if err := configureClid(instance, expected); err != nil {
 		return err
@@ -76,10 +76,10 @@ func configureDeploymentFromNuxeo(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, e
 	if err := configureClustering(expected, nodeSet); err != nil {
 		return err
 	}
-	if err := configureContributions(r, instance, expected, nodeSet); err != nil {
+	if err := r.configureContributions(instance, expected, nodeSet); err != nil {
 		return err
 	}
-	if tmp, err := configureBackingServices(r, instance, expected); err != nil {
+	if tmp, err := r.configureBackingServices(instance, expected); err != nil {
 		return err
 	} else {
 		backingNuxeoConf = tmp
@@ -88,7 +88,7 @@ func configureDeploymentFromNuxeo(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, e
 		revProxy := instance.Spec.RevProxy
 		if revProxy.Nginx != (v1alpha1.NginxRevProxySpec{}) {
 			// nginx will terminate TLS
-			nginxCmName, err := reconcileNginxCM(r, instance, revProxy.Nginx.ConfigMap)
+			nginxCmName, err := r.reconcileNginxCM(instance, revProxy.Nginx.ConfigMap)
 			if err != nil {
 				return err
 			}
@@ -108,7 +108,7 @@ func configureDeploymentFromNuxeo(r *ReconcileNuxeo, nodeSet v1alpha1.NodeSet, e
 	if err := configureNuxeoConf(instance, expected, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
 		return err
 	}
-	if err := reconcileNuxeoConf(r, instance, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
+	if err := r.reconcileNuxeoConf(instance, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
 		return err
 	}
 	return nil
@@ -229,7 +229,7 @@ func configureClustering(dep *appsv1.Deployment, nodeSet v1alpha1.NodeSet) error
 		return nil
 	}
 	if !binaryStorageIsDefined(nodeSet) {
-		return errors.New("configuration must define a Binaries storage in storageType")
+		return fmt.Errorf("configuration must define a Binaries storage in storageType")
 	}
 	if nuxeoContainer, err := util.GetNuxeoContainer(dep); err != nil {
 		return err

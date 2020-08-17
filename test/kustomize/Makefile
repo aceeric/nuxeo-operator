@@ -29,6 +29,7 @@ all:
 	$(MAKE) crunchy-tls-test
 # FAILS: $(MAKE) crunchy-mutual-tls-test
 	$(MAKE) strimzi-eck-crunchy-test
+	$(MAKE) percona-mongodb-test
 
 # the following rules are used to do the small units of work. They are dependencies for the larger
 # rules invoked in the section that follows
@@ -58,6 +59,12 @@ operator-eck-1.1.2:
 operator-strimzi-0.18.0:
 	kustomize build $(ROOT)/operator-strimzi-0.18.0 | $(KUBEAPPLY)
 	$(ROOT)/scripts/podup STRIMZI "$(KUBECTL)" && echo Strimzi Operator is up || (echo Strimzi Operator not up; exit 1)
+
+# stand up Percona MongoDB Operator
+.PHONY: operator-percona-mongodb-1.4.0
+operator-percona-mongodb-1.4.0:
+	kustomize build $(ROOT)/operator-percona-mongodb-1.4.0 | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup PERCONA "$(KUBECTL)" && echo Percona Operator is up || (echo Percona Operator not up; exit 1)
 
 # stand up Crunchy Operator
 # kustomize cannot patch the 'disable_fsgroup' setting in 'pgo-deployer-cm' - which OpenShift can't tolerate - so if
@@ -134,6 +141,12 @@ strimzi-eck-crunchy:
 	$(ROOT)/scripts/podup KAFKA "$(KUBECTL)" && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
 	$(ROOT)/scripts/podup CRUNCHY "$(KUBECTL)" && echo Crunchy database is up || (echo Crunchy not up; exit 1)
 
+# Percona user/pass over TLS + Nuxeo
+.PHONY: percona-tls
+percona-tls:
+	kustomize build $(ROOT)/$(STACKS)/percona-mongo-explicit | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup PMONGO "$(KUBECTL)" && echo Mongo Cluster is up || (echo Mongo Cluster not up; exit 1)
+
 # Make sure Nuxeo clean start
 .PHONY: verify-nuxeo
 verify-nuxeo:
@@ -182,6 +195,10 @@ crunchy-mutual-tls-test: verify-images-ns clean operator-crunchy-4.4.0 security 
 .PHONY: strimzi-eck-crunchy-test
 strimzi-eck-crunchy-test: verify-images-ns clean operator-crunchy-4.4.0 operator-strimzi-0.18.0 operator-eck-1.1.2 security strimzi-eck-crunchy verify-nuxeo
 	echo COMPLETED STRIMZI/ECK/CRUNCHY TEST
+
+.PHONY: percona-mongodb-test
+percona-mongodb-test: verify-images-ns clean operator-percona-mongodb-1.4.0 security percona-tls verify-nuxeo
+	echo COMPLETED PERCONA MONGODB TEST
 
 # helper rules - only nuxeo-lts-2019-hf29-image must be run before running the tests because it creates an
 # imagestream in OpenShift/CRC, or pushes an image into the registry for Kubernetes/MicroK8s. This image is

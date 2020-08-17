@@ -123,13 +123,23 @@ Version 0.6.1 will be a clean-up iteration.
 | Update test/kustomize directory to support Kubernetes via MicroK8s | complete |
 | Build out the Status field in the Nuxeo CR to be comparable with other operators available on OperatorHub (with additional printer cols) | complete |
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` | complete |
+| Test with Percona MongoDB backing service support (https://www.percona.com/doc/kubernetes-operator-for-psmongodb/index.html.) Consider a pre-config for it | in-progress |
 | Consider a sidecar array for flexible sidecar configuration |  |
+| Consider a pre-config of https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | |
+
+
+
+#### Version 0.6.2
+
+Version 0.6.2 will migrate to the Operator SDK v1.0.0 and make some other incremental changes
+
+| Feature                                                      | Status   |
+| ------------------------------------------------------------ | -------- |
 | Migrate to Operator SDK v1.0.0 (remove temp makefile work-arounds, re-evaluate build/Dockerfile) |  |
-| Gain access to a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |        |
+| Test in a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |        |
 | Change CRD group from nuxeo.com to something else (Nuxeo is trademarked) | |
 | Add the Operator image to Docker Hub to simplify installing the operator into a cluster (avoids needing to create Operator images in the Kubernetes/OpenShift cluster internal registry) | |
-| Test with Mongo backing service support. Consider a pre-config for it | |
-| Consider a pre-config of https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | |
+| Make CRD cluster-scoped. Test operator in single namespace, multi-namespace, cluster scope | |
 
 
 
@@ -140,12 +150,12 @@ This iteration makes the Operator available as a Community Operator. This will g
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Support day 2 operations: backing service password change, cert expiration |  |
-| Single / multi-namespace support                        |        |
+| Consider a validating webhook |  |
 | Verify Prometheus monitoring support (Prometheus not available in CRC out of the box) |  |
 | Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |        |
-| Build on kustomize testing from 0.6.0 to provide exemplars for bringing up Nuxeo Clusters using kustomize (https://kubectl.docs.kubernetes.io/pages/examples/kustomize.html) |        |
-| kpt (https://googlecontainertools.github.io/kpt/) vs kustomize? | |
+| Build on kustomize testing from 0.6.x to provide exemplars for bringing up Nuxeo Clusters using kustomize (https://kubectl.docs.kubernetes.io/pages/examples/kustomize.html) |        |
+| kpt (https://googlecontainertools.github.io/kpt/) + kustomize? | |
 | Review and augment e2e tests                        |        |
 | Support multi-architecture build. Incorporate lint (https://golangci.com?), gofmt, etc. into the build process |        |
 | GitHub build & test automation |        |

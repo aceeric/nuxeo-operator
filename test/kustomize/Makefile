@@ -141,11 +141,12 @@ strimzi-eck-crunchy:
 	$(ROOT)/scripts/podup KAFKA "$(KUBECTL)" && echo Kafka Broker is up || (echo Kafka Broker not up; exit 1)
 	$(ROOT)/scripts/podup CRUNCHY "$(KUBECTL)" && echo Crunchy database is up || (echo Crunchy not up; exit 1)
 
-# Percona user/pass over TLS + Nuxeo
+# Percona user/pass over TLS + Nuxeo (nuxeo user can't be added declaratively so add in the recipe)
 .PHONY: percona-tls
 percona-tls:
 	kustomize build $(ROOT)/$(STACKS)/percona-mongo-explicit | $(KUBEAPPLY)
 	$(ROOT)/scripts/podup PMONGO "$(KUBECTL)" && echo Mongo Cluster is up || (echo Mongo Cluster not up; exit 1)
+	"$(KUBECTL)" exec percona-mongo-rs0-0 -- bash -c "mongo mongodb://userAdmin:userAdmin123456@localhost/admin --eval 'db.createUser({user: \"nuxeo\", pwd: \"nuxeopass\", roles: [{ role: \"root\", db: \"admin\" }]});'"
 
 # Make sure Nuxeo clean start
 .PHONY: verify-nuxeo

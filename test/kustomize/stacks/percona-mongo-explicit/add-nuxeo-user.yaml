@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: percona-mongo-secrets
+stringData:
+  NUXEO_MONGO_USER: nuxeo
+  NUXEO_MONGO_USER_PASSWORD: nuxeopass

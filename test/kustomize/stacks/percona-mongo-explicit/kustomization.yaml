@@ -12,7 +12,9 @@ resources:
 
 patchesStrategicMerge:
 - set-backups-disabled.yaml
+- add-nuxeo-user.yaml
 
+# setting allowUnsafeConfigurations=true allows for a single-node cluster which comes up faster
 patchesJson6902:
 - target:
     group: psmdb.percona.com
@@ -26,3 +28,6 @@ patchesJson6902:
     - op: replace
       path: /spec/replsets/0/size
       value: 1
+    - op: replace
+      path: /spec/allowUnsafeConfigurations
+      value: true

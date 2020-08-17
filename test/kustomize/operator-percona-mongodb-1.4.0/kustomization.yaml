@@ -1,0 +1,10 @@
+namespace: backing
+
+bases:
+- ../namespace
+
+resources:
+# from https://github.com/percona/percona-server-mongodb-operator/tree/v1.4.0
+- crd.yaml
+- rbac.yaml
+- operator.yaml

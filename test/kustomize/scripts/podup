@@ -8,6 +8,9 @@
 # arg two is to support 'kubectl' and 'microk8s kubectl'
 KUBECTL="$2"
 
+what=pod
+for=condition=ready
+
 case "$1" in
   PGO) # PGO operator
     expr="-l name=postgres-operator"
@@ -27,13 +30,22 @@ case "$1" in
   ELASTIC) # Elastic cluster
     expr="-l elasticsearch.k8s.elastic.co/cluster-name=elastic"
     ;;
+  PERCONA) # Percona MongoDB operator
+    expr="-l name=percona-server-mongodb-operator"
+    ;;
+  PMONGO) # Percona MongoDB cluster
+    what=perconaservermongodb/percona-mongo
+    for="condition=clusterready"
+    expr=
+    ;;
   *)
     exit 1
     ;;
 esac
+
 max=120
 for ((i=0; i<$max; i++)); do
-  if $KUBECTL wait pod -n backing "$expr" --for condition=ready --timeout=1s &>/dev/null; then
+  if $KUBECTL wait $what -n backing $expr --for $for --timeout=1s &>/dev/null; then
     exit 0
   fi
   sleep 1s

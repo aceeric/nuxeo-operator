@@ -1,0 +1,65 @@
+apiVersion: nuxeo.com/v1alpha1
+kind: Nuxeo
+metadata:
+  name: nuxeo
+spec:
+  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:LTS-2019-HF29
+  access:
+    hostname: nuxeo-server.apps-crc.testing
+  nodeSets:
+  - name: cluster
+    livenessProbe:
+      exec:
+        command:
+        - "true"
+    readinessProbe:
+      exec:
+        command:
+        - "true"
+    replicas: 1
+    interactive: true
+    nuxeoConfig:
+      nuxeoPackages:
+      - nuxeo-web-ui
+  backingServices:
+  - name: percona
+    template: mongodb
+    resources:
+    - group: ""
+      version: v1
+      kind: secret
+      name: percona-mongo-secrets
+      projections:
+      - from: MONGODB_USER_ADMIN_USER
+        env: MONGO_USER
+      - from: MONGODB_USER_ADMIN_PASSWORD
+        env: MONGO_PASSWORD
+    - group: ""
+      version: v1
+      kind: secret
+      name: percona-mongo-ssl
+      projections:
+      - transform:
+          type: TrustStore
+          cert: ca.crt
+          store: truststore.jks
+          password: mongo.truststore.pass
+          passEnv: MONGO_TS_PASS
+      - transform:
+          type: KeyStore
+          cert: tls.crt
+          privateKey: tls.key
+          store: keystore.jks
+          password: mongo.keystore.pass
+          passEnv: MONGO_KS_PASS
+    nuxeoConf: |
+      nuxeo.mongodb.server=mongodb://${env:MONGO_USER}:${env:MONGO_PASSWORD}@percona-mongo-rs0:27017
+      nuxeo.mongodb.ssl=true
+      nuxeo.mongodb.dbname=nuxeo
+      nuxeo.mongodb.truststore.path=/etc/nuxeo-operator/binding/percona/truststore.jks
+      nuxeo.mongodb.truststore.password=${env:MONGO_TS_PASS}
+      nuxeo.mongodb.truststore.type=JKS
+      nuxeo.mongodb.keystore.path=/etc/nuxeo-operator/binding/percona/keystore.jks
+      nuxeo.mongodb.keystore.password=${env:MONGO_KS_PASS}
+      nuxeo.mongodb.keystore.type=JKS
+

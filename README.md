@@ -123,9 +123,9 @@ Version 0.6.1 will be a clean-up iteration.
 | Update test/kustomize directory to support Kubernetes via MicroK8s | complete |
 | Build out the Status field in the Nuxeo CR to be comparable with other operators available on OperatorHub (with additional printer cols) | complete |
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` | complete |
-| Test with Percona MongoDB backing service support (https://www.percona.com/doc/kubernetes-operator-for-psmongodb/index.html.) Consider a pre-config for it | in-progress |
-| Consider a sidecar array for flexible sidecar configuration |  |
-| Consider a pre-config of https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | |
+| Test with Percona MongoDB backing service support explicitly configured (https://www.percona.com/doc/kubernetes-operator-for-psmongodb/index.html) | complete |
+| Implement a sidecar array for flexible sidecar configuration | in-progress |
+| Configure a test/kustomize supporting https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | |
 
 
 

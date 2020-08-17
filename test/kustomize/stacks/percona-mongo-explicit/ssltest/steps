@@ -1,3 +1,5 @@
+# verify Mongo on TLS
+
 # console 1
 oc extract secret/percona-mongo-ssl --keys=ca.crt
 oc extract secret/percona-mongo-ssl --keys=tls.crt

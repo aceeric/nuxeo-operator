@@ -30,9 +30,9 @@ spec:
       kind: secret
       name: percona-mongo-secrets
       projections:
-      - from: MONGODB_USER_ADMIN_USER
+      - from: NUXEO_MONGO_USER
         env: MONGO_USER
-      - from: MONGODB_USER_ADMIN_PASSWORD
+      - from: NUXEO_MONGO_USER_PASSWORD
         env: MONGO_PASSWORD
     - group: ""
       version: v1

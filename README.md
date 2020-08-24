@@ -129,7 +129,7 @@ Version 0.6.1 will be a clean-up iteration.
 
 
 
-#### Version 0.6.2
+#### Version 0.6.2 *(in progress)*
 
 Version 0.6.2 will migrate to the Operator SDK v1.0.0 and make some other incremental changes
 

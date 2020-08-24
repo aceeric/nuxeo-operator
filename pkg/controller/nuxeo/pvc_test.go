@@ -66,7 +66,7 @@ func TestPersistentVolumeClaimUnitTestSuite(t *testing.T) {
 
 // persistentVolumeClaimSuiteNewNuxeo creates a test Nuxeo struct suitable for the test cases in this suite.
 func (suite *persistentVolumeClaimSuite) persistentVolumeClaimSuiteNewNuxeo() *v1alpha1.Nuxeo {
-	testStorageClass := "certificatesToPEM-storage-class"
+	testStorageClass := "foo-storage-class"
 	return &v1alpha1.Nuxeo{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      suite.nuxeoName,

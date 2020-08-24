@@ -67,6 +67,9 @@ func (r *ReconcileNuxeo) configureDeploymentFromNuxeo(nodeSet v1alpha1.NodeSet, 
 				nodeSet.NuxeoConfig.JvmPKISecret)
 		}
 	}
+	if err := configureContainers(instance, expected); err != nil {
+		return err
+	}
 	if err := configureConfig(expected, nodeSet, jvmPkiSecret); err != nil {
 		return err
 	}
@@ -93,7 +96,7 @@ func (r *ReconcileNuxeo) configureDeploymentFromNuxeo(nodeSet v1alpha1.NodeSet, 
 				return err
 			}
 			revProxy.Nginx.ConfigMap = nginxCmName
-			if err = configureNginx(expected, revProxy.Nginx); err != nil {
+			if err := configureNginx(expected, revProxy.Nginx); err != nil {
 				return err
 			}
 		} else if nodeSet.NuxeoConfig.TlsSecret != "" {
@@ -103,6 +106,12 @@ func (r *ReconcileNuxeo) configureDeploymentFromNuxeo(nodeSet v1alpha1.NodeSet, 
 			} else {
 				tlsNuxeoConf = tmp
 			}
+		}
+	}
+	for _, vol := range instance.Spec.Volumes {
+		// explicit volume config - configurer must ensure they exist in the cluster
+		if err := util.OnlyAddVol(expected, vol); err != nil {
+			return err
 		}
 	}
 	if err := configureNuxeoConf(instance, expected, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
@@ -255,4 +264,18 @@ func binaryStorageIsDefined(nodeSet v1alpha1.NodeSet) bool {
 		}
 	}
 	return false
+}
+
+// configureContainers copies the InitContainers and Containers arrays from the passed Nuxeo struct into
+// the passed deployment struct. The Containers array is first checked to ensure that it does not define a
+// container named "nuxeo", since this container name is reserved by the Operator.
+func configureContainers(instance *v1alpha1.Nuxeo, expected *appsv1.Deployment) error {
+	for idx, container := range instance.Spec.Containers {
+		if container.Name == "nuxeo" {
+			return fmt.Errorf("container at ordinal position %v uses reserved 'nuxeo' name", idx)
+		}
+	}
+	expected.Spec.Template.Spec.InitContainers = instance.Spec.InitContainers
+	expected.Spec.Template.Spec.Containers = append(expected.Spec.Template.Spec.Containers, instance.Spec.Containers...)
+	return nil
 }

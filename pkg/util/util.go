@@ -42,29 +42,29 @@ var NuxeoServiceAccountName = "nuxeo"
 func ObjectsDiffer(expected interface{}, actual interface{}) (bool, error) {
 	var expMd5, actMd5 [md5.Size]byte
 	var err error
-	var bytes []byte
+	var b []byte
 
-	if bytes, err = yaml.Marshal(expected); err != nil {
+	if b, err = yaml.Marshal(expected); err != nil {
 		return false, err
 	}
-	debugExp := string(bytes)
-	expMd5 = md5.Sum(bytes)
-	if bytes, err = yaml.Marshal(actual); err != nil {
+	debugExp := string(b)
+	expMd5 = md5.Sum(b)
+	if b, err = yaml.Marshal(actual); err != nil {
 		return false, err
 	}
-	debugAct := string(bytes)
+	debugAct := string(b)
 	_ = debugAct
 	_ = debugExp
-	actMd5 = md5.Sum(bytes)
+	actMd5 = md5.Sum(b)
 	return expMd5 != actMd5, nil
 }
 
 // DebugDumpObj is used for debugging as needed. It dumps the YAML to the console for the passed object
 func DebugDumpObj(obj runtime.Object) {
-	if bytes, err := yaml.Marshal(obj); err != nil {
+	if b, err := yaml.Marshal(obj); err != nil {
 		return
 	} else {
-		manifest := string(bytes)
+		manifest := string(b)
 		println(manifest)
 	}
 }

@@ -40,7 +40,7 @@ patchesJson6902:
         apiGroups:
         - security.openshift.io
         resourceNames:
-        - scc-zelando
+        - scc-zalando
         resources:
         - securitycontextconstraints
         verbs:

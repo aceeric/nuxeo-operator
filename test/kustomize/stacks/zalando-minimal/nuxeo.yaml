@@ -22,7 +22,7 @@ spec:
       nuxeoPackages:
       - nuxeo-web-ui
   backingServices:
-  - name: zelando
+  - name: zalando
     resources:
     - group: ""
       version: v1

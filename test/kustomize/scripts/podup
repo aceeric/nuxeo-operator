@@ -38,10 +38,10 @@ case "$1" in
     for="condition=clusterready"
     expr=
     ;;
-  ZELANDO) # Zelando Postgres operator
+  ZALANDO) # Zalando Postgres operator
     expr="-l name=postgres-operator"
     ;;
-  ZPSQL) # Zelando Postgres cluster
+  ZPSQL) # Zalando Postgres cluster
     expr="-l cluster-name=acid-minimal-cluster"
     ;;
   *)

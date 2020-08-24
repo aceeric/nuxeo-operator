@@ -59,6 +59,7 @@ The following Make rules are presently available:
 | Rule                       | Tests                                                        |
 | -------------------------- | ------------------------------------------------------------ |
 | all                        | Runs all the tests listed below                              |
+| nuxeo-embedded-test        | Runs Nuxeo with all embedded backing services                |
 | elastic-builtin-test       | Nuxeo with ElasticSearch provisioned by ECK with the built-in Elastic user over TLS encryption |
 | elastic-filerealm-test     | As above, except with a file realm user instead of the built in `elastic` user |
 | strimzi-anonymous-test     | Strimzi with no authentication, no authorization, no encryption |
@@ -67,6 +68,8 @@ The following Make rules are presently available:
 | crunchy-plain-test         | Crunchy Postgres with plain username/password login, no encryption |
 | crunchy-tls-test           | Crunchy Postgres with plain username/password login, TLS encryption |
 | strimzi-eck-crunchy-test   | Strimzi Kafka, ECK Elastic Search, and Crunchy PostgreSQL with explicit backing service configuration rather than pre-configured backing services. This tests a full Nuxeo app stack, and also provide some insight into how to integrate with backing services explicitly. You can see the difference in verbosity between explicit and pre-configured backing service support. |
+| percona-mongodb-test       | Percona MongoDB over TLS                                     |
+| zalando-minimal-test       | Zalando PostgreSQL plain text (just to test a Postgres variant) |
 
 ## Example
 

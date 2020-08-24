@@ -1,7 +1,7 @@
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: scc-zelando
+  name: scc-zalando
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: false
 allowHostIPC: false

@@ -43,8 +43,7 @@ func (suite *clidSuite) SetupSuite() {
 
 // AfterTest removes objects of the type being tested in this suite after each test
 func (suite *clidSuite) AfterTest(_, _ string) {
-	//obj := the type of object you are testing. E.g.: obj := corev1.Service{}
-	//_ = suite.r.client.DeleteAllOf(context.TODO(), &obj)
+	// nop
 }
 
 // This function runs the Clid unit test suite. It is called by 'go test' and will call every

@@ -122,7 +122,9 @@ index-push:
 .PHONY : apply-crd
 apply-crd:
 	-$(KUBECTL) delete crd/nuxeos.nuxeo.com >/dev/null 2>&1
-	$(KUBECTL) apply -f $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml
+	#$(KUBECTL) apply -f $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml
+	# temp work-around for k8s 1.18 and core v1 Container and operator-sdk CRD gen
+	cat $(ROOT)/deploy/crds/nuxeo.com_nuxeos_crd.yaml | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) create -f -
 
 .PHONY : help
 help:

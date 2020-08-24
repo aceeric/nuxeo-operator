@@ -1,7 +1,7 @@
 # Nuxeo Operator
 # Nuxeo Operator
 
-This project is a very early - **0.6.0 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
+This project is a very early - **0.6.1 at present** - OpenShift/Kubernetes Operator written in Go to manage the state of a Nuxeo cluster. Nuxeo is an open source content management system. (See https://www.nuxeo.com/). The Operator scaffolding was initially generated using the Operator SDK (https://docs.openshift.com/container-platform/4.4/operators/operator_sdk/osdk-getting-started.html/).
 
 Presently, I'm doing this development on a Ubuntu 18.04 desktop with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
 
@@ -111,7 +111,7 @@ In addition to general-purpose backing service integration, the Operator support
 
 
 
-#### Version 0.6.1 *(in progress)*
+#### Version 0.6.1 *(complete)*
 
 Version 0.6.1 will be a clean-up iteration.
 
@@ -125,7 +125,7 @@ Version 0.6.1 will be a clean-up iteration.
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` | complete |
 | Test with Percona MongoDB backing service support explicitly configured (https://www.percona.com/doc/kubernetes-operator-for-psmongodb/index.html) | complete |
 | Configure a test/kustomize supporting https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | complete |
-| Implement a sidecar array for flexible sidecar configuration | in-progress |
+| Implement a sidecar array for flexible sidecar configuration. Also included init containers and volumes (to support the added containers) | complete |
 
 
 

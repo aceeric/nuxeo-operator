@@ -44,7 +44,7 @@ func (suite *reconUtilSuite) TestRemoveSecret() {
 			Namespace: suite.namespace,
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: "v1",
-				Kind:       "certificatesToPEM",
+				Kind:       "foo",
 				Name:       "bar",
 				UID:        "12312312-1231-1231-1231-123123123123",
 			}, {
@@ -104,7 +104,7 @@ func (suite *reconUtilSuite) SetupSuite() {
 	suite.r = initUnitTestReconcile()
 	suite.nuxeoName = "testnux"
 	suite.namespace = "testns"
-	suite.secretKey = "certificatesToPEM"
+	suite.secretKey = "foo"
 	suite.secretData = []byte("bar")
 	suite.secretName = "testsecret"
 	suite.cmName = "mycm"

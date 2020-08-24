@@ -124,8 +124,8 @@ Version 0.6.1 will be a clean-up iteration.
 | Build out the Status field in the Nuxeo CR to be comparable with other operators available on OperatorHub (with additional printer cols) | complete |
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` | complete |
 | Test with Percona MongoDB backing service support explicitly configured (https://www.percona.com/doc/kubernetes-operator-for-psmongodb/index.html) | complete |
+| Configure a test/kustomize supporting https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | complete |
 | Implement a sidecar array for flexible sidecar configuration | in-progress |
-| Configure a test/kustomize supporting https://github.com/zalando/postgres-operator as a Postgres alternative to Crunchy | |
 
 
 

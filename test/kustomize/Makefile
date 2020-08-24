@@ -30,6 +30,7 @@ all:
 # FAILS: $(MAKE) crunchy-mutual-tls-test
 	$(MAKE) strimzi-eck-crunchy-test
 	$(MAKE) percona-mongodb-test
+	$(MAKE) zelando-minimal-test
 
 # the following rules are used to do the small units of work. They are dependencies for the larger
 # rules invoked in the section that follows
@@ -74,6 +75,13 @@ operator-crunchy-4.4.0:
 	KUSTOMIZE_PLUGIN_HOME=$(ROOT) kustomize build --enable_alpha_plugins $(ROOT)/operator-crunchy-4.4.0\
 		| $(FSGROUP_PATCH) | $(KUBEAPPLY)
 	$(ROOT)/scripts/podup PGO "$(KUBECTL)" && echo Crunchy Operator is up || (echo Crunchy Operator not up; exit 1)
+
+# stand up Zelando PostgreSQL Operator
+.PHONY: operator-zelando-postgres-1.5.0
+operator-zelando-postgres-1.5.0:
+	-$(KUBECTL) delete scc scc-zelando
+	kustomize build $(ROOT)/operator-zelando-postgres-1.5.0 | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup ZELANDO "$(KUBECTL)" && echo Zelando Operator is up || (echo Zelando Operator not up; exit 1)
 
 # image puller role - required for OpenShift/CRC - benign for Kubernetes/MicroK8s
 .PHONY: security
@@ -148,6 +156,12 @@ percona-tls:
 	$(ROOT)/scripts/podup PMONGO "$(KUBECTL)" && echo Mongo Cluster is up || (echo Mongo Cluster not up; exit 1)
 	"$(KUBECTL)" exec percona-mongo-rs0-0 -- bash -c "mongo mongodb://userAdmin:userAdmin123456@localhost/admin --eval 'db.createUser({user: \"nuxeo\", pwd: \"nuxeopass\", roles: [{ role: \"root\", db: \"admin\" }]});'"
 
+# Zelando minimal with user/pass no TLS
+.PHONY: zelando-minimal
+zelando-minimal:
+	kustomize build $(ROOT)/$(STACKS)/zelando-minimal | $(KUBEAPPLY)
+	$(ROOT)/scripts/podup ZPSQL "$(KUBECTL)" && echo Zelando database is up || (echo Zelando not up; exit 1)
+
 # Make sure Nuxeo clean start
 .PHONY: verify-nuxeo
 verify-nuxeo:
@@ -200,6 +214,10 @@ strimzi-eck-crunchy-test: verify-images-ns clean operator-crunchy-4.4.0 operator
 .PHONY: percona-mongodb-test
 percona-mongodb-test: verify-images-ns clean operator-percona-mongodb-1.4.0 security percona-tls verify-nuxeo
 	echo COMPLETED PERCONA MONGODB TEST
+
+.PHONY: zelando-minimal-test
+zelando-minimal-test: verify-images-ns clean operator-zelando-postgres-1.5.0 security zelando-minimal verify-nuxeo
+	echo COMPLETED ZELANDO MINIMAL TEST
 
 # helper rules - only nuxeo-lts-2019-hf29-image must be run before running the tests because it creates an
 # imagestream in OpenShift/CRC, or pushes an image into the registry for Kubernetes/MicroK8s. This image is

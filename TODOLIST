@@ -1,0 +1,23 @@
+
+OSDK v1.0.0 tasklist
+
+DONE
+-) replace nuxeo.com
+-) APIs
+-) Unit Tests
+-) Remove ginko suite_test
+-) Ensure stretchr tests work
+-) Nuxeo package go code
+-) Cluster detection, Route/Ingress registration
+-) Profiling
+
+TODO
+-) Docs
+-) Examples
+-) e2e Test
+-) kustomize tests
+-) resources
+-) Make
+-) Operator OLM
+-) hack
+-) RBAC carryover - nuxeo_controller via annotations??

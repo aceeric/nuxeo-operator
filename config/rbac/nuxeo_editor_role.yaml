@@ -1,0 +1,24 @@
+# permissions for end users to edit nuxeos.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nuxeo-editor-role
+rules:
+- apiGroups:
+  - nuxeo.appzygy.net
+  resources:
+  - nuxeos
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nuxeo.appzygy.net
+  resources:
+  - nuxeos/status
+  verbs:
+  - get

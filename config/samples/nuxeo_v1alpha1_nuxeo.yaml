@@ -1,0 +1,16 @@
+apiVersion: appzygy.net/v1alpha1
+kind: Nuxeo
+metadata:
+  name: nuxeo-sample
+spec:
+  nuxeoImage: nuxeo:LTS-2019
+  version: "10.10"
+  access:
+    hostname: nuxeo-server.apps-crc.testing
+  nodeSets:
+    - name: cluster
+      replicas: 1
+      interactive: true
+      nuxeoConfig:
+        nuxeoPackages:
+          - nuxeo-web-ui

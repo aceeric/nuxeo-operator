@@ -1,7 +1,0 @@
-apiVersion: psmdb.percona.com/v1-4-0
-kind: PerconaServerMongoDB
-metadata:
-  name: percona-mongo
-spec:
-  backup:
-    enabled: false

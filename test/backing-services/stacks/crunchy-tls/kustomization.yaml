@@ -1,0 +1,40 @@
+bases:
+- ../crunchy-base
+
+resources:
+- crunchypg-ca-secret.yaml
+- crunchypg-custom-config.yaml
+- crunchypg-nuxeo-secret.yaml
+- crunchypg-tls-secret.yaml
+
+patchesJson6902:
+- target:
+    group: appzygy.net
+    version: v1alpha1
+    kind: Nuxeo
+    name:  nuxeo
+  patch: |-
+    - op: replace
+      path: /spec/backingServices/0/preConfigured/settings
+      value:
+        user: crunchypg-nuxeo-secret
+        ca: crunchypg-ca-secret
+- target:
+    group: crunchydata.com
+    version: v1
+    kind: Pgcluster
+    name: crunchypg
+  patch: |-
+    - op: replace
+      path: /spec/tls/caSecret
+      value: crunchypg-ca-secret
+    - op: replace
+      path: /spec/tls/tlsSecret
+      value: crunchypg-tls-secret
+    - op: replace
+      path: /spec/customconfig
+      value: crunchypg-custom-config
+#     # believe this would require SSL-enabling ALL postgres traffic, such as replication
+#     - op: replace
+#       path: /spec/tlsOnly
+#       value: true

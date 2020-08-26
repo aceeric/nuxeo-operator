@@ -1,0 +1,8 @@
+namespace: backing
+
+bases:
+- ../../namespace
+
+resources:
+- elasticsearch.yaml
+- nuxeo.yaml

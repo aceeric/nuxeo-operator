@@ -1,0 +1,10 @@
+namespace: backing
+
+bases:
+- ../../namespace
+
+resources:
+- filerealm-secret.yaml
+- nxelastic.yaml
+- elasticsearch.yaml
+- nuxeo.yaml

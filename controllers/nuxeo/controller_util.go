@@ -31,6 +31,7 @@ func (r *NuxeoReconciler) controllerConfig() error {
 }
 
 // returns true if the cluster contains an OpenShift Route type
+// todo would like to do this and below without the default ns
 func (r *NuxeoReconciler) clusterHasRoute() bool {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "route.openshift.io", Version: "v1", Kind: "Route"})
@@ -60,17 +61,17 @@ func (r *NuxeoReconciler) clusterHasIngress() bool {
 func (r *NuxeoReconciler) registerOpenShiftRoute() error {
 	const GroupName = "route.openshift.io"
 	const GroupVersion = "v1"
-	SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	schemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
 	addKnownTypes := func(scheme *runtime.Scheme) error {
-		scheme.AddKnownTypes(SchemeGroupVersion,
+		scheme.AddKnownTypes(schemeGroupVersion,
 			&routev1.Route{},
 			&routev1.RouteList{},
 		)
-		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+		metav1.AddToGroupVersion(scheme, schemeGroupVersion)
 		return nil
 	}
-	SchemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
-	return SchemeBuilder.AddToScheme(r.Scheme)
+	schemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
+	return schemeBuilder.AddToScheme(r.Scheme)
 }
 
 // registerKubernetesIngress registers Kubernetes Ingress types with the Scheme Builder. Note, according to:
@@ -79,15 +80,15 @@ func (r *NuxeoReconciler) registerOpenShiftRoute() error {
 func (r *NuxeoReconciler) registerKubernetesIngress() error {
 	const GroupName = "networking.k8s.io"
 	const GroupVersion = "v1beta1"
-	SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	schemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: GroupVersion}
 	addKnownTypes := func(scheme *runtime.Scheme) error {
-		scheme.AddKnownTypes(SchemeGroupVersion,
+		scheme.AddKnownTypes(schemeGroupVersion,
 			&v1beta1.Ingress{},
 			&v1beta1.IngressList{},
 		)
-		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+		metav1.AddToGroupVersion(scheme, schemeGroupVersion)
 		return nil
 	}
-	SchemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
-	return SchemeBuilder.AddToScheme(r.Scheme)
+	schemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
+	return schemeBuilder.AddToScheme(r.Scheme)
 }

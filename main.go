@@ -42,7 +42,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(nuxeov1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -57,7 +56,7 @@ func main() {
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Write CPU profile to file")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
 
 	if cpuProfile != "" {
 		if f, err := os.Create(cpuProfile); err != nil {
@@ -91,10 +90,10 @@ func main() {
 
 	if err = (&nuxeo.NuxeoReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Nuxeo"),
+		Log:    ctrl.Log.WithName("controllers").WithName("nuxeo-operator"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Nuxeo")
+		setupLog.Error(err, "unable to create controller", "controller", "nuxeo-operator")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

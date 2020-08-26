@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Replaces "pgo" hard-coded namespace in the PGO ConfigMap with "backing"
+# adapted from https://github.com/Agilicus/kustomize-plugins. Note - original
+# intent was for this also to patch the disable_fsgroup setting but Kustomize
+# will not help there so that's patched with sed in the Makefile.
+#
+
+# how to test:
+# provide arg one as a discard to mimic how kustomize will call the script
+#./PgoConfigMapFixer DISCARD 's|\"pgo\"|\"backing\"|' < testfile.yaml
+shift
+args=""
+for arg in "$@"; do
+  args="$args -e '$arg'"
+done
+cat - | eval sed $args

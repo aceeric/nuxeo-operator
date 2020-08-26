@@ -1,0 +1,24 @@
+apiVersion: appzygy.net/v1alpha1
+kind: Nuxeo
+metadata:
+  name: my-nuxeo
+spec:
+  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:10.10
+  access:
+    hostname: nuxeo-server.apps-crc.testing
+  nodeSets:
+  - name: cluster
+    replicas: 1
+    interactive: true
+    nuxeoConfig:
+      javaOpts: "-Xms8m"
+      nuxeoTemplates:
+      - custom
+      nuxeoPackages:
+      - nuxeo-web-ui
+      nuxeoUrl: "http://nuxeo-server.apps-crc.testing/nuxeo"
+      nuxeoName: "nuxeo-test"
+      nuxeoConf:
+        inline: |
+          a.b.c=test1
+          p.d.q=test2

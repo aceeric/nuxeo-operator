@@ -1,0 +1,16 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elastic
+spec:
+  version: 6.8.8
+  auth:
+    fileRealm:
+    - secretName: nxelastic-filerealm
+  nodeSets:
+    - name: default
+      count: 1
+      config:
+        node.master: true
+        node.data: true
+        node.store.allow_mmap: false

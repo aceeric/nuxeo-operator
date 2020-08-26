@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crunchypg-custom-config
+  labels:
+    pg-cluster: crunchypg
+data:
+  postgresql.conf: |
+    listen_addresses = '*'
+    port = 5432
+    max_connections = 20
+    shared_buffers = 128MB
+    temp_buffers = 8MB
+    work_mem = 4MB
+    wal_level = replica
+    max_wal_senders = 3
+    shared_preload_libraries = 'pgaudit.so,pg_stat_statements.so'
+    # password_encryption = 'scram-sha-256'
+    ssl = on # this enables SSL
+    # BEGIN EACE ADDED
+    ssl_ciphers = 'HIGH:MEDIUM:+3DES:!aNULL'
+    ssl_prefer_server_ciphers = on
+    # END EACE ADDED
+    ssl_cert_file = '/pgconf/tls.crt'
+    ssl_key_file = '/pgconf/tls.key'
+    ssl_ca_file = '/pgconf/ca.crt'
+  pg_hba.conf: |
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    local   all             postgres                                peer
+    hostssl all             postgres        ::/0                    reject
+    hostssl all             postgres        0.0.0.0/0               reject
+    hostssl all             all             ::/0                    cert
+    hostssl all             all             0.0.0.0/0               cert

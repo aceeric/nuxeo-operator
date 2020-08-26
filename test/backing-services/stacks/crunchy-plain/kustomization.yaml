@@ -1,0 +1,5 @@
+bases:
+- ../crunchy-base
+
+resources:
+- crunchypg-nuxeo-secret.yaml

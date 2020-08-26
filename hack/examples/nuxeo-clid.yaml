@@ -1,0 +1,18 @@
+# export CLID=...
+# sed "s|CLID|$CLID|" hack/examples/nuxeo-clid.yaml | oc apply -f -
+apiVersion: appzygy.net/v1alpha1
+kind: Nuxeo
+metadata:
+  name: my-nuxeo
+spec:
+  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:10.10
+  access:
+    hostname: nuxeo-server.apps-crc.testing
+  nodeSets:
+  - name: cluster
+    replicas: 1
+    interactive: true
+    nuxeoConfig:
+      nuxeoPackages:
+      - nuxeo-web-ui
+  clid: CLID

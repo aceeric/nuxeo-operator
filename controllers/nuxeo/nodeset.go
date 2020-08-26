@@ -34,7 +34,6 @@ func (r *NuxeoReconciler) reconcileNodeSet(nodeSet v1alpha1.NodeSet, instance *v
 	if err := r.configureDeploymentFromNuxeo(nodeSet, expected, instance); err != nil {
 		return false, err
 	}
-	//util.DebugDumpObj(expected)
 	if op, err := r.addOrUpdate(depName, instance.Namespace, expected, &appsv1.Deployment{},
 		util.DeploymentComparer); err != nil {
 		return false, err
@@ -189,11 +188,11 @@ func (r *NuxeoReconciler) defaultDeployment(instance *v1alpha1.Nuxeo, depName st
 						}},
 						TerminationMessagePath:   "/dev/termination-log",
 						TerminationMessagePolicy: corev1.TerminationMessageReadFile,
-						VolumeMounts:             []corev1.VolumeMount{},
+						VolumeMounts:             nil,
 						Env:                      nodeSet.Env,
 						Resources:                nodeSet.Resources,
 					}},
-					Volumes: []corev1.Volume{},
+					Volumes: nil,
 				},
 			},
 		},

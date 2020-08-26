@@ -1,0 +1,53 @@
+# verify Mongo on TLS
+
+# console 1
+oc extract secret/percona-mongo-ssl --keys=ca.crt
+oc extract secret/percona-mongo-ssl --keys=tls.crt
+oc extract secret/percona-mongo-ssl --keys=tls.key
+
+# console 2
+oc run -i --rm --tty percona-client --image=percona/percona-server-mongodb:4.0 --restart=Never -- bash -il
+
+# console 1
+oc exec percona-client -- mkdir -p /tmp/ssltest
+oc cp ca.crt backing/percona-client:/tmp/ssltest
+oc cp tls.key backing/percona-client:/tmp/ssltest
+oc cp tls.crt backing/percona-client:/tmp/ssltest
+
+# console 2
+cd /tmp/ssltest
+cat tls.key tls.crt > certkey
+
+$ mongo --ssl --sslAllowInvalidHostnames --sslPEMKeyFile /tmp/ssltest/certkey --sslCAFile /tmp/ssltest/ca.crt\
+  'mongodb://userAdmin:userAdmin123456@percona-mongo-rs0:27017/admin?replicaSet=rs0'
+
+Percona Server for MongoDB shell version v4.0.19-12
+connecting to: mongodb://percona-mongo-rs0:27017/admin?gssapiServiceName=mongodb&replicaSet=rs0
+2020-08-16T16:57:20.081+0000 I NETWORK  [js] Starting new replica set monitor for rs0/percona-mongo-rs0:27017
+2020-08-16T16:57:20.086+0000 W NETWORK  [ReplicaSetMonitor-TaskExecutor] The server certificate does not match the host name. Hostname: percona-mongo-rs0 does not match SAN(s): my-cluster-name-rs0 *.my-cluster-name-rs0
+2020-08-16T16:57:20.086+0000 I NETWORK  [ReplicaSetMonitor-TaskExecutor] Successfully connected to percona-mongo-rs0:27017 (1 connections now open to percona-mongo-rs0:27017 with a 5 second timeout)
+2020-08-16T16:57:20.090+0000 W NETWORK  [ReplicaSetMonitor-TaskExecutor] The server certificate does not match the host name. Hostname: percona-mongo-rs0-0.percona-mongo-rs0.backing.svc.cluster.local does not match SAN(s): my-cluster-name-rs0 *.my-cluster-name-rs0
+2020-08-16T16:57:20.090+0000 I NETWORK  [ReplicaSetMonitor-TaskExecutor] Successfully connected to percona-mongo-rs0-0.percona-mongo-rs0.backing.svc.cluster.local:27017 (1 connections now open to percona-mongo-rs0-0.percona-mongo-rs0.backing.svc.cluster.local:27017 with a 5 second timeout)
+2020-08-16T16:57:20.090+0000 I NETWORK  [ReplicaSetMonitor-TaskExecutor] changing hosts to rs0/percona-mongo-rs0-0.percona-mongo-rs0.backing.svc.cluster.local:27017,percona-mongo-rs0-1.percona-mongo-rs0.backing.svc.cluster.local:27017,percona-mongo-rs0-2.percona-mongo-rs0.backing.svc.cluster.local:27017 from rs0/percona-mongo-rs0:27017
+2020-08-16T16:57:20.094+0000 W NETWORK  [js] The server certificate does not match the host name. Hostname: percona-mongo-rs0-0.percona-mongo-rs0.backing.svc.cluster.local does not match SAN(s): my-cluster-name-rs0 *.my-cluster-name-rs0
+2020-08-16T16:57:20.094+0000 W NETWORK  [ReplicaSetMonitor-TaskExecutor] The server certificate does not match the host name. Hostname: percona-mongo-rs0-1.percona-mongo-rs0.backing.svc.cluster.local does not match SAN(s): my-cluster-name-rs0 *.my-cluster-name-rs0
+2020-08-16T16:57:20.095+0000 I NETWORK  [ReplicaSetMonitor-TaskExecutor] Successfully connected to percona-mongo-rs0-1.percona-mongo-rs0.backing.svc.cluster.local:27017 (1 connections now open to percona-mongo-rs0-1.percona-mongo-rs0.backing.svc.cluster.local:27017 with a 5 second timeout)
+2020-08-16T16:57:20.098+0000 W NETWORK  [ReplicaSetMonitor-TaskExecutor] The server certificate does not match the host name. Hostname: percona-mongo-rs0-2.percona-mongo-rs0.backing.svc.cluster.local does not match SAN(s): my-cluster-name-rs0 *.my-cluster-name-rs0
+2020-08-16T16:57:20.099+0000 I NETWORK  [ReplicaSetMonitor-TaskExecutor] Successfully connected to percona-mongo-rs0-2.percona-mongo-rs0.backing.svc.cluster.local:27017 (1 connections now open to percona-mongo-rs0-2.percona-mongo-rs0.backing.svc.cluster.local:27017 with a 5 second timeout)
+Implicit session: session { "id" : UUID("43025a9e-c5ea-4db9-a034-7aae7ee05dc3") }
+Percona Server for MongoDB server version: v4.2.3-4
+WARNING: shell and server versions do not match
+Welcome to the Percona Server for MongoDB shell.
+For interactive help, type "help".
+For more comprehensive documentation, see
+	https://www.percona.com/doc/percona-server-for-mongodb
+Questions? Try the support group
+	https://www.percona.com/forums/questions-discussions/percona-server-for-mongodb
+2020-08-16T16:57:20.114+0000 I STORAGE  [main] In File::open(), ::open for '/home/mongodb/.mongorc.js' failed with No such file or directory
+
+rs0:PRIMARY> show dbs
+admin   0.000GB
+config  0.000GB
+local   0.000GB
+
+rs0:PRIMARY>

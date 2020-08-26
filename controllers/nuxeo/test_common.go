@@ -24,10 +24,10 @@ func initUnitTestReconcile() NuxeoReconciler {
 		Log:    log.Log.WithName("controller_nuxeo"),
 	}
 	if err := r.registerOpenShiftRoute(); err != nil {
-		log.Log.Error(err,"registerOpenShiftRoute failed")
+		log.Log.Error(err, "registerOpenShiftRoute failed")
 		os.Exit(1)
 	} else if err := r.registerKubernetesIngress(); err != nil {
-		log.Log.Error(err,"registerKubernetesIngress failed")
+		log.Log.Error(err, "registerKubernetesIngress failed")
 		os.Exit(1)
 	}
 	return r

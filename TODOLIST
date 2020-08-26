@@ -10,14 +10,15 @@ DONE
 -) Nuxeo package go code
 -) Cluster detection, Route/Ingress registration
 -) Profiling
+-) Kustomize tests
+-) Zap logging config
+-) Tmp files
+-) Hack (incl. examples)
+-) Resources
 
 TODO
--) Docs
--) Examples
 -) e2e Test
--) kustomize tests
--) resources
+-) Docs
 -) Make
 -) Operator OLM
--) hack
 -) RBAC carryover - nuxeo_controller via annotations??

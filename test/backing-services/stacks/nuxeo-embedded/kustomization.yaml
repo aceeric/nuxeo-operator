@@ -1,0 +1,7 @@
+namespace: backing
+
+bases:
+- ../../namespace
+
+resources:
+- nuxeo.yaml

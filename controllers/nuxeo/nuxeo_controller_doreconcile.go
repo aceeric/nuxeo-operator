@@ -9,10 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Reconcile is the main reconciler. It reads the state of the cluster for a Nuxeo object and may alter
-// cluster state based on the state of the Nuxeo object Spec. Note: The Controller will requeue the Request
-// to be processed again if the returned error is non-nil or Result.Requeue is true, otherwise upon
-// completion it will remove the work from the queue.
+// Main reconciler. Isolated to a separate file to minimize mods to the OSK-generated controller.
 func (r *NuxeoReconciler) doReconcile(request reconcile.Request) (reconcile.Result, error) {
 	emptyResult := reconcile.Result{}
 	r.Log.Info("Reconciling Nuxeo")
@@ -70,7 +67,7 @@ func (r *NuxeoReconciler) reconcileNodeSets(instance *v1alpha1.Nuxeo) (bool, err
 	return false, nil
 }
 
-// returns the interactive NodeSet from the passed array, or non-nil error if a) there is no interactive NodeSet
+// Returns the interactive NodeSet from the passed array, or non-nil error if a) there is no interactive NodeSet
 // defined, or b) there is more than one interactive NodeSet defined
 func getInteractiveNodeSet(nodeSets []v1alpha1.NodeSet) (v1alpha1.NodeSet, error) {
 	toReturn := v1alpha1.NodeSet{}

@@ -1,0 +1,9 @@
+namespace: backing
+
+bases:
+- ../../namespace
+
+resources:
+- strimzi.yaml
+- kafkauser.yaml
+- nuxeo.yaml

@@ -582,7 +582,7 @@ type NuxeoStatus struct {
 
 // Nuxeo is the Schema for the nuxeos API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=nuxeos,scope=Namespaced
+// +kubebuilder:resource:path=nuxeos,scope=Cluster
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="version",type="string",JSONPath=".spec.version"
 // +kubebuilder:printcolumn:name="health",type="string",JSONPath=".status.status"

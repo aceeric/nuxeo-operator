@@ -19,6 +19,7 @@ package nuxeo
 import (
 	"context"
 
+	"github.com/aceeric/nuxeo-operator/controllers/util"
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -51,14 +52,17 @@ func (r *NuxeoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := r.controllerConfig(); err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	ctrllr := ctrl.NewControllerManagedBy(mgr).
 		For(&nuxeov1alpha1.Nuxeo{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.ConfigMap{}).
-		Owns(&corev1.Secret{}).
-		Owns(&routev1.Route{}).
-		Owns(&v1beta1.Ingress{}).
-		Complete(r)
+		Owns(&corev1.Secret{})
+		if util.IsOpenShift() {
+			ctrllr = ctrllr.Owns(&routev1.Route{})
+		} else {
+			ctrllr = ctrllr.Owns(&v1beta1.Ingress{})
+		}
+		return ctrllr.Complete(r)
 }

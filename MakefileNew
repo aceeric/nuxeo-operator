@@ -1,0 +1,138 @@
+OPERATOR_VERSION        := 0.6.2
+BUNDLE_IMG              ?= nuxeo-operator-bundle:$(OPERATOR_VERSION)
+BUNDLE_CHANNELS         ?= alpha
+BUNDLE_DEFAULT_CHANNEL  ?= alpha
+BUNDLE_METADATA_OPTS    ?= --channels $(BUNDLE_CHANNELS) --default-channel $(BUNDLE_DEFAULT_CHANNEL)
+OPERATOR_IMAGE_REGISTRY ?= docker.io
+OPERATOR_IMAGE_ORG      ?= appzygy
+OPERATOR_IMAGE_NAME     ?= nuxeo-operator
+OPERATOR_IMAGE          := $(OPERATOR_IMAGE_REGISTRY)/$(OPERATOR_IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS             ?= "crd:trivialVersions=true"
+
+#GOROOT := $(shell go env GOROOT)
+ROOT                    := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+UNIT_TEST_ARGS          ?= -v -coverprofile cp.out
+KUBECTL                 ?= kubectl
+ENVTEST_ASSETS_DIR      := $(ROOT)/testbin
+
+# set Make variables for MicroK8s testing
+ifeq ($(TARGET_CLUSTER),MICROK8S)
+    KUBECTL := microk8s kubectl
+endif
+
+ifeq (, $(shell which kustomize))
+    $(error "Missing required command: kustomize")
+endif
+ifeq (, $(shell which controller-gen))
+    $(error "Missing required command: controller-gen")
+endif
+
+.PHONY : all
+all:
+	echo Run 'make help' to see a list of available targets
+
+# for desktop testing
+.PHONY : operator-build
+operator-build: generate fmt vet
+	CGO_ENABLED=0 GO111MODULE=on go build -a -o $(ROOT)/manager $(ROOT)/main.go
+
+# run the operator on the desktop for local testing
+.PHONY : operator-run
+operator-run:
+	echo TODO run with WATCH_NAMESPACE=foo and --kubeconfig=/home/${USER}/.kube/config
+
+# run operator unit tests
+.PHONY : operator-unit-test
+operator-unit-test:
+	go test $(UNIT_TEST_ARGS) -run=UnitTestSuite $(ROOT)/controllers/nuxeo/...
+
+# run operator env tests using Ginkgo (replaces <1.0.0 operator-sdk test)
+.PHONY : operator-envtest
+operator-envtest: SHELL := bash
+operator-envtest:
+	mkdir -p $(ENVTEST_ASSETS_DIR)
+	test -f $(ENVTEST_ASSETS_DIR)/setup-envtest.sh ||\
+ 		curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/master/hack/setup-envtest.sh
+	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh &&\
+ 		fetch_envtest_tools $(ENVTEST_ASSETS_DIR) &&\
+		setup_envtest_env $(ENVTEST_ASSETS_DIR) &&\
+		go test $(ROOT)/test/envtest
+
+.PHONY : operator-image-build
+operator-image-build:
+	docker build . -t $(OPERATOR_IMAGE)
+
+.PHONY : operator-image-push
+operator-image-push:
+	docker push $(OPERATOR_IMAGE)
+
+.PHONY : operator-install
+operator-install:
+	echo operator-install
+
+# Install CRD(s) into cluster - assumes cluster-scoped CRD(s)
+.PHONY : crd-install
+crd-install: crd-uninstall
+	# temp work-around for k8s 1.18 and core v1 Container and operator-sdk CRD gen
+	kustomize build config/crd | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) create -f -
+
+# Remove CRD(s) from cluster
+.PHONY : crd-uninstall
+crd-uninstall: manifests
+	-kustomize build config/crd | $(KUBECTL) delete -f -
+
+.PHONY : fmt
+fmt:
+	go fmt ./...
+
+.PHONY : vet
+vet:
+	go vet ./...
+
+# generate "zz" deep copy Go code
+.PHONY :
+generate:
+	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+# generate config/crd/bases and config/rbac/role
+.PHONY : manifests 
+manifests:
+	controller-gen $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+.PHONY : olm-bundle-generate
+olm-bundle-generate:
+	echo olm-bundle-generate
+
+.PHONY : olm-bundle-build
+olm-bundle-build:
+	echo olm-bundle-build
+
+.PHONY : olm-index-add
+olm-index-add:
+	echo olm-index-add
+
+.PHONY : olm-index-push
+olm-index-push:
+	echo olm-index-push
+
+.PHONY : olm-catalogsource-gen
+olm-catalogsource-gen:
+	echo olm-catalogsource-gen
+
+.PHONY : help
+help:
+	echo "$$HELPTEXT"
+
+ifndef VERBOSE
+.SILENT:
+endif
+
+.PHONY : print-%
+print-%:
+	$(info $($*))
+
+export HELPTEXT
+define HELPTEXT
+TODO
+endef

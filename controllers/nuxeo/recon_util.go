@@ -65,15 +65,17 @@ func (r *NuxeoReconciler) addOrUpdate(name string, namespace string, expected ru
 // Otherwise cluster state is not modified.
 func (r *NuxeoReconciler) removeIfPresent(instance *v1alpha1.Nuxeo, name string, namespace string,
 	found runtime.Object) error {
+	var kind string
 	var err error
 	var uids []string
-	if _, err = getKind(r.Scheme, found); err != nil {
+	if kind, err = getKind(r.Scheme, found); err != nil {
 		return err
 	}
 	if err = r.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, found); err == nil {
 		if uids, err = getOwnerRefs(found); err != nil {
 			return err
 		} else if instance.IsOwnerUids(uids) {
+			r.Log.Info("Deleting instance of " + kind)
 			if err := r.Delete(context.TODO(), found); err != nil {
 				return err
 			}

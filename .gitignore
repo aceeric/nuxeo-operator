@@ -27,3 +27,6 @@ bin
 tmp/
 hf/
 cpu.profile
+testbin/
+# this is the compiled operator
+manager

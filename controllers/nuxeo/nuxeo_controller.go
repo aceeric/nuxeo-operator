@@ -17,8 +17,6 @@ limitations under the License.
 package nuxeo
 
 import (
-	"context"
-
 	"github.com/aceeric/nuxeo-operator/controllers/util"
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
@@ -41,10 +39,7 @@ type NuxeoReconciler struct {
 
 // +kubebuilder:rbac:groups=appzygy.net,resources=nuxeos,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=appzygy.net,resources=nuxeos/status,verbs=get;update;patch
-
 func (r *NuxeoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("nuxeo", req.NamespacedName)
 	return r.doReconcile(req)
 }
 
@@ -59,10 +54,10 @@ func (r *NuxeoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{})
-		if util.IsOpenShift() {
-			ctrllr = ctrllr.Owns(&routev1.Route{})
-		} else {
-			ctrllr = ctrllr.Owns(&v1beta1.Ingress{})
-		}
-		return ctrllr.Complete(r)
+	if util.IsOpenShift() {
+		ctrllr = ctrllr.Owns(&routev1.Route{})
+	} else {
+		ctrllr = ctrllr.Owns(&v1beta1.Ingress{})
+	}
+	return ctrllr.Complete(r)
 }

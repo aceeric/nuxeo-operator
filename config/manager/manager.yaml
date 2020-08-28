@@ -23,17 +23,21 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - command:
+      - name: manager
+        env:
+        - name: WATCH_NAMESPACE
+          value: ""
+        command:
         - /manager
         args:
         - --enable-leader-election
         image: controller:latest
-        name: manager
         resources:
           limits:
             cpu: 100m
-            memory: 30Mi
+            memory: 300Mi
           requests:
             cpu: 100m
-            memory: 20Mi
+            memory: 300Mi
       terminationGracePeriodSeconds: 10
+      serviceAccountName: manager

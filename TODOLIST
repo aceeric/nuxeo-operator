@@ -15,10 +15,39 @@ DONE
 -) Tmp files
 -) Hack (incl. examples)
 -) Resources
+-) E2e Test
 
 TODO
 -) Make
--) e2e Test
+-) nuxeo operator explicit service account vs default
+-) https://sdk.operatorframework.io/docs/building-operators/golang/operator-scope/
 -) Docs
 -) Operator OLM
 -) RBAC carryover - nuxeo_controller via annotations??
+-) README
+
+MAKE
+target                 done?
+---------------------  -----
+all:                   done
+operator-build:        done
+operator-run:          done
+operator-unit-test:    done
+operator-e2e-test:     done
+operator-image-build:  done
+operator-image-push:   done
+operator-install:      done
+crd-install:           done
+crd-uninstall:         done
+fmt:                   done
+vet:                   done
+generate:              done
+manifests:             done
+olm-bundle-generate:   -
+olm-bundle-build:      -
+olm-index-add:         -
+olm-index-push:        -
+olm-catalogsource-gen: -
+help:                  done
+print-%:               done
+HELPTEXT

@@ -59,9 +59,9 @@ deploy: manifests kustomize
 
 .PHONY : apply-crd
 apply-crd:
-	-$(KUBECTL) delete crd/nuxeos.nuxeo.com >/dev/null 2>&1
+	#-$(KUBECTL) delete crd/nuxeos.nuxeo.com >/dev/null 2>&1
 	# temp work-around for k8s 1.18 and core v1 Container and operator-sdk CRD gen
-	$(KUSTOMIZE) build config/default | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) create -f -
+	$(KUSTOMIZE) build config/crd | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) apply -f -
 
 
 # Generate manifests e.g. CRD, RBAC etc.

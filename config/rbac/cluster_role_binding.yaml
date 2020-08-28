@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: manager-rolebinding
+  name: manager
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: manager-role
+  name: manager
 subjects:
 - kind: ServiceAccount
-  name: default
-  namespace: system
+  name: nuxeo-operator-manager
+  namespace: nuxeo-operator-system

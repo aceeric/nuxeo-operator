@@ -18,9 +18,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"runtime/pprof"
+	"strings"
 
 	"github.com/aceeric/nuxeo-operator/controllers/nuxeo"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +28,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	nuxeov1alpha1 "github.com/aceeric/nuxeo-operator/api/v1alpha1"
@@ -38,6 +39,7 @@ var (
 	scheme     = runtime.NewScheme()
 	setupLog   = ctrl.Log.WithName("setup")
 	cpuProfile string
+	version    string
 )
 
 func init() {
@@ -69,25 +71,26 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	namespace, err := getWatchNamespace()
-	if err != nil {
-		setupLog.Error(err, "Failed to get watch namespace")
-		os.Exit(1)
-	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	options := ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "c4f5e369.appzygy.net",
-		Namespace:          namespace,
-	})
+	}
+
+	watchNamespace := getWatchNamespace()
+	if strings.Contains(watchNamespace, ",") {
+		options.NewCache = cache.MultiNamespacedCacheBuilder(strings.Split(watchNamespace, ","))
+	} else if watchNamespace != "" {
+		options.Namespace = watchNamespace
+	} // no initialization of options.Namespace means watch all
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
 	if err = (&nuxeo.NuxeoReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("nuxeo-operator"),
@@ -96,8 +99,12 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "nuxeo-operator")
 		os.Exit(1)
 	}
+	if watchNamespace == "" {
+		setupLog.Info("nuxeo operator version " + version + " is watching all namespaces")
+	} else {
+		setupLog.Info("nuxeo operator version " + version + " is watching namespace(s): " + watchNamespace)
+	}
 	// +kubebuilder:scaffold:builder
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
@@ -105,16 +112,13 @@ func main() {
 	}
 }
 
-// getWatchNamespace returns the Namespace the operator should be watching for changes
-func getWatchNamespace() (string, error) {
-	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-	// which specifies the Namespace to watch.
-	// An empty value means the operator is running with cluster scope.
-	var watchNamespaceEnvVar = "WATCH_NAMESPACE"
-
+// getWatchNamespace returns the Namespace(s) the operator is configured to watch via the WATCH_NAMESPACE
+// env var. If the env var is not present, then the empty string is returned which means watch all
+func getWatchNamespace() string {
+	const watchNamespaceEnvVar = "WATCH_NAMESPACE"
 	ns, found := os.LookupEnv(watchNamespaceEnvVar)
 	if !found {
-		return "", fmt.Errorf("%s must be set", watchNamespaceEnvVar)
+		return ""
 	}
-	return ns, nil
+	return ns
 }

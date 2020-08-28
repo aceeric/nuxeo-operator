@@ -88,7 +88,7 @@ var _ = BeforeSuite(func(done Done) {
 	// +kubebuilder:scaffold:scheme
 
 	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:    scheme.Scheme,
+		Scheme: scheme.Scheme,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -126,7 +126,7 @@ func readCRDs() []*unstructured.Unstructured {
 	path := filepath.Join("../..", "config", "crd", "bases")
 	var crds []*unstructured.Unstructured
 	crd := &unstructured.Unstructured{}
-	files, _ :=  ioutil.ReadDir(path)
+	files, _ := ioutil.ReadDir(path)
 	for _, file := range files {
 		docs, _ := readDocuments(filepath.Join(path, file.Name()))
 		for _, doc := range docs {

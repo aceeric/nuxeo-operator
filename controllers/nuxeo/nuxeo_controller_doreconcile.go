@@ -12,14 +12,17 @@ import (
 // Main reconciler. Isolated to a separate file to minimize mods to the OSK-generated controller.
 func (r *NuxeoReconciler) doReconcile(request reconcile.Request) (reconcile.Result, error) {
 	emptyResult := reconcile.Result{}
-	r.Log.Info("Reconciling Nuxeo")
-
+	kv := []interface{}{"nuxeo", request.NamespacedName}
+	r.Log.Info("reconciling Nuxeo", kv...)
+	if request.Namespace == "" {
+		return emptyResult, fmt.Errorf("no namespace provided in reconciliation request")
+	}
 	// Get the Nuxeo CR from the request namespace
 	instance := &v1alpha1.Nuxeo{}
 	err := r.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			r.Log.Info("Nuxeo resource not found. Ignoring since object must be deleted")
+			r.Log.Info("nuxeo resource not found. Ignoring since object must be deleted", kv...)
 			return emptyResult, nil
 		}
 		return reconcile.Result{Requeue: true}, err
@@ -53,6 +56,7 @@ func (r *NuxeoReconciler) doReconcile(request reconcile.Request) (reconcile.Resu
 	if err := r.updateNuxeoStatus(instance); err != nil {
 		return emptyResult, err
 	}
+	r.Log.Info("finished", kv...)
 	return emptyResult, nil
 }
 

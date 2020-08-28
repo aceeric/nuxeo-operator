@@ -35,25 +35,26 @@ all:
 # for desktop testing
 .PHONY : operator-build
 operator-build: generate fmt vet
-	CGO_ENABLED=0 GO111MODULE=on go build -a -o $(ROOT)/manager $(ROOT)/main.go
+	CGO_ENABLED=0 GO111MODULE=on go build -ldflags "-X 'main.version=$(OPERATOR_VERSION)'" -a -o $(ROOT)/manager $(ROOT)/main.go
 
-# run the operator on the desktop for local testing
+# run the operator on the desktop for local testing using your kube config. 'WATCH_NAMESPACE=' means watch all
 .PHONY : operator-run
 operator-run:
-	echo TODO run with WATCH_NAMESPACE=foo and --kubeconfig=/home/${USER}/.kube/config
+	WATCH_NAMESPACE= go run ./main.go
 
 # run operator unit tests
 .PHONY : operator-unit-test
 operator-unit-test:
 	go test $(UNIT_TEST_ARGS) -run=UnitTestSuite $(ROOT)/controllers/nuxeo/...
 
-# run operator env tests using Ginkgo (replaces <1.0.0 operator-sdk test)
+# run operator CI-style integration tests using Ginkgo (replaces pre-v1.0.0 'operator-sdk test')
 .PHONY : operator-envtest
 operator-envtest: SHELL := bash
 operator-envtest:
 	mkdir -p $(ENVTEST_ASSETS_DIR)
 	test -f $(ENVTEST_ASSETS_DIR)/setup-envtest.sh ||\
- 		curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/master/hack/setup-envtest.sh
+ 		curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh\
+ 		https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/master/hack/setup-envtest.sh
 	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh &&\
  		fetch_envtest_tools $(ENVTEST_ASSETS_DIR) &&\
 		setup_envtest_env $(ENVTEST_ASSETS_DIR) &&\
@@ -61,26 +62,36 @@ operator-envtest:
 
 .PHONY : operator-image-build
 operator-image-build:
-	docker build . -t $(OPERATOR_IMAGE)
+	docker build . -t $(OPERATOR_IMAGE) --build-arg OPERATOR_VERSION=$(OPERATOR_VERSION)
 
 .PHONY : operator-image-push
 operator-image-push:
 	docker push $(OPERATOR_IMAGE)
 
+# install the operator, CRDs, RBACs directly into the cluster. Use sed as temp work-around for:
+# https://github.com/kubernetes-sigs/controller-tools/pull/480
 .PHONY : operator-install
-operator-install:
-	echo operator-install
+operator-install: operator-clean
+	cd config/manager && kustomize edit set image controller=$(OPERATOR_IMAGE)
+	kustomize build config/default | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) create -f -
 
-# Install CRD(s) into cluster - assumes cluster-scoped CRD(s)
+.PHONY : operator-clean
+operator-clean:
+	-$(KUBECTL) delete clusterrole,clusterrolebinding,crd,namespace -l app=nuxeo-operator
+
+# Install CRD(s) into cluster - assumes cluster-scoped CRD(s). Use sed as temp work-around for:
+# https://github.com/kubernetes-sigs/controller-tools/pull/480. Use create/replace because apply
+# fails if CRD size too large
 .PHONY : crd-install
-crd-install: crd-uninstall
-	# temp work-around for k8s 1.18 and core v1 Container and operator-sdk CRD gen
-	kustomize build config/crd | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) create -f -
+crd-install:
+	$(KUBECTL) get crd/nuxeos.appzygy.net >/dev/null 2>&1 &&\
+		(kustomize build config/crd | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) replace -f -) ||\
+		(kustomize build config/crd | sed -e '/x-kubernetes-list-map-keys:/,+3 d' | $(KUBECTL) create -f -)
 
 # Remove CRD(s) from cluster
 .PHONY : crd-uninstall
 crd-uninstall: manifests
-	-kustomize build config/crd | $(KUBECTL) delete -f -
+	$(KUBECTL) delete crd -l app=nuxeo-operator
 
 .PHONY : fmt
 fmt:
@@ -95,7 +106,7 @@ vet:
 generate:
 	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-# generate config/crd/bases and config/rbac/role
+# generate config/crd/bases and config/rbac/role (does not mod role binding...)
 .PHONY : manifests 
 manifests:
 	controller-gen $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases

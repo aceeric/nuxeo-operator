@@ -8,6 +8,9 @@ namespace: nuxeo-operator-system
 # field above.
 namePrefix: nuxeo-operator-
 
+commonLabels:
+  app: nuxeo-operator
+
 # Labels to add to all resources and selectors.
 #commonLabels:
 #  someName: someValue

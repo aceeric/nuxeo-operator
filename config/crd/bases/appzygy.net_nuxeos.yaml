@@ -27,7 +27,7 @@ spec:
     listKind: NuxeoList
     plural: nuxeos
     singular: nuxeo
-  scope: Cluster
+  scope: Namespaced
   subresources:
     status: {}
   validation:

@@ -1,5 +1,4 @@
 OPERATOR_VERSION        := 0.6.2
-BUNDLE_IMG              ?= nuxeo-operator-bundle:$(OPERATOR_VERSION)
 BUNDLE_CHANNELS         ?= alpha
 BUNDLE_DEFAULT_CHANNEL  ?= alpha
 BUNDLE_METADATA_OPTS    ?= --channels $(BUNDLE_CHANNELS) --default-channel $(BUNDLE_DEFAULT_CHANNEL)
@@ -7,6 +6,8 @@ OPERATOR_IMAGE_REGISTRY ?= docker.io
 OPERATOR_IMAGE_ORG      ?= appzygy
 OPERATOR_IMAGE_NAME     ?= nuxeo-operator
 OPERATOR_IMAGE          := $(OPERATOR_IMAGE_REGISTRY)/$(OPERATOR_IMAGE_ORG)/$(OPERATOR_IMAGE_NAME):$(OPERATOR_VERSION)
+BUNDLE_IMAGE            := $(OPERATOR_IMAGE_REGISTRY)/$(OPERATOR_IMAGE_ORG)/$(OPERATOR_IMAGE_NAME)-bundle:$(OPERATOR_VERSION)
+INDEX_IMAGE             := $(OPERATOR_IMAGE_REGISTRY)/$(OPERATOR_IMAGE_ORG)/$(OPERATOR_IMAGE_NAME)-index:$(OPERATOR_VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS             ?= "crd:trivialVersions=true"
 
@@ -79,9 +80,15 @@ operator-install: operator-clean
 operator-clean:
 	-$(KUBECTL) delete clusterrole,clusterrolebinding,crd,namespace -l app=nuxeo-operator
 
-# Install CRD(s) into cluster - assumes cluster-scoped CRD(s). Use sed as temp work-around for:
-# https://github.com/kubernetes-sigs/controller-tools/pull/480. Use create/replace because apply
-# fails if CRD size too large
+# generate config/crd/bases
+.PHONY : crd-gen
+crd-gen:
+	controller-gen $(CRD_OPTIONS) crd paths=$(ROOT)/api/... output:crd:dir=$(ROOT)/config/crd/bases
+	# controller-gen creates this file inexplicably
+	-rm $(ROOT)/config/appzygy.net_nuxeos.yaml
+
+# Install CRD(s) into cluster. Use create/replace because apply fails if CRD size too large. Use sed as temp
+# work-around for: https://github.com/kubernetes-sigs/controller-tools/pull/480.
 .PHONY : crd-install
 crd-install:
 	$(KUBECTL) get crd/nuxeos.appzygy.net >/dev/null 2>&1 &&\
@@ -90,7 +97,7 @@ crd-install:
 
 # Remove CRD(s) from cluster
 .PHONY : crd-uninstall
-crd-uninstall: manifests
+crd-uninstall:
 	$(KUBECTL) delete crd -l app=nuxeo-operator
 
 .PHONY : fmt
@@ -106,30 +113,40 @@ vet:
 generate:
 	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-# generate config/crd/bases and config/rbac/role (does not mod role binding...)
-.PHONY : manifests 
-manifests:
-	controller-gen $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-
+# generate OLM bundle. Temp work-around to remove namespace from service account yaml for now per:
+# https://github.com/operator-framework/operator-sdk/issues/3809. See above for x-kubernetes... sed patch
 .PHONY : olm-bundle-generate
 olm-bundle-generate:
-	echo olm-bundle-generate
+	operator-sdk generate kustomize manifests -q
+	cd $(ROOT)/config/manager && kustomize edit set image controller=$(OPERATOR_IMAGE)
+	kustomize build config/manifests | operator-sdk generate bundle -q --overwrite --version $(OPERATOR_VERSION) $(BUNDLE_METADATA_OPTS)
+	## TODO MAYBE REMOVE THIS ONCE THE SUBSCRIPTION IS WORKING?
+	sed -i '/namespace:/d' $(ROOT)/bundle/manifests/*serviceaccount.yaml
+	sed -i '/x-kubernetes-list-map-keys:/,+3 d' $(ROOT)/bundle/manifests/appzygy.net_nuxeos.yaml
+	operator-sdk bundle validate $(ROOT)/bundle
 
+# creates nuxeo-operator-bundle in local docker cache
 .PHONY : olm-bundle-build
 olm-bundle-build:
-	echo olm-bundle-build
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMAGE) .
+	docker push $(BUNDLE_IMAGE)
 
-.PHONY : olm-index-add
-olm-index-add:
-	echo olm-index-add
+.PHONY : olm-index-create
+olm-index-create:
+	opm index add --bundles $(BUNDLE_IMAGE) --tag $(INDEX_IMAGE) --container-tool docker
+	docker push $(INDEX_IMAGE)
 
-.PHONY : olm-index-push
-olm-index-push:
-	echo olm-index-push
-
+# create a test catalog source to test OLM subscriptions outside of community operators etc.
 .PHONY : olm-catalogsource-gen
 olm-catalogsource-gen:
-	echo olm-catalogsource-gen
+	-$(KUBECTL) create namespace nuxeo-test
+	$(KUBECTL) apply -f $(ROOT)/hack/olm/nuxeo-operator-catalogsource.yaml
+
+# create a test catalog source to test OLM subscriptions outside of community operators etc.
+.PHONY : olm-subscribe
+olm-subscribe:
+	-$(KUBECTL) create namespace nuxeo-test
+	$(KUBECTL) apply -f $(ROOT)/hack/olm/nuxeo-operator-subscription.yaml
 
 .PHONY : help
 help:

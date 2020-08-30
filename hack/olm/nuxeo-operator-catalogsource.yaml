@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: nuxeo-operator
+  namespace: nuxeo-test
+spec:
+  description: An operator to manage the state of a Nuxeo cluster in Kubernetes and OpenShift
+  displayName: Nuxeo Operator
+  sourceType: grpc
+  publisher: Eric Ace
+  image: docker.io/appzygy/nuxeo-operator-index@sha256:d8b4277cbe9355c2ad4e3e96ba7197bb7924cfc9aedac06b676d72c6184ee096

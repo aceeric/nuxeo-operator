@@ -43,7 +43,7 @@ spec:
     - kind: Nuxeo
       name: nuxeos.appzygy.net
       version: v1alpha1
-  description: Manages Nuxeo clusters in Kubernetes and OpenShift, and integrates Nuxeo with backing services like Kafka, etc.
+  description: Manages a Nuxeo cluster
   displayName: Nuxeo Operator
   icon:
   - base64data: ""
@@ -248,11 +248,11 @@ spec:
   - digital
   - asset
   - management
-  - golang
   links:
   - name: Nuxeo Operator
     url: https://github.com/aceeric/nuxeo-operator
   maturity: alpha
   provider:
     name: Eric Ace
+    url: https://github.com/aceeric/nuxeo-operator
   version: 0.6.2

@@ -124,14 +124,14 @@ olm-bundle-generate:
 	sed -i '/x-kubernetes-list-map-keys:/,+3 d' $(ROOT)/bundle/manifests/appzygy.net_nuxeos.yaml
 	operator-sdk bundle validate $(ROOT)/bundle
 
-# creates nuxeo-operator-bundle in local docker cache
+# creates nuxeo-operator-bundle in local docker cache and pushes to docker hub
 .PHONY : olm-bundle-build
 olm-bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMAGE) .
 	docker push $(BUNDLE_IMAGE)
 
-# creates the OLM index. Note - if the index refs the bundle by tag and the bundle tag is cached on the machine, then
-# it is not possible to have the index select an updated bundle.
+# creates the OLM index and pushes to docker hub. Note - if the index refs the bundle by tag and the bundle tag is
+# cached on the machine, then it is not possible to have the index select an updated bundle.
 .PHONY : olm-index-create
 olm-index-create:
 	$(eval SHA = $(shell docker inspect docker.io/appzygy/nuxeo-operator-bundle:$(OPERATOR_VERSION) | grep 'appzygy/nuxeo-operator-bundle@sha256:' | cut -d : -f2 | tr -d '"'))
@@ -194,7 +194,8 @@ Low-level targets used by other targets
   generate              Generates "zz_..." deep copy Go code
 
 OLM-related targets
-  olm-bundle-generate   Generates an OLM bundle into the bundle directory
+  olm-bundle-generate   Generates an OLM bundle into the bundle directory. Note - this re-generates the CSV
+                        so only needs to be done when the CRD or RBAC changes.
   olm-bundle-build      Creates nuxeo-operator-bundle in the local Docker cache and then pushes the image to
                         Docker Hub
   olm-index-create      Creates OLM index nuxeo-operator-index in the local Docker cache and then pushes the image

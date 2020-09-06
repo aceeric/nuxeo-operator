@@ -1,6 +1,6 @@
 # Nuxeo Operator
 
-The Nuxeo operator is an Kubernetes/OpenShift Operator written in Go to manage the state of a *Nuxeo* cluster. Nuxeo is an open source digital asset management system. (See https://www.nuxeo.com/).
+The Nuxeo operator is a Kubernetes/OpenShift Operator written in Go to manage the state of a *Nuxeo* cluster. Nuxeo is an open source digital asset management system. (See https://www.nuxeo.com/).
 
 This project is under development. The current version is 0.6.1. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
 
@@ -54,11 +54,10 @@ This project is under development. The current version is 0.6.1. Testing is perf
 | Feature                                                      | Status   |
 | ------------------------------------------------------------ | -------- |
 | Revise main README | done |
-| Test the operator in a single namespace, multi-namespaces, and with cluster scope | in-progress |
-| Add an all-in-one installer (kustomize only the namespace) | in-progress |
+| Test the operator in a single namespace, multi-namespaces, and with cluster scope | done |
+| Add an all-in-one installer (kustomize only the namespace) | done |
 | Re-Validate Nuxeo TLS termination - looks like service isn't configured properly? |   |
 | Move "clustering" to the "spec" level so all NodeSets are the same cluster | |
-| Review osdk-generated "controller-manager" in RBACs etc. (change to nuxeo-operator) |   |
 | Nuxeo Connect configuration | |
 | Test in a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |   |
 
@@ -104,7 +103,7 @@ These have not been prioritized yet.
 
 ## Quick Start
 
-To evaluate the Nuxeo Operator, follow three steps:
+To evaluate the Nuxeo Operator, follow these steps:
 
 1. Install  the Operator
 2. Create a Nuxeo CR
@@ -120,7 +119,7 @@ kubectl apply -f https://raw.githubusercontent.com/aceeric/nuxeo-operator/master
 
 #### Create a Nuxeo CR
 
-Next, deploy a Nuxeo CR. This example CR is an ephemeral instance of Nuxeo, with all embedded backing services, and one replica:
+Next, deploy a Nuxeo CR. This example is an ephemeral instance of Nuxeo, with all embedded backing services, and one replica:
 
 ```shell
 $ cat <<EOF | kubectl apply -f -
@@ -519,7 +518,7 @@ spec:
     aaaaaaaaaaaa--zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"
 ```
 
-#### Init containers
+### Init containers
 
 The Nuxeo CR Supports custom init containers, containers, and volumes, as illustrated by the following trivial example:
 
@@ -550,7 +549,7 @@ spec:
     emptyDir: {}  
 ```
 
-#### Backing Services
+### Backing Services
 
 The Nuxeo CR supports integrating the Nuxeo cluster with backing services. Two examples are presented here as an overview.
 
@@ -581,7 +580,7 @@ spec:
 
 The example above will start a Nuxeo cluster and connect it to Elastic Cloud for Kubernetes (preconfigured type = ECK) using the built-in elastic search user, and TLS. The `resource` key, which specifies that in the namespace that the Nuxeo cluster is running in, there is instance of a `elasticsearch.k8s.elastic.co` resource named `elastic`.
 
-The second example shows an explicit configuration, demonstrating the Operator's support for general-purpose backing service integration. This example connects Nuxeo to Strimzi-provisioned Kafka cluster. This example assumes that the Strimzi Operator is running, and you've already provisioned a `Kafka` CR named `strimzi`, and a `KafkaUser` CR named `nxkafka` that you want Nuxeo to use in the Kafka broker connection:
+The second example shows an explicit configuration, demonstrating the Operator's support for general-purpose backing service integration. This example connects Nuxeo to a Strimzi-provisioned Kafka cluster. This example assumes that the Strimzi Operator is running, and you've already provisioned a `Kafka` CR named `strimzi`, and a `KafkaUser` CR named `nxkafka` that you want Nuxeo to use in the Kafka broker connection:
 
 ```shell
 apiVersion: appzygy.net/v1alpha1
@@ -640,9 +639,9 @@ spec:
       kafka.keystore.password=${env:KAFKA_KEYSTORE_PASS}  
 ```
 
-This example shows how cluster resources (secrets in this case) are identified and projected into the Nuxeo Pod, and then nuxeo.conf entries are inlined that reference the projected resources as environment variables and filesystem objects. The Nuxeo Operator will add these nuxeo.conf settings to the system-wide nuxeo.conf that it mounts into the Nuxeo container at startup.
+This example shows how cluster resources (secrets in this case) are projected into the Nuxeo Pod, and then nuxeo.conf entries are inlined that reference the projected resources as environment variables and filesystem objects. The Nuxeo Operator will add these nuxeo.conf settings to the system-wide nuxeo.conf that it mounts into the Nuxeo container at startup.
 
-The directory `test/backing-services/stacks` has YAML configuring Nuxeo to integrate with a variety of backing services. It's how I test the various backing service capabilities. There are plenty of examples there to draw on.
+The directory `test/backing-services/stacks` has YAML configuring Nuxeo to integrate with a variety of backing services. There are plenty of examples there to draw on.
 
 A more in-depth presentation is in [configuring backing services](docs/backing-services.md) in the docs directory. 
 
@@ -650,7 +649,7 @@ A more in-depth presentation is in [configuring backing services](docs/backing-s
 
 To bring up a Nuxeo Cluster as a developer, the simplest way is to generate the Nuxeo CRD into your Kubernetes cluster, and then just run the operator on your desktop. As a developer, you're probably running as kube admin, so with your kube config the Operator should have the permission to do what it needs without bothering with a full install.
 
-First, obviously, git clone the repo. Then, there are two Make targets for installing the CRD and running the operator:
+First, get the repo. Then, there are two Make targets for installing the CRD and running the operator:
 
 ```shell
 $ make crd-install operator-run &
@@ -660,5 +659,5 @@ The `crd-install` target creates the Nuxeo CRD. The `operator-run` target runs t
 
 With the Operator running, deploy a Nuxeo CR and start using Nuxeo. Refer to the **Quick Start** above for those steps.
 
-Run `make help` to get a list of all the Make targets and what they do. The goal was to ensure that the Makefile can do everything needed to build, test, install, and run the Operator.
+Run `make help` to get a list of all the Make targets and what they do. The goal of the Makefile is to ensure that it can do everything needed to build, test, install, and run the Operator.
 

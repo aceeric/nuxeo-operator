@@ -19,7 +19,12 @@ import (
 func (r *NuxeoReconciler) reconcileService(svc v1alpha1.ServiceSpec, nodeSet v1alpha1.NodeSet,
 	instance *v1alpha1.Nuxeo) error {
 	svcName := serviceName(instance, nodeSet)
-	expected, err := r.defaultService(instance, svc, svcName)
+	isTLS := false
+	if nodeSet.NuxeoConfig.TlsSecret != "" {
+		// if Nuxeo is terminating TLS then force configure the service for TLS
+		isTLS = true
+	}
+	expected, err := r.defaultService(instance, svc, svcName, isTLS)
 	if err != nil {
 		return err
 	}
@@ -45,11 +50,11 @@ func (r *NuxeoReconciler) reconcileService(svc v1alpha1.ServiceSpec, nodeSet v1a
 //        port: 80 (or 443)
 //        targetPort: 8080 (or 8443)
 func (r *NuxeoReconciler) defaultService(instance *v1alpha1.Nuxeo, svc v1alpha1.ServiceSpec,
-	svcName string) (*corev1.Service, error) {
+	svcName string, isTLS bool) (*corev1.Service, error) {
 	var svcType = corev1.ServiceTypeClusterIP
 	var port int32 = 80
 	var targetPort int32 = 8080
-	if instance.Spec.RevProxy != (v1alpha1.RevProxySpec{}) {
+	if isTLS || instance.Spec.RevProxy != (v1alpha1.RevProxySpec{}) {
 		port = 443
 		targetPort = 8443
 	}

@@ -6,6 +6,7 @@ metadata:
 spec:
   targetNamespaces:
   - nuxeo-test
+  - backing
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription

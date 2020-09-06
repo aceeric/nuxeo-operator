@@ -21,7 +21,7 @@ func (r *NuxeoReconciler) reconcileService(svc v1alpha1.ServiceSpec, nodeSet v1a
 	svcName := serviceName(instance, nodeSet)
 	isTLS := false
 	if nodeSet.NuxeoConfig.TlsSecret != "" {
-		// if Nuxeo is terminating TLS then force configure the service for TLS
+		// if Nuxeo is terminating TLS then configure the service for TLS
 		isTLS = true
 	}
 	expected, err := r.defaultService(instance, svc, svcName, isTLS)

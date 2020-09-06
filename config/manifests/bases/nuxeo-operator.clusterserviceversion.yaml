@@ -1,0 +1,47 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: nuxeo-operator.vX.Y.Z
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: Nuxeo is the Schema for the nuxeos API
+      displayName: Nuxeo
+      kind: Nuxeo
+      name: nuxeos.appzygy.net.appzygy.net
+      version: v1alpha1
+  description: Manages a Nuxeo cluster
+  displayName: Nuxeo Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - nuxeo
+  links:
+  - name: Nuxeo Operator
+    url: https://nuxeo-operator.domain
+  maturity: alpha
+  provider:
+    name: Eric Ace
+    url: https://github.com/aceeric/nuxeo-operator
+  version: 0.0.0

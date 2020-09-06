@@ -166,5 +166,46 @@ print-%:
 
 export HELPTEXT
 define HELPTEXT
-TODO
+
+This make file provides the following targets
+
+Supporting desktop build/test
+  operator-unit-test    Runs the operator unit tests
+  operator-build        Builds the operator go binary on the local desktop, for local desktop testing
+  operator-run          Runs the operator go code on the desktop using your kube config, watching all namespaces
+  operator-envtest      Runs the operator CI-style integration tests using Ginkgo and a fake cluster
+
+Preparing the operator for installation
+  operator-image-build  Builds the operator docker image
+  operator-image-push   Pushes the docker image built by the operator-image-build target to Docker Hub
+  operator-install      Installs the operator, CRDs & RBACs directly into the cluster. Creates namespace
+                        nuxeo-operator-system for the Operator Deployment. Used to test Operator functionality
+                        independently of OLM
+  operator-clean        Undoes operator-install
+
+CRD-related targets
+  crd-gen               Generates config/crd/bases/appzygy.net_nuxeos.yaml
+  crd-install           Creates/replaces the Nuxeo CRD in cluster
+  crd-uninstall         Removes the Nuxeo CRD from cluster
+
+Low-level targets used by other targets
+  fmt                   Runs go fmt
+  vet                   Runs go vet
+  generate              Generates "zz_..." deep copy Go code
+
+OLM-related targets
+  olm-bundle-generate   Generates an OLM bundle into the bundle directory
+  olm-bundle-build      Creates nuxeo-operator-bundle in the local Docker cache and then pushes the image to
+                        Docker Hub
+  olm-index-create      Creates OLM index nuxeo-operator-index in the local Docker cache and then pushes the image
+                        to Docker Hub
+  olm-catalogsource-gen Creates namespace nuxeo-test and then creates a CatalogSource in that namespace to support
+                        instantiating the Operator using an OLM subscription
+  olm-subscribe         In the nuxeo-test namespace, creates an OLM OperatorGroup with target namespace 'nuxeo-test',
+                        and a Subscription to the Nuxeo Operator to test OLM subscription functionality
+Miscellaneous
+
+  help                  Prints this help
+  print-%               Prints the value of a Make variable. E.g. 'make print-OPERATOR_VERSION' to print the value
+                        of 'OPERATOR_VERSION'
 endef

@@ -56,7 +56,7 @@ This project is under development. The current version is 0.6.1. Testing is perf
 | Revise main README | done |
 | Test the operator in a single namespace, multi-namespaces, and with cluster scope | done |
 | Add an all-in-one installer (kustomize only the namespace) | done |
-| Re-Validate Nuxeo TLS termination - looks like service isn't configured properly? |   |
+| Re-Validate Nuxeo TLS termination | done  |
 | Move "clustering" to the "spec" level so all NodeSets are the same cluster | |
 | Nuxeo Connect configuration | |
 | Test in a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |   |

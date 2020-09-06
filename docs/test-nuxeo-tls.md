@@ -7,13 +7,13 @@ First, generate a Java Keystore containing a self-signed certificate:
 ```shell
 $ keytool -genkey\
  -keyalg RSA\
- -alias nuxeo\
+ -alias tomcat\
  -keystore keystore.jks\
  -storepass nuxeokeystorepassword\
  -dname "C=US, ST=Maryland, L=Somewhere, O=IT, CN=nuxeo-server.apps-crc.testing"
 ```
 
-Next, generate a secret from the JKS. The secret must contain keys 'keystore.jks' and 'keystorePass':
+Note - the alias 'tomcat' is expected by Nuxeo as of 10.10. Next, generate a secret from the JKS. The secret must contain keys 'keystore.jks' and 'keystorePass':
 
 ```shell
 cat <<EOF | oc apply -f -

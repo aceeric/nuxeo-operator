@@ -50,7 +50,7 @@ This project is under development. The current version is 0.6.2. Testing is perf
 
 ### Planned Work
 
-#### Version 0.6.3
+#### Version 0.6.3 *(in progress)*
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |

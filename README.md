@@ -2,9 +2,9 @@
 
 The Nuxeo operator is a Kubernetes/OpenShift Operator written in Go to manage the state of a *Nuxeo* cluster. Nuxeo is an open source digital asset management system. (See https://www.nuxeo.com/).
 
-This project is under development. The current version is 0.6.1. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
+This project is under development. The current version is 0.6.2. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
 
-### Current Feature Set (as of 0.6.1)
+### Current Feature Set (as of 0.6.2)
 
 | Feature                                                      |
 | ------------------------------------------------------------ |
@@ -19,7 +19,7 @@ This project is under development. The current version is 0.6.1. Testing is perf
 | Implement a Status field of the Nuxeo CR for visual and scripted health check |
 | Include the elements (CSV, RBACs, bundling, etc.) to support packaging the Operator as a community Operator |
 | Support the ability to deploy the Operator from an internal Operator registry in the cluster via OLM subscription |
-| Automate all build / test activities with *GNU Make* |
+| Automate all build / test activities with *GNU Make*         |
 | Incorporate unit testing into the operator build using https://github.com/stretchr/testify |
 | Incorporate end-to-end testing using the `envtest` scaffolding provided by the Operator SDK v1.0.0 |
 | Implement the ability to detect whether the Operator is running in a Kubernetes cluster vs. an OpenShift cluster |
@@ -35,7 +35,7 @@ This project is under development. The current version is 0.6.1. Testing is perf
 | Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster. See `test-offline-packages.md` in the docs folder. |
 | Ability to configure *Interactive* nodes and *Worker* nodes differently by configuring contributions via cluster resources. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI. See `test-contribution.md` in the docs folder. |
 | Support clustering - use Pod UID as `nuxeo.cluster.nodeid` via the downward API |
-| Support defining resource request/limit in the Nuxeo CR |
+| Support defining resource request/limit in the Nuxeo CR      |
 | Support Nuxeo CLID. See `nuxeo-cr-clid-ex.yaml` in hack/examples |
 | Support flexible integration with backing services by virtue of the `backingService` resource in the Nuxeo CR. Validate that with specific integrations (see below) |
 | Integrate with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support |
@@ -46,32 +46,26 @@ This project is under development. The current version is 0.6.1. Testing is perf
 | The project includes a test/kustomize directory to support automated testing of all backing service integrations |
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` |
 | Provide a sidecar array, init container array, and volumes array to support flexible configuration |
+| The Operator can watch a single namespace, multiple namespaces, or all namespaces. If subscribing the Operator using OLM, this is specified in the `OperatorGroup`. |
 
+### Planned Work
 
+#### Version 0.6.3
 
-#### Version 0.6.2 *(in progress)*
-
-| Feature                                                      | Status   |
-| ------------------------------------------------------------ | -------- |
-| Revise main README | done |
-| Test the operator in a single namespace, multi-namespaces, and with cluster scope | done |
-| Add an all-in-one installer (kustomize only the namespace) | done |
-| Re-Validate Nuxeo TLS termination | done  |
-| Move "clustering" to the "spec" level so all NodeSets are the same cluster | |
-| Nuxeo Connect configuration | |
-| Test in a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments (all work so far has been in CRC and MicroK8s) |   |
+| Feature                                                      | Status |
+| ------------------------------------------------------------ | ------ |
+| Support marketplace package installation via Nuxeo Connect   |        |
+| Test in a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments |        |
+| Verify Prometheus monitoring support                         |        |
 
 
 
 #### Version 0.7.x.y...
 
-This iteration makes the Operator available as a Community Operator. This will get chunked into multiple smaller units.
-
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Support day 2 operations: backing service password change, cert expiration |  |
 | Consider a validating webhook |  |
-| Verify Prometheus monitoring support (Prometheus not available in CRC out of the box) |  |
 | Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |   |
 | Build on kustomize testing from 0.6.x to provide exemplars for bringing up Nuxeo Clusters using kustomize (https://kubectl.docs.kubernetes.io/pages/examples/kustomize.html) |   |
@@ -114,7 +108,7 @@ To evaluate the Nuxeo Operator, follow these steps:
 This step installs the CRD, creates a namespace *nuxeo-operator-system*, and installs an Operator Deployment and associated RBACs into that namespace to enable the Operator to watch all namespaces:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/aceeric/nuxeo-operator/master/config/all-in-one/nuxeo-operator-all-in-one.yaml
+kubectl create -f https://raw.githubusercontent.com/aceeric/nuxeo-operator/master/config/all-in-one/nuxeo-operator-all-in-one.yaml
 ```
 
 #### Create a Nuxeo CR
@@ -142,7 +136,7 @@ spec:
 EOF
 ```
 
-Note - you will have to pick a host name for `access/hostname` that your DNS resolves to your Kubernetes cluster. The example above is for Code Ready Containers. This quick-start CR configures the following items in the `spec`:
+Note - you will have to pick a host name for `access/hostname` that your DNS resolves to your Kubernetes cluster. The example above is for Code Ready Containers. The quick-start CR above configures the following items in the `spec`:
 
 1. *nuxeoImage* - the Nuxeo image from Docker Hub
 2. *version* - the Nuxeo version - in this case 10.10
@@ -156,6 +150,10 @@ After a moment, the Nuxeo Pod should come up:
 $ kubectl get pod
 NAME                                    READY     STATUS    RESTARTS   AGE
 nuxeo-server-cluster-64dcbb8c89-pbxh9   1/1       Running   0          37s
+
+$ kubectl get nuxeo
+NAME           VERSION   HEALTH    AVAILABLE   DESIRED
+nuxeo-server   10.10     healthy   1           1
 
 $ kubectl logs nuxeo-server-cluster-64dcbb8c89-pbxh9
 /docker-entrypoint.sh: ignoring /docker-entrypoint-initnuxeo.d/*
@@ -655,7 +653,7 @@ First, get the repo. Then, there are two Make targets for installing the CRD and
 $ make crd-install operator-run &
 ```
 
-The `crd-install` target creates the Nuxeo CRD. The `operator-run` target runs the operator on your desktop, using your kube config, and watching all namespaces in the cluster.
+The `crd-install` target creates the Nuxeo CRD in the cluster. The `operator-run` target runs the operator on your desktop, using your kube config, and watching all namespaces in the cluster.
 
 With the Operator running, deploy a Nuxeo CR and start using Nuxeo. Refer to the **Quick Start** above for those steps.
 

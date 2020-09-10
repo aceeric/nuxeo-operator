@@ -32,7 +32,7 @@ func (suite *nuxeoConfigSuite) TestBasicConfig() {
 			validActualEnvCnt += 1
 		case env.Name == "NUXEO_TEMPLATES" && env.Value == strings.Join(suite.nuxeoTemplates, ","):
 			validActualEnvCnt += 1
-		case env.Name == "NUXEO_PACKAGES" && env.Value == strings.Join(suite.nuxeoPackages, ","):
+		case env.Name == "NUXEO_PACKAGES" && env.Value == strings.Join(suite.nuxeoPackages, " "):
 			validActualEnvCnt += 1
 		case env.Name == "NUXEO_URL" && env.Value == suite.nuxeoUrl:
 			validActualEnvCnt += 1

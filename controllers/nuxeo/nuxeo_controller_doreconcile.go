@@ -38,7 +38,6 @@ func (r *NuxeoReconciler) doReconcile(request reconcile.Request) (reconcile.Resu
 	if err = r.reconcileAccess(instance.Spec.Access, interactiveNodeSet, instance); err != nil {
 		return emptyResult, err
 	}
-	//time.Sleep(time.Second)
 	if err = r.reconcileServiceAccount(instance); err != nil {
 		return emptyResult, err
 	}

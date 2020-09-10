@@ -503,7 +503,7 @@ type BackingService struct {
 type NuxeoSpec struct {
 	// Overrides the default Nuxeo container image selected by the Operator. By default, the Operator
 	// uses 'nuxeo:latest' as the container image. To override that, include the image spec here. Any allowable
-	// form is supported. E.g. 'image-registry.openshift-image-registry.svc.cluster.local:5000/custom-images/nuxeo:custom'
+	// form is supported.
 	// +optional
 	NuxeoImage string `json:"nuxeoImage,omitempty"`
 
@@ -541,7 +541,8 @@ type NuxeoSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	NodeSets []NodeSet `json:"nodeSets"`
 
-	// Nuxeo CLID
+	// Nuxeo CLID. Must be formatted as it would be obtained from the Nuxeo registration site, with the double
+	// dash separator
 	// +optional
 	Clid string `json:"clid,omitempty"`
 

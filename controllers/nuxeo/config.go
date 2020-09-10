@@ -69,7 +69,7 @@ func configureNuxeoTemplates(nuxeoContainer *corev1.Container, nodeSet v1alpha1.
 	if nodeSet.NuxeoConfig.NuxeoTemplates != nil || len(nodeSet.NuxeoConfig.NuxeoTemplates) != 0 {
 		env := corev1.EnvVar{
 			Name:  "NUXEO_TEMPLATES",
-			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoTemplates, ","),
+			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoTemplates, ","), // e.g. "template1,template2,template3"
 		}
 		return util.OnlyAddEnvVar(nuxeoContainer, env)
 	}
@@ -82,7 +82,7 @@ func configureNuxeoPackages(nuxeoContainer *corev1.Container, nodeSet v1alpha1.N
 	if nodeSet.NuxeoConfig.NuxeoPackages != nil || len(nodeSet.NuxeoConfig.NuxeoPackages) != 0 {
 		env := corev1.EnvVar{
 			Name:  "NUXEO_PACKAGES",
-			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoPackages, ","),
+			Value: strings.Join(nodeSet.NuxeoConfig.NuxeoPackages, " "), // e.g. "pkg1 pgk2 pkg3"
 		}
 		return util.OnlyAddEnvVar(nuxeoContainer, env)
 	}

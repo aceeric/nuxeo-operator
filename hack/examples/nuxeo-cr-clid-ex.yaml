@@ -4,7 +4,7 @@ kind: Nuxeo
 metadata:
   name: my-nuxeo
 spec:
-  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:10.10
+  nuxeoImage: nuxeo:LTS-2019
   access:
     hostname: nuxeo-server.apps-crc.testing
   nodeSets:
@@ -14,9 +14,12 @@ spec:
     nuxeoConfig:
       nuxeoPackages:
       - nuxeo-web-ui
-  # start on same line as clid key, quote-enclose the entire string, and escape newlines
-  clid: "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\
-    zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\
-    zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\
-    zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\
-    zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+  # Start on same line as clid key, quote-enclose the entire string, and escape newlines.
+  # This is a completely fictional CLID just to demonstrate formatting. Note the double-dash
+  # sequence:
+  clid: "12345678-1234-1234-1234-123456789012.9999999999.MV8wYUlL6DoyjhDPagrvh/
+    /gzHwfdIaeeaJJBmyuOa1YsYjIxv4HVq6R/5zqW9A24BA89095zf1lPYt3O9ZqHhtg1Uz/
+    Wzg87hEAGwKD0QhZVVYHZ5YwbkkGl3sXA45u/jlTrnRsTxBE/K79fO5BDqactRBv86vFm/
+    i2e2Zj2MfAVg1WHqAf4zDit0gn/RM19NJE1MtH2v2ukbfY9w2O0dquABCdE84qE90JtnD/
+    8CqepiHxwmZe7ajhyPBNaFdNLAZmrkrfM5Ygem/RHMjzgzTEF7uhit0hflJD23Opi9PQD/
+    xPFZkJgIqzB1RhhEPy5GifKtvpD==--12345678-1234-1234-1234-123456789012"

@@ -5318,7 +5318,7 @@ spec:
               minItems: 1
               type: array
             nuxeoImage:
-              description: Overrides the default Nuxeo container image selected by the Operator. By default, the Operator uses 'nuxeo:latest' as the container image. To override that, include the image spec here. Any allowable form is supported. E.g. 'image-registry.openshift-image-registry.svc.cluster.local:5000/custom-images/nuxeo:custom'
+              description: Overrides the default Nuxeo container image selected by the Operator. By default, the Operator uses 'nuxeo:latest' as the container image. To override that, include the image spec here. Any allowable form is supported
               type: string
             revProxy:
               description: Causes a reverse proxy to be included in the Nuxeo interactive deployment. The reverse proxy will receive traffic from the Route/Ingress object created by the Operator, and forward that traffic to the Nuxeo Service created by the operator, which in turn will forward traffic to the Nuxeo interactive Pods. Presently, Nginx is the only supported option but the structure is intended to allow other implementations in the future. If omitted, then no reverse proxy is created and traffic goes directly to the Nuxeo Pods.

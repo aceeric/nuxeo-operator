@@ -8530,7 +8530,7 @@ spec:
               description: Overrides the default Nuxeo container image selected by
                 the Operator. By default, the Operator uses 'nuxeo:latest' as the
                 container image. To override that, include the image spec here. Any
-                allowable form is supported. E.g. 'image-registry.openshift-image-registry.svc.cluster.local:5000/custom-images/nuxeo:custom'
+                allowable form is supported.
               type: string
             revProxy:
               description: Causes a reverse proxy to be included in the Nuxeo interactive

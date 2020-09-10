@@ -46,7 +46,7 @@ This project is under development. The current version is 0.6.2. Testing is perf
 | The project includes a test/kustomize directory to support automated testing of all backing service integrations |
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` |
 | Provide a sidecar array, init container array, and volumes array to support flexible configuration |
-| The Operator can watch a single namespace, multiple namespaces, or all namespaces. If subscribing the Operator using OLM, this is specified in the `OperatorGroup`. |
+| The Operator can watch a single namespace, multiple namespaces, or all namespaces. If subscribing the Operator using OLM, this is specified in the `OperatorGroup`. If manually installing, you can patch the Operator's deployment - specifically the `WATCH_NAMESPACE` environment variable. This can be in the format *""* - meaning watch all, or *"my-namespace"*, meaning one namespace, or *"namespace-1,namespace-2"* meaning the specified namespaces. |
 
 ### Planned Work
 
@@ -54,7 +54,6 @@ This project is under development. The current version is 0.6.2. Testing is perf
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Support marketplace package installation via Nuxeo Connect   |        |
 | Test in a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments |        |
 | Verify Prometheus monitoring support                         |        |
 
@@ -65,6 +64,7 @@ This project is under development. The current version is 0.6.2. Testing is perf
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Support day 2 operations: backing service password change, cert expiration |  |
+| Implement deployment annotations (`nuxeoConfHash`, `clidHash`, backing service credential hashes?) to roll the deployment if CLID or nuxeo.conf or backing service credentials change |  |
 | Consider a validating webhook |  |
 | Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
 | Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |   |
@@ -504,17 +504,21 @@ A more in-depth presentation is in [contributions](docs/test-contribution.md) in
 
 #### Adding your CLID to the CR
 
-The following example shows how to add your CLID to all the Nuxeo instances. This format quote-encloses the CLID string and escapes the line endings so the string is projected into the Pod as single line:
+The following example shows how to add your CLID to the Nuxeo CR. This format quote-encloses the CLID string and escapes the line endings so the string is provided to the Nuxeo Operator as single line, but the YAML is more readable.
+
+Of course it's not not *necessary* to format it this way - you can just paste the CLID into the Nuxeo CR as is, but that makes it a little harder to read as a YAML file. Note the CLID below is completely fictional.
 
 ```shell
 spec:
-  clid: "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-    aaaaaaaaaaaa--zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"
+  clid: "12345678-1234-1234-1234-123456789012.9999999999.MV8wYUlL6DoyjhDPagrvh/
+    /gzHwfdIaeeaJJBmyuOa1YsYjIxv4HVq6R/5zqW9A24BA89095zf1lPYt3O9ZqHhtg1Uz/
+    Wzg87hEAGwKD0QhZVVYHZ5YwbkkGl3sXA45u/jlTrnRsTxBE/K79fO5BDqactRBv86vFm/
+    i2e2Zj2MfAVg1WHqAf4zDit0gn/RM19NJE1MtH2v2ukbfY9w2O0dquABCdE84qE90JtnD/
+    8CqepiHxwmZe7ajhyPBNaFdNLAZmrkrfM5Ygem/RHMjzgzTEF7uhit0hflJD23Opi9PQD/
+    xPFZkJgIqzB1RhhEPy5GifKtvpD==--12345678-1234-1234-1234-123456789012"
 ```
+
+What's important to understand is that the CLID should be added to the CR just like you would copy it from the Nuxeo Registration website. Specifically: it **must** be a single line - no newlines - and contain exactly one double-dash character sequence ("--") as the line separator. The Operator validates this and injects the CLID into the Nuxeo container as a two-line file, split on that separator. With a valid CLID in the Nuxeo CR, you can install Hot Fixes and Marketplace packages that require a subscription.
 
 ### Init containers
 

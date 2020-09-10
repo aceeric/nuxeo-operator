@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Tests injection of CLID-related mounts into the Nuxeo container
 func (suite *clidSuite) TestBasicClid() {
 	nux := suite.clidSuiteNewNuxeo()
 	dep := genTestDeploymentForClidSuite()
@@ -20,6 +21,16 @@ func (suite *clidSuite) TestBasicClid() {
 		"Volume Mounts not correctly defined")
 	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes),
 		"Volumes not correctly defined")
+}
+
+// Tests CLID formatting. The CLID configured into the Nuxeo CR has to be a single line, and has to contain
+// the double-dash "--" separator
+func (suite *clidSuite) TestClidFormat() {
+	nux := suite.clidSuiteNewNuxeo()
+	_, err := suite.r.defaultClidCM(nux, "NOTVALID")
+	require.NotNil(suite.T(), err)
+	_, err = suite.r.defaultClidCM(nux, "IS--VALID")
+	require.Nil(suite.T(), err)
 }
 
 // clidSuite is the Clid test suite structure

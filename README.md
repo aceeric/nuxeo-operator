@@ -2,9 +2,9 @@
 
 The Nuxeo operator is a Kubernetes/OpenShift Operator written in Go to manage the state of a *Nuxeo* cluster. Nuxeo is an open source digital asset management system. (See https://www.nuxeo.com/).
 
-This project is under development. The current version is 0.6.2. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
+This project is under development. The current version is 0.6.3. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
 
-### Current Feature Set (as of 0.6.2)
+### Current Feature Set (as of 0.6.3)
 
 | Feature                                                      |
 | ------------------------------------------------------------ |
@@ -47,53 +47,40 @@ This project is under development. The current version is 0.6.2. Testing is perf
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` |
 | Provide a sidecar array, init container array, and volumes array to support flexible configuration |
 | The Operator can watch a single namespace, multiple namespaces, or all namespaces. If subscribing the Operator using OLM, this is specified in the `OperatorGroup`. If manually installing, you can patch the Operator's deployment - specifically the `WATCH_NAMESPACE` environment variable. This can be in the format *""* - meaning watch all, or *"my-namespace"*, meaning one namespace, or *"namespace-1,namespace-2"* meaning the specified namespaces. |
+| Integrate with Prometheus in the Kubernetes cluster to expose Nuxeo Operator metrics. |
 
 ### Planned Work
 
-#### Version 0.6.3 *(in progress)*
+#### Version 0.7.1
+| Feature                                                      | Status |
+| ------------------------------------------------------------ | ------ |
+| Implement deployment annotations (`nuxeoConfHash`, `clidHash`, backing service credential hashes) to roll the Nuxeo deployment if CLID or nuxeo.conf or backing service credentials change |  |
+| Build out unit tests for more coverage |  |
+| Mod OLM channel to beta?  |  |
+| Review and augment envtest tests |   |
+| Assess LOE and potentially support https://github.com/vmware-labs/service-bindings | |
+
+
+#### Version 0.7.2+...
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Test in a full production-grade OpenShift cluster, and a full production-grade Kubernetes cluster to ensure compatibility with production environments |        |
-| Verify Prometheus monitoring support                         |        |
-
-
-
-#### Version 0.7.x.y...
-
-| Feature                                                      | Status |
-| ------------------------------------------------------------ | ------ |
-| Support day 2 operations: backing service password change, cert expiration |  |
-| Implement deployment annotations (`nuxeoConfHash`, `clidHash`, backing service credential hashes?) to roll the deployment if CLID or nuxeo.conf or backing service credentials change |  |
-| Consider a validating webhook |  |
-| Build out unit tests for close to 100% coverage. Extend unit tests to cover more scenarios associated with various mutations of the Nuxeo CR - adding then removing then adding, etc. to ensure the reconciliation logic is robust |  |
-| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |   |
-| Build on kustomize testing from 0.6.x to provide exemplars for bringing up Nuxeo Clusters using kustomize (https://kubectl.docs.kubernetes.io/pages/examples/kustomize.html) |   |
-| kpt (https://googlecontainertools.github.io/kpt/) + kustomize? | |
-| Review and augment envtest tests                 |   |
-| Support multi-architecture build. Incorporate lint (https://golangci.com?) into the build process |   |
 | GitHub build & test automation |   |
-| Review the license |   |
-| Refactor all the documentation into a user guide | |
+| Support day 2 operations: backing service password change, cert expiration |  |
+| Consider a validating webhook |  |
+| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |   |
+| Build on kustomize testing to provide exemplars for bringing up Nuxeo Clusters using kustomize |   |
+| Eval kpt (https://googlecontainertools.github.io/kpt/) + kustomize? | |
+| Support multi-architecture build. Incorporate lint (https://golangci.com?) into the build process |   |
+| Refactor all the documentation into a user guide (https://www.netlify.com/?) | |
 | Find someone else to work on this with... | |
 | Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |   |
-
-
-
-#### Other...
-
-These have not been prioritized yet.
-
-| Feature                         | Status |
-| ------------------------------- | ------ |
-| Integrate with the Service Binding Operator (https://github.com/k8s-service-bindings/spec) as soon as a reasonably table implementation is available |          |
-| Phase V Operator Maturity Model |   |
-| OperatorHub availability |   |
 | Deploy a cluster as a Stateful Set or Deployment |   |
 | JetStack Cert Manager integration |   |
 | Horizontal Pod Auto-scaling |   |
-| cert-utils support? (https://github.com/redhat-cop/cert-utils-operator) | |
-| Other?... |   |
+| Eval cert-utils support (https://github.com/redhat-cop/cert-utils-operator) | |
+| OperatorHub availability |   |
+| TBD... |   |
 
 ## Quick Start
 
@@ -646,6 +633,12 @@ This example shows how cluster resources (secrets in this case) are projected in
 The directory `test/backing-services/stacks` has YAML configuring Nuxeo to integrate with a variety of backing services. There are plenty of examples there to draw on.
 
 A more in-depth presentation is in [configuring backing services](docs/backing-services.md) in the docs directory. 
+
+### Prometheus Integration
+
+The Nuxeo Operator includes a side car that exposes metrics on 8443 for Prometheus. This is enabled by default. A more in-depth discussion is provided in [Nuxeo Operator Metrics](docs/operator-metrics.md) in the docs directory.
+
+
 
 ## Developer Quick Start
 

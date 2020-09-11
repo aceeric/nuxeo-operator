@@ -1,4 +1,4 @@
-OPERATOR_VERSION        := 0.6.2
+OPERATOR_VERSION        := 0.6.3
 BUNDLE_CHANNELS         ?= alpha
 BUNDLE_DEFAULT_CHANNEL  ?= alpha
 BUNDLE_METADATA_OPTS    ?= --channels $(BUNDLE_CHANNELS) --default-channel $(BUNDLE_DEFAULT_CHANNEL)
@@ -69,8 +69,8 @@ operator-image-build:
 operator-image-push:
 	docker push $(OPERATOR_IMAGE)
 
-# install the operator, CRDs, RBACs directly into the cluster. Use sed as temp work-around for:
-# https://github.com/kubernetes-sigs/controller-tools/pull/480
+# install the operator, CRDs, RBACs directly into the cluster that the user is currently logged in to. Use
+# sed as temp work-around for: https://github.com/kubernetes-sigs/controller-tools/pull/480
 .PHONY : operator-install
 operator-install: operator-clean
 	cd config/manager && kustomize edit set image controller=$(OPERATOR_IMAGE)
@@ -79,6 +79,10 @@ operator-install: operator-clean
 .PHONY : operator-clean
 operator-clean:
 	-$(KUBECTL) delete clusterrole,clusterrolebinding,crd,namespace -l app=nuxeo-operator
+
+.PHONY : operator-allin1
+operator-allin1:
+	echo todo build config/all-in-one
 
 # generate config/crd/bases
 .PHONY : crd-gen
@@ -117,7 +121,7 @@ generate:
 # https://github.com/operator-framework/operator-sdk/issues/3809. See above for x-kubernetes... sed patch
 .PHONY : olm-bundle-generate
 olm-bundle-generate:
-	operator-sdk generate kustomize manifests -q
+	operator-sdk generate kustomize manifests --input-dir config/manifests -q
 	cd $(ROOT)/config/manager && kustomize edit set image controller=$(OPERATOR_IMAGE)
 	kustomize build config/manifests | operator-sdk generate bundle -q --overwrite --version $(OPERATOR_VERSION) $(BUNDLE_METADATA_OPTS)
 	-rm -f $(ROOT)/bundle/manifests/*serviceaccount.yaml
@@ -179,8 +183,8 @@ Preparing the operator for installation
   operator-image-build  Builds the operator docker image
   operator-image-push   Pushes the docker image built by the operator-image-build target to Docker Hub
   operator-install      Installs the operator, CRDs & RBACs directly into the cluster. Creates namespace
-                        nuxeo-operator-system for the Operator Deployment. Used to test Operator functionality
-                        independently of OLM
+                        nuxeo-operator-system for the Operator Deployment. Used to test in-cluster Operator
+                        functionality independently of OLM
   operator-clean        Undoes operator-install
 
 CRD-related targets
@@ -194,14 +198,13 @@ Low-level targets used by other targets
   generate              Generates "zz_..." deep copy Go code
 
 OLM-related targets
-  olm-bundle-generate   Generates an OLM bundle into the bundle directory. Note - this re-generates the CSV
-                        so only needs to be done when the CRD or RBAC changes.
-  olm-bundle-build      Creates nuxeo-operator-bundle in the local Docker cache and then pushes the image to
-                        Docker Hub
+  olm-bundle-generate   Generates an OLM bundle into the bundle directory
+  olm-bundle-build      Creates OLM bundle nuxeo-operator-bundle in the local Docker cache and then pushes the
+                        image to Docker Hub
   olm-index-create      Creates OLM index nuxeo-operator-index in the local Docker cache and then pushes the image
                         to Docker Hub
-  olm-catalogsource-gen Creates namespace nuxeo-test and then creates a CatalogSource in that namespace to support
-                        instantiating the Operator using an OLM subscription
+  olm-catalogsource-gen Creates namespace nuxeo-test and then creates a CatalogSource in that namespace to test
+                        installing the Operator using an OLM subscription
   olm-subscribe         In the nuxeo-test namespace, creates an OLM OperatorGroup with target namespace 'nuxeo-test',
                         and a Subscription to the Nuxeo Operator to test OLM subscription functionality
 Miscellaneous

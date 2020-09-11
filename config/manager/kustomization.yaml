@@ -8,4 +8,4 @@ resources:
 images:
 - name: controller
   newName: docker.io/appzygy/nuxeo-operator
-  newTag: 0.6.2
+  newTag: 0.6.3

@@ -4,7 +4,9 @@ The Nuxeo Operator is scaffolded using the Operator SDK v1.0.0. The scaffolding 
 
 These steps assume you have git cloned the Operator repo and are logged into a Kubernetes cluster with cluster admin privileges.
 
-### Install the Nuxeo Operator in test mode
+These steps describe the process of verifying metrics support in OpenShift Code Ready Containers (CRC), as well as Amazon Elastic Kubernetes Service (EKS). The tested EKS cluster was provisioned with the `eksctl` utility: https://eksctl.io
+
+### Install the Nuxeo Operator into the Kubernetes cluster
 
 ```shell
 $ make operator-install 
@@ -34,6 +36,86 @@ NAME                                                 READY     STATUS    RESTART
 nuxeo-operator-controller-manager-59df968b57-lpn9j   2/2       Running   0          16s
 ```
 
+### Ensure Kubernetes Telemetry is running
+
+With CRC, according to [this documentation](https://code-ready.github.io/crc/#administrative-tasks_gsg), Prometheus and the related monitoring, alerting, and telemetry are disabled by default, and the link has instructions for enabling them. Instructions are presented here for convenience:
+
+```shell
+$ oc get clusterversion version\
+  -ojsonpath='{range .spec.overrides[*]}{.name}{"\n"}{end}' | nl -v 0
+     0	cluster-monitoring-operator
+     1	machine-config-operator
+     2	etcd-quorum-guard
+     ...
+
+# Remove this override:
+# spec:
+  ...
+#   overrides:
+#   - group: apps/v1
+#     kind: Deployment
+#     name: cluster-monitoring-operator
+#     namespace: openshift-monitoring
+#     unmanaged: true
+
+$ oc patch clusterversion/version --type='json' -p '[{"op":"remove", "path":"/spec/overrides/0"}]' -oyaml
+```
+
+With that, the `openshift-monitoring` namespace comes up as shown:
+
+```shell
+$ oc get po -n openshift-monitoring
+NAME                                          READY     STATUS    RESTARTS   AGE
+alertmanager-main-0                           5/5       Running   0          60s
+alertmanager-main-1                           5/5       Running   0          60s
+alertmanager-main-2                           5/5       Running   0          60s
+cluster-monitoring-operator-f76d748f6-6cmdr   2/2       Running   0          82s
+grafana-f457c8645-g5b2s                       2/2       Running   0          48s
+kube-state-metrics-5b557cf9c6-6pnwv           3/3       Running   0          73s
+node-exporter-sc86d                           2/2       Running   0          67s
+openshift-state-metrics-7db99f498c-bvlb2      3/3       Running   0          72s
+prometheus-adapter-5596d657c8-zn5ft           1/1       Running   0          52s
+prometheus-adapter-5596d657c8-zrc8k           1/1       Running   0          52s
+prometheus-k8s-0                              7/7       Running   1          50s
+prometheus-k8s-1                              7/7       Running   1          50s
+prometheus-operator-66f6479d8c-vfk2l          2/2       Running   0          70s
+telemeter-client-596fbf7b4d-pzzjq             3/3       Running   0          57s
+thanos-querier-755f6677b6-6ndtq               4/4       Running   0          53s
+thanos-querier-755f6677b6-pk7fq               4/4       Running   0          53s
+```
+
+With EKS, monitoring has to be installed as documented in https://github.com/prometheus-operator/kube-prometheus#kube-prometheus. The steps are straightforward:
+
+```shell
+$ git clone https://github.com/prometheus-operator/kube-prometheus.git
+$ cd kube-prometheus
+$ kubectl create -f manifests/setup
+$ until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done
+$ kubectl create -f manifests/
+
+$ kubectl get pod -n monitoring
+NAME                                   READY   STATUS    RESTARTS   AGE
+alertmanager-main-0                    2/2     Running   0          52s
+alertmanager-main-1                    2/2     Running   0          52s
+alertmanager-main-2                    2/2     Running   0          52s
+grafana-85c89999cb-gp44f               1/1     Running   0          51s
+kube-state-metrics-6b7567c4c7-8r5tk    3/3     Running   0          51s
+node-exporter-2nvxr                    2/2     Running   0          50s
+node-exporter-xrv98                    2/2     Running   0          50s
+prometheus-adapter-b8d458474-c6s9j     1/1     Running   0          50s
+prometheus-k8s-0                       3/3     Running   1          49s
+prometheus-k8s-1                       3/3     Running   1          49s
+prometheus-operator-55cb794976-h9nwk   2/2     Running   0          87s
+
+# give the Prometheus service account access to the Nuxeo Operator metrics endpoint
+# using the cclusterrole provided by the Nuxeo Operator installation YAML
+$ kubectl create clusterrolebinding metrics\
+  --clusterrole=nuxeo-operator-metrics-reader\
+  --serviceaccount=monitoring:prometheus-k8s
+```
+
+Now, monitoring is running. Before using Prometheus, it's interesting to see what metrics the Nuxeo Operator is actually exposing. That's next.
+
 ### Port-forward to the Operator pod in one shell
 
 Since there is no Route or Ingress for the Operator Pod, use port-forwarding to access the metrics endpoint (8443) on the Operator Pod:
@@ -46,22 +128,26 @@ Forwarding from [::1]:8443 -> 8443
 ```
 Use port 8443 because that's the port that the metrics are published to. (The *kube-auth-proxy* sidecar in the Operator Pod exposes the metrics.)
 
-Next, get your token. You need a token because the metrics *kube-auth-proxy* uses RBAC to authenticate and authorize a client's metrics request:
-```shell
-# OpenShift
-$ oc whoami -t
-DEd1xOB5lBRLYq4N2gwiBths4mvOpBfQo_20SiLOyuo
-# Kuberbetes
-TODO GET AN UBER TOKEN IN K8S
-```
-### Access the metrics via curl in another shell
+Next, get a token. You need a token because the metrics *kube-auth-proxy* uses RBAC to authenticate and authorize a client's metric request. On CRC, the `oc whoami -t` command provides a kube:admin level token which is sufficient to curl the metrics endpoint. For EKS, you get the token from the Prometheus service account that you previously granted permissions to for the Operator metrics endpoint:
 
-In another shell, use curl with your token to see the metrics:
+```shell
+# OpenShift CRC get the kube:admin token
+$ TOKEN=$(oc whoami -t)
+
+# EKS get the Prometheus service account token
+$ TOKENSECRET=$(oc describe sa prometheus-k8s -nmonitoring | grep Tokens\
+ | cut -d: -f2 | tr -d ' ')
+$ TOKEN=$(kubectl get secret "$TOKENSECRET" -nmonitoring\
+ -ojsonpath='{.data.token}' | base64 -d)
+```
+### Access the metrics via curl
+
+In another shell, use curl with your token to see the raw metrics exposed by the Operator:
 
 ```shell
 $ curl -k https://localhost:8443/metrics\
   -H "Accept: application/json"\
-  -H "Authorization: Bearer DEd1xOB5lBRLYq4N2gwiBths4mvOpBfQo_20SiLOyuo"
+  -H "Authorization: Bearer $TOKEN"
 # HELP go_gc_duration_seconds A summary of the GC invocation durations.
 # TYPE go_gc_duration_seconds summary
 go_gc_duration_seconds{quantile="0"} 7.198e-06
@@ -97,32 +183,13 @@ You can see that the curl request returned a lengthy text output of metric infor
 
 ### Verify the Metrics in Prometheus
 
-The example below shows the instructions for verifying Prometheus metrics in Code Ready Containers v13. According to [this documentation](https://code-ready.github.io/crc/#administrative-tasks_gsg), Prometheus and the related monitoring, alerting, and telemetry are disabled in CRC by default, and the link has instructions for enabling telemetry.
+Now that we've seen the raw metrics exposed by the Operator, we can verify the metrics availability in Prometheus. The earlier part of this document provided the steps for installing and enabling telemetry.
 
-If you're using another Kubernetes/OpenShift environment then enabling telemetry may be different or it may already have been enabled. With telemetry enabled, you might see something like:
+First, CRC will be discussed, then EKS.
 
-```shell
-$ kubectl get po -n openshift-monitoring
-NAME                                          READY     STATUS    RESTARTS   AGE
-alertmanager-main-0                           5/5       Running   0          60s
-alertmanager-main-1                           5/5       Running   0          60s
-alertmanager-main-2                           5/5       Running   0          60s
-cluster-monitoring-operator-f76d748f6-6cmdr   2/2       Running   0          82s
-grafana-f457c8645-g5b2s                       2/2       Running   0          48s
-kube-state-metrics-5b557cf9c6-6pnwv           3/3       Running   0          73s
-node-exporter-sc86d                           2/2       Running   0          67s
-openshift-state-metrics-7db99f498c-bvlb2      3/3       Running   0          72s
-prometheus-adapter-5596d657c8-zn5ft           1/1       Running   0          52s
-prometheus-adapter-5596d657c8-zrc8k           1/1       Running   0          52s
-prometheus-k8s-0                              7/7       Running   1          50s
-prometheus-k8s-1                              7/7       Running   1          50s
-prometheus-operator-66f6479d8c-vfk2l          2/2       Running   0          70s
-telemeter-client-596fbf7b4d-pzzjq             3/3       Running   0          57s
-thanos-querier-755f6677b6-6ndtq               4/4       Running   0          53s
-thanos-querier-755f6677b6-pk7fq               4/4       Running   0          53s
-```
+#### CRC
 
-Then there are a couple of ways to access the metrics. Again - this is CRC-specific. With `crc console`, from the `Monitoring > Metrics` link in the console sidebar,  You can click the `Prometheus UI` link which takes you to the Prometheus UI. Or:
+With `crc console`, from the `Monitoring > Metrics` link in the console sidebar,  You can click the `Prometheus UI` link which takes you to the Prometheus UI. Or:
 
 ```shell
 $ kubectl get route -n openshift-monitoring
@@ -134,13 +201,29 @@ prometheus-k8s      prometheus-k8s-openshift-monitoring.apps-crc.testing  ...
 
 Then, in a browser tab, access `https://prometheus-k8s-openshift-monitoring.apps-crc.testing`. Login with `kube:admin`. Supply credentials from `crc console --credentials`. 
 
-In CRC, Prometheus immediately had access to the Nuxeo Operator metrics. For example, using the following Prometheus query: `pod:container_cpu_usage:sum{namespace="nuxeo-operator-system",pod="nuxeo-operator-controller-manager-59df968b57-lpn9j"}`, the following graph is produced  in Prometheus without requiring any additional configuration:
+In CRC, Prometheus immediately had access to the Nuxeo Operator metrics. For example, using the following Prometheus query: `pod:container_cpu_usage:sum{namespace="nuxeo-operator-system",pod="nuxeo-operator-controller-manager-59df968b57-lpn9j"}`, the following graph is produced  in Prometheus without requiring any additional RBAC configuration:
 
 ![](../resources/images/prometheus.png)
 
-The Nuxeo Operator installs with a `ClusterRole` named `nuxeo-operator-metrics-reader` that uses RBAC to enable access to the metrics endpoint in the Nuxeo Operator container. It's possible that you might have to add a `ClusterRoleBinding` to bind the Prometheus service account to this `ClusterRole` as documented [here](https://book.kubebuilder.io/reference/metrics.html). But - this is likely environment-dependent.
+#### EKS
 
-Either way - this should demonstrate that the Nuxeo Operator is configured for Prometheus metric exposition out of the box.
+With EKS, port-forward to the Prometheus service in the cluster:
 
+```shell
+$ kubectl --namespace monitoring port-forward svc/prometheus-k8s 9090
+Forwarding from 127.0.0.1:9090 -> 9090
+Forwarding from [::1]:9090 -> 9090
+```
 
+Then access Prometheus using `http://localhost:9090` and run this Prometheus query: `node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate{container="manager",namespace="nuxeo-operator-system",node="ip-192-168-18-146.ec2.internal",pod="nuxeo-operator-controller-manager-54d8cb5f44-s5tzr"}`.
+
+If you click on the `Graph` tab, you should get some nice output from the EKS cluster just like you did from the CRC cluster:
+
+![](../resources/images/prometheus-eks.png)
+
+### Summary
+
+You will notice that the available set of Prometheus metrics in CRC and EKS differ. This is due to differences in how the Prometheus scraping is configured between the two telemetry implementations. We proved that because the raw metrics exposed by the Nuxeo Operator are not cognizant of the consumer. Therefore the differences must be attributable to the different Prometheus implementations.
+
+This should demonstrate that the Nuxeo Operator is configured for Prometheus metric exposition out of the box.
 

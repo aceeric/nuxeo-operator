@@ -5,6 +5,10 @@ resources:
 - bases/appzygy.net_nuxeos.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
+# supports the make file
+commonLabels:
+  app: nuxeo-operator
+
 patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD

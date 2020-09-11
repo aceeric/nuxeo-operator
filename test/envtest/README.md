@@ -4,7 +4,7 @@ See: https://sdk.operatorframework.io/docs/building-operators/golang/project_mig
 
 Prior to v1.0.0 the operator-sdk provided a CLI command `opertator-sdk test` for E2E testing. The prior version of the nuxeo operator supported that with a minimal e2e test. That CLI command is now deprecated in favor of *envtest* which uses *ginkgo*.
 
-This version (0.6.2+) of the operator just implements one basic test to evaluate the *envtest* framework. Thoughts so far:
+This version (0.6.3+) of the operator just implements one basic test to evaluate the *envtest* framework. Thoughts so far:
 
 1. There appear to be subtle differences in how resource Go structures are validated by the local runtime framework that differ from how the cluster validates. As a result the test code had to initialize the go structs with - for example - explicit arrays rather than nil.
 2. Could not get the test framework to work with a cluster scoped CRD so - hacked the test to convert the cluster-scoped Nuxeo CRD to namespace scope but - need to resolve this.

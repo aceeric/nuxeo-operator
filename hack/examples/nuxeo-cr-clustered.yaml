@@ -8,7 +8,7 @@ spec:
     hostname: nuxeo-server.apps-crc.testing
   nodeSets:
   - name: cluster
-    replicas: 1
+    replicas: 3
     clusterEnabled: true
     interactive: true
     nuxeoConfig:
@@ -16,7 +16,8 @@ spec:
       - nuxeo-web-ui
       nuxeoName: "nuxeo-test"
     storage:
-      - storageType: Binaries
-        size: 1M
-        volumeSource:
-          emptyDir: {}
+    - storageType: Binaries
+      size: 1M
+      # change this to shared storage in your environment
+      volumeSource:
+        emptyDir: {}

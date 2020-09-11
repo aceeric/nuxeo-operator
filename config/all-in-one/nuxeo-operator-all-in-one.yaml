@@ -6460,7 +6460,7 @@ spec:
         env:
         - name: WATCH_NAMESPACE
           value: ""
-        image: docker.io/appzygy/nuxeo-operator:0.6.2
+        image: docker.io/appzygy/nuxeo-operator:0.6.3
         name: manager
         resources:
           limits:
@@ -6481,3 +6481,19 @@ spec:
           name: https
       serviceAccountName: nuxeo-operator-manager
       terminationGracePeriodSeconds: 10
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app: nuxeo-operator
+    control-plane: controller-manager
+  name: nuxeo-operator-controller-manager-metrics-monitor
+  namespace: nuxeo-operator-system
+spec:
+  endpoints:
+  - path: /metrics
+    port: https
+  selector:
+    matchLabels:
+      control-plane: controller-manager

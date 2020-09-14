@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"hash/crc32"
 
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
@@ -17,9 +18,11 @@ type clusterType int
 const (
 	openShift  clusterType = 1
 	kubernetes clusterType = 2
+
 )
 
 var cluster = kubernetes
+var crc32q = crc32.MakeTable(crc32.IEEE)
 
 // Returns true if the operator is running in an OpenShift cluster. Else false = Kubernetes. False
 // by default, unless SetIsOpenShift() was called prior to this call
@@ -228,4 +231,27 @@ func mapToStr(cfg map[string]string, delim string) string {
 		_, _ = fmt.Fprintf(b, "%s=%s%s", key, value, delim)
 	}
 	return b.String()
+}
+
+// Generates a CRC for the passed value
+func CRC(val string) string {
+	return fmt.Sprintf("%x", crc32.Checksum([]byte(val), crc32q))
+}
+
+// Annotates the passed deployment.spec.template.annotations
+func AnnotateTemplate(dep *appsv1.Deployment, key, val string) {
+	if dep.Spec.Template.Annotations == nil {
+		dep.Spec.Template.Annotations = map[string]string{}
+	}
+	dep.Spec.Template.Annotations[key] = val
+}
+
+// returns true  if 'val' is in 'arr' else returns false
+func InStrArray(arr []string, val string) bool {
+	for _, v := range arr {
+		if v  == val {
+			return true
+		}
+	}
+	return false
 }

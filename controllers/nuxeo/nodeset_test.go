@@ -62,7 +62,7 @@ func (suite *nodeSetSuite) TestDeploymentClustering() {
 		}
 	}
 	require.Equal(suite.T(), 2, envCount, "Environment incorrectly defined")
-	err = suite.r.reconcileNuxeoConf(nux, nux.Spec.NodeSets[0], "", "")
+	_, err = suite.r.reconcileNuxeoConf(nux, nux.Spec.NodeSets[0], "", "")
 	require.Nil(suite.T(), err, "reconcileNuxeoConf failed")
 	foundCMap := &corev1.ConfigMap{}
 	cmName := nuxeoConfCMName(nux, nux.Spec.NodeSets[0].Name)

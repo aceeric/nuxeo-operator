@@ -9,12 +9,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Main reconciler. Isolated to a separate file to minimize mods to the OSK-generated controller.
+// Main reconciler. Isolated to a separate file to minimize mods to the OSDK-generated controller.
 func (r *NuxeoReconciler) doReconcile(request reconcile.Request) (reconcile.Result, error) {
 	emptyResult := reconcile.Result{}
 	kv := []interface{}{"nuxeo", request.NamespacedName}
 	r.Log.Info("reconciling Nuxeo", kv...)
-	if request.Namespace == "" {
+	if request.Namespace == "" { // todo remove this - it can't happen any more
 		return emptyResult, fmt.Errorf("no namespace provided in reconciliation request")
 	}
 	// Get the Nuxeo CR from the request namespace
@@ -59,7 +59,7 @@ func (r *NuxeoReconciler) doReconcile(request reconcile.Request) (reconcile.Resu
 	return emptyResult, nil
 }
 
-// Reconciles each NodeSet to a Deployment
+// Reconciles each NodeSet to a Deployment. Return true to requeue, else false=don't requeue
 func (r *NuxeoReconciler) reconcileNodeSets(instance *v1alpha1.Nuxeo) (bool, error) {
 	for _, nodeSet := range instance.Spec.NodeSets {
 		if requeue, err := r.reconcileNodeSet(nodeSet, instance); err != nil {

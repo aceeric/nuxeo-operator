@@ -19,16 +19,16 @@ import (
 // then the function makes sure a ConfigMap does not exist in the cluster. The ConfigMap is given a hard-coded
 // name: nuxeo cluster name + "-" + node set name + "-nuxeo-conf". E.g.: 'my-nuxeo-cluster-nuxeo-conf'.
 func (r *NuxeoReconciler) reconcileNuxeoConf(instance *v1alpha1.Nuxeo, nodeSet v1alpha1.NodeSet, backingNuxeoConf string,
-	tlsNuxeoConf string) error {
+	tlsNuxeoConf string) (string, error) {
 	if shouldReconNuxeoConf(nodeSet, backingNuxeoConf, tlsNuxeoConf) {
 		expected := r.defaultNuxeoConfCM(instance, nodeSet.Name, nodeSet.NuxeoConfig.NuxeoConf.Inline,
 			nodeSet.ClusterEnabled, backingNuxeoConf, tlsNuxeoConf)
 		_, err := r.addOrUpdate(expected.Name, instance.Namespace, expected, &corev1.ConfigMap{},
 			util.ConfigMapComparer)
-		return err
+		return util.CRC(expected.Data[nuxeoConfName]), err
 	} else {
 		cmName := nuxeoConfCMName(instance, nodeSet.Name)
-		return r.removeIfPresent(instance, cmName, instance.Namespace, &corev1.ConfigMap{})
+		return "", r.removeIfPresent(instance, cmName, instance.Namespace, &corev1.ConfigMap{})
 	}
 }
 
@@ -60,7 +60,7 @@ func (r *NuxeoReconciler) defaultNuxeoConfCM(instance *v1alpha1.Nuxeo, nodeSetNa
 			Name:      cmName,
 			Namespace: instance.Namespace,
 		},
-		Data: map[string]string{"nuxeo.conf": allNuxeoConf},
+		Data: map[string]string{nuxeoConfName: allNuxeoConf},
 	}
 	_ = controllerutil.SetControllerReference(instance, cm, r.Scheme)
 	return cm

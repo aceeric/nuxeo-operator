@@ -108,7 +108,7 @@ prometheus-k8s-1                       3/3     Running   1          49s
 prometheus-operator-55cb794976-h9nwk   2/2     Running   0          87s
 
 # give the Prometheus service account access to the Nuxeo Operator metrics endpoint
-# using the cclusterrole provided by the Nuxeo Operator installation YAML
+# using the clusterrole provided by the Nuxeo Operator installation YAML
 $ kubectl create clusterrolebinding metrics\
   --clusterrole=nuxeo-operator-metrics-reader\
   --serviceaccount=monitoring:prometheus-k8s

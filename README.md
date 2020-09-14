@@ -2,7 +2,7 @@
 
 The Nuxeo operator is a Kubernetes/OpenShift Operator written in Go to manage the state of a *Nuxeo* cluster. Nuxeo is an open source digital asset management system. (See https://www.nuxeo.com/).
 
-This project is under development. The current version is 0.6.3. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc) and MicroK8s (https://microk8s.io).
+This project is under development. The current version is 0.6.3. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc), MicroK8s (https://microk8s.io), and AWS Elastic Kubernetes Service (https://aws.amazon.com/eks/).
 
 ### Current Feature Set (as of 0.6.3)
 
@@ -30,13 +30,13 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | Support explicit definition of nuxeo.conf properties in the Nuxeo CR |
 | Support additional fields in the Nuxeo CR to configure Nuxeo:  Java opts, templates, packages, nuxeo URL, nuxeo name |
 | Support passthrough and edge termination in Kubernetes Ingress, and all Route termination types for OpenShift |
-| Support the ability to terminate TLS directly in Nuxeo, rather than requiring a sidecar. See `test-nuxeo-tls.md` in the docs folder |
-| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled corporate services that use an internal corporate CA. See `test-jvm-pki.md` in the docs folder. |
-| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster. See `test-offline-packages.md` in the docs folder. |
-| Ability to configure *Interactive* nodes and *Worker* nodes differently by configuring contributions via cluster resources. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI. See `test-contribution.md` in the docs folder. |
+| Support the ability to terminate TLS directly in Nuxeo, rather than requiring a sidecar. |
+| Support a secret for JVM-wide PKI configuration in the Nuxeo Pod - in order to support cases where Nuxeo is running in a PKI-enabled enterprise and is interacting with internal PKI-enabled corporate services that use an internal corporate CA. |
+| Support installing marketplace packages in disconnected mode if no Internet connection is available in-cluster. |
+| Ability to configure *Interactive* nodes and *Worker* nodes differently by configuring contributions via cluster resources. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI. |
 | Support clustering - use Pod UID as `nuxeo.cluster.nodeid` via the downward API |
 | Support defining resource request/limit in the Nuxeo CR      |
-| Support Nuxeo CLID. See `nuxeo-cr-clid-ex.yaml` in hack/examples |
+| Support Nuxeo CLID. |
 | Support flexible integration with backing services by virtue of the `backingService` resource in the Nuxeo CR. Validate that with specific integrations (see below) |
 | Integrate with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support |
 | Integrate with Strimzi (https://strimzi.io/) for Nuxeo Stream support |
@@ -49,38 +49,50 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | The Operator can watch a single namespace, multiple namespaces, or all namespaces. If subscribing the Operator using OLM, this is specified in the `OperatorGroup`. If manually installing, you can patch the Operator's deployment - specifically the `WATCH_NAMESPACE` environment variable. This can be in the format *""* - meaning watch all, or *"my-namespace"*, meaning one namespace, or *"namespace-1,namespace-2"* meaning the specified namespaces. |
 | Integrate with Prometheus in the Kubernetes cluster to expose Nuxeo Operator metrics. |
 
-### Planned Work
+### Backlog
 
 #### Version 0.7.1
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Implement deployment annotations (`nuxeoConfHash`, `clidHash`, backing service credential hashes) to roll the Nuxeo deployment if CLID or nuxeo.conf or backing service credentials change |  |
+| Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if resources change (doesn't handle password/cert changes) | in-progress |
 | Build out unit tests for more coverage |  |
-| Mod OLM channel to beta?  |  |
-| Review and augment envtest tests |   |
-| Assess LOE and potentially support https://github.com/vmware-labs/service-bindings | |
+| MongoDB built-in backing service |  |
+| Mod OLM channel to beta  |  |
+| Support S3-based binary store |  |
+| Backing Service tests - support AWS EKS |  |
+| Copyrights in source files |  |
 
 
-#### Version 0.7.2+...
+#### Version 0.7.2
+| Feature                                                      | Status |
+| ------------------------------------------------------------ | ------ |
+| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |   |
+
+
+#### Not yet prioritized
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | GitHub build & test automation |   |
-| Support day 2 operations: backing service password change, cert expiration |  |
+| Assess LOE and potentially support https://github.com/vmware-labs/service-bindings | |
+| Review and augment envtest tests |   |
+| Support day 2 operations: backing service password change, TLS cert expiration/renewal. E.g.: day 365 the Kafka cert is renewed. Nuxeo Operator detects this (has to be watching it) and updates a Deployment hash which cycles the Nuxel cluster via a rolling update |  |
+| Support upate strategy in Nuxeo CR |  |
 | Consider a validating webhook |  |
-| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |   |
+| Ability to customize Nuxeo logging (inline or config map with log4j.xml to replace the file in the container, e.g.: `.spec.log4j`) or perhaps just a log level that the operator patches into the log4j file using a startup shell script injected into the container | |
 | Build on kustomize testing to provide exemplars for bringing up Nuxeo Clusters using kustomize |   |
 | Eval kpt (https://googlecontainertools.github.io/kpt/) + kustomize? | |
 | Support multi-architecture build. Incorporate lint (https://golangci.com?) into the build process |   |
 | Refactor all the documentation into a user guide (https://www.netlify.com/?) | |
 | Find someone else to work on this with... | |
-| Make the Operator available as a community Operator (https://github.com/operator-framework/community-operators) |   |
 | Deploy a cluster as a Stateful Set or Deployment |   |
 | JetStack Cert Manager integration |   |
 | Horizontal Pod Auto-scaling |   |
 | Eval cert-utils support (https://github.com/redhat-cop/cert-utils-operator) | |
 | OperatorHub availability |   |
-| TBD... |   |
+| Since it is not expressly disallowed - test multiple Nuxeo clusters in the same NS in case there are hard-codes that don't handle this |   |
+
+
 
 ## Quick Start
 
@@ -125,10 +137,10 @@ EOF
 
 Note - you will have to pick a host name for `access/hostname` that your DNS resolves to your Kubernetes cluster. The example above is for Code Ready Containers. The quick-start CR above configures the following items in the `spec`:
 
-1. *nuxeoImage* - the Nuxeo image from Docker Hub
+1. *nuxeoImage* - the Nuxeo image from Docker Hub (defaults to *nuxeo:latest* if not specified)
 2. *version* - the Nuxeo version - in this case 10.10
 3. *access/hostname* - creates an OpenShift Route or Kubernetes Ingress depending on cluster type
-4. *nodeSets* - each nodeSet translates to a Deployment object in the cluster with the specified number of replicas. Interactive `true` means to generate a Route/Ingress to the Pods associated with this Deployment
+4. *nodeSets* - each nodeSet translates to a Deployment object in the cluster with the specified number of replicas. Interactive `true` means the Operator will generate a Route/Ingress to the Pods associated with this Deployment
 5. *nodeSet/nuxeoConfig/nuxeoPackages* - selects a set of Marketplace packages to install at startup. The `nuxeo-web-ui` package is included in the Nuxeo Docker image and so does not require Nuxeo Marketplace connectivity
 
 After a moment, the Nuxeo Pod should come up:
@@ -507,7 +519,7 @@ spec:
 
 What's important to understand is that the CLID should be added to the CR just like you would copy it from the Nuxeo Registration website. Specifically: it **must** be a single line - no newlines - and contain exactly one double-dash character sequence ("--") as the line separator. The Operator validates this and injects the CLID into the Nuxeo container as a two-line file, split on that separator. With a valid CLID in the Nuxeo CR, you can install Hot Fixes and Marketplace packages that require a subscription.
 
-### Init containers
+### Init containers, Containers, Volumes
 
 The Nuxeo CR Supports custom init containers, containers, and volumes, as illustrated by the following trivial example:
 
@@ -542,6 +554,8 @@ spec:
 
 The Nuxeo CR supports integrating the Nuxeo cluster with backing services. Two examples are presented here as an overview.
 
+#### Pre-configured
+
 The first example shows something called a *pre-configured* backing service. The Nuxeo Operator has pre-configured support for Strimzi Kafka, Elastic Cloud on Kubernetes, and Crunchy Postgres. This means that you can connect Nuxeo to these backing services with minimal YAML. The backing service configuration is in the `backingServices` stanza:
 
 ```shell
@@ -567,9 +581,11 @@ spec:
       resource: elastic
 ```
 
-The example above will start a Nuxeo cluster and connect it to Elastic Cloud for Kubernetes (preconfigured type = ECK) using the built-in elastic search user, and TLS. The `resource` key, which specifies that in the namespace that the Nuxeo cluster is running in, there is instance of a `elasticsearch.k8s.elastic.co` resource named `elastic`.
+The example above will start a Nuxeo cluster and connect it to Elastic Cloud on Kubernetes (preconfigured type = ECK) using the built-in elastic search user, and TLS. The `resource` key, which specifies that in the namespace that the Nuxeo cluster is running in, there is instance of a `elasticsearch.k8s.elastic.co` resource named `elastic`. (This assumes that the ECK Operator is running in the cluster.) The Nuxeo Operator will gather up all necessary configuration information from the ElasticSearch CR and configure Nuxeo to use ElasticSearch.
 
-The second example shows an explicit configuration, demonstrating the Operator's support for general-purpose backing service integration. This example connects Nuxeo to a Strimzi-provisioned Kafka cluster. This example assumes that the Strimzi Operator is running, and you've already provisioned a `Kafka` CR named `strimzi`, and a `KafkaUser` CR named `nxkafka` that you want Nuxeo to use in the Kafka broker connection:
+#### Explicit
+
+The second example shows an *explicit* configuration, demonstrating the Operator's support for general-purpose backing service integration. This example connects Nuxeo to a Strimzi-provisioned Kafka cluster. This example assumes that the Strimzi Operator is running, and you've already provisioned a `Kafka` CR named `strimzi`, and a `KafkaUser` CR named `nxkafka` that you want Nuxeo to use in the Kafka broker connection:
 
 ```shell
 apiVersion: appzygy.net/v1alpha1
@@ -604,7 +620,7 @@ spec:
       version: v1
       kind: Secret
       # Strimzi operator creates a secret with the same name as the KafkaUser
-      # CR name, which is 'nxkafka'
+      # CR name, which in this example is 'nxkafka'
       name: nxkafka
       projections:
       - from: user.password
@@ -619,7 +635,7 @@ spec:
       # bootstrap service to listen on 9093
       kafka.bootstrap.servers=strimzi-kafka-bootstrap:9093
       kafka.truststore.type=PKCS12
-      # here, mykafka is a subdirectory mounted by the Nuxeo operator because
+      # here, 'mykafka' is a subdirectory mounted by the Nuxeo operator because
       # this backing service is named mykafka
       kafka.truststore.path=/etc/nuxeo-operator/binding/mykafka/truststore.p12
       kafka.truststore.password=${env:KAFKA_TRUSTSTORE_PASS}
@@ -630,9 +646,9 @@ spec:
 
 This example shows how cluster resources (secrets in this case) are projected into the Nuxeo Pod, and then nuxeo.conf entries are inlined that reference the projected resources as environment variables and filesystem objects. The Nuxeo Operator will add these nuxeo.conf settings to the system-wide nuxeo.conf that it mounts into the Nuxeo container at startup.
 
-The directory `test/backing-services/stacks` has YAML configuring Nuxeo to integrate with a variety of backing services. There are plenty of examples there to draw on.
+The directory `test/backing-services/stacks` has YAML configuring Nuxeo to integrate with a variety of backing services. There are plenty of examples there to draw on. See [backing services tests](test/backing-services/README.md).
 
-A more in-depth presentation is in [configuring backing services](docs/backing-services.md) in the docs directory. 
+A more in-depth presentation of how the Operator integrates Nuxeo with backing services is documented in [configuring backing services](docs/backing-services.md) in the docs directory.
 
 ### Prometheus Integration
 

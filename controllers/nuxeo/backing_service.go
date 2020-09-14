@@ -106,6 +106,7 @@ func (r *NuxeoReconciler) configureBackingService(instance *v1alpha1.Nuxeo, back
 	return r.reconcileSecondary(instance, &secondarySecret)
 }
 
+// Adds an environment variable with a static value obtained from a resource
 func (r *NuxeoReconciler) projectEnvVal(namespace string, resource v1alpha1.BackingServiceResource,
 	projection v1alpha1.ResourceProjection, dep *appsv1.Deployment) error {
 	env := corev1.EnvVar{

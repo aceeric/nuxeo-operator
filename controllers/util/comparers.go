@@ -3,6 +3,7 @@ package util
 import (
 	"reflect"
 
+	"github.com/aceeric/nuxeo-operator/controllers/common"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -81,19 +82,54 @@ func RouteComparer(expected runtime.Object, found runtime.Object) bool {
 	return true
 }
 
-// Deployment comparer. The Nuxeo Operator doesn't annotate Spec > Template > Metadata > Annotations but
-// Kubernetes uses that to trigger a rolling update if someone executes 'kubectl rollout restart deployment
-// nuxeo-cluster' so this code nils the found annotations so the comparer doesn't consider them. If anything
-// else in the deployment changes - triggering creation of a new deployment - then this will result in the
-// annotations being reset to empty which is consistent with the state of a new deployment created by the
-// operator.
+// Deployment comparer
 func DeploymentComparer(expected runtime.Object, found runtime.Object) bool {
-	found.(*appsv1.Deployment).Spec.Template.Annotations = nil
-	if !reflect.DeepEqual(expected.(*appsv1.Deployment).Spec, found.(*appsv1.Deployment).Spec) {
-		expected.(*appsv1.Deployment).Spec.DeepCopyInto(&found.(*appsv1.Deployment).Spec)
+	exp := expected.(*appsv1.Deployment)
+	fnd := found.(*appsv1.Deployment)
+	annotationsChanged := false
+	exp.Spec.Template.Annotations, annotationsChanged = syncAnnotations(exp.Spec.Template.Annotations,
+		fnd.Spec.Template.Annotations)
+	if annotationsChanged || !reflect.DeepEqual(exp.Spec, fnd.Spec) {
+		exp.Spec.DeepCopyInto(&fnd.Spec)
 		return false
 	}
 	return true
+}
+
+// syncAnnotations compares expected annotations with found. Expected has the correct values for those annotations
+// originated by the Operator. However, the actual cluster resource might also have some annotations (from
+// Kubernetes or manually) that the Operator doesn't originate. So merge those into expected and return expected.
+func syncAnnotations(exp map[string]string, fnd map[string]string) (map[string]string, bool) {
+	annotationsChanged := false
+	// detect if any expected annotations don't match found
+	if exp != nil {
+		if fnd == nil {
+			annotationsChanged = true
+		} else {
+			for ek, ev := range exp {
+				if fv, ok := fnd[ek]; !ok || ev != fv {
+					annotationsChanged = true
+					break
+				}
+			}
+		}
+	}
+	// copy found annotations that are absent from expected into expected, unless they are Nuxeo annotations
+	// in which case the Operator will manage those (if expected doesn't have a Nuxeo annotation then it
+	// shouldn't have that annotation)
+	if fnd != nil {
+		for fk, fv := range fnd {
+			if !InStrArray(common.NuxeoAnnotations, fv) {
+				if exp == nil {
+					exp = map[string]string{}
+				}
+				if _, ok := exp[fk]; !ok {
+					exp[fk] = fv
+				}
+			}
+		}
+	}
+	return exp, annotationsChanged
 }
 
 // ConfigMap comparer

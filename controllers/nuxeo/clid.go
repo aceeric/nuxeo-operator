@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/aceeric/nuxeo-operator/api/v1alpha1"
+	"github.com/aceeric/nuxeo-operator/controllers/common"
 	"github.com/aceeric/nuxeo-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +50,7 @@ func configureClid(instance *v1alpha1.Nuxeo, dep *appsv1.Deployment) error {
 				Path: clidKey,
 			}},
 		}
+		util.AnnotateTemplate(dep, common.ClidHashAnnotation, util.CRC(instance.Spec.Clid))
 		return util.OnlyAddVol(dep, vol)
 	}
 }
@@ -71,7 +73,7 @@ func (r *NuxeoReconciler) reconcileClid(instance *v1alpha1.Nuxeo) error {
 }
 
 // defaultClidCM creates and returns a ConfigMap struct named "nuxeo-clid" to hold the passed CLID string. The CLID
-// string has to conform to the format that you would get from the nuxeo registration site. Specifically it has to
+// string has to conform to the format that you would get from the Nuxeo registration site. Specifically it has to
 // contain the double dash separator that Nuxeo uses to split the single CLID into two lines. This function will
 // split the clid and newline format it so it has the correct two-line format in the CLID file.
 func (r *NuxeoReconciler) defaultClidCM(instance *v1alpha1.Nuxeo, clidValue string) (*corev1.ConfigMap, error) {

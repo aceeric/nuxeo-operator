@@ -200,7 +200,7 @@ http {
 	include /etc/nginx/proxy.conf;
 }`
 
-// nginxConf provides an auto-generated proxy.conf file
+// proxyConf provides an auto-generated proxy.conf file
 var proxyConf string = `
 server {
   listen 8443 default;

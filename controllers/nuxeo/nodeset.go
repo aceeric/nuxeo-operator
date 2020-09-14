@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/aceeric/nuxeo-operator/api/v1alpha1"
+	"github.com/aceeric/nuxeo-operator/controllers/common"
 	"github.com/aceeric/nuxeo-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -99,7 +100,7 @@ func (r *NuxeoReconciler) configureDeploymentFromNuxeo(nodeSet v1alpha1.NodeSet,
 				return err
 			}
 		} else if nodeSet.NuxeoConfig.TlsSecret != "" {
-			// nuxeo will terminate TLS
+			// Nuxeo will terminate TLS
 			if tmp, err := configureNuxeoForTLS(expected, nodeSet.NuxeoConfig.TlsSecret); err != nil {
 				return err
 			} else {
@@ -116,8 +117,10 @@ func (r *NuxeoReconciler) configureDeploymentFromNuxeo(nodeSet v1alpha1.NodeSet,
 	if err := configureNuxeoConf(instance, expected, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
 		return err
 	}
-	if err := r.reconcileNuxeoConf(instance, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
+	if nxconfHash, err := r.reconcileNuxeoConf(instance, nodeSet, backingNuxeoConf, tlsNuxeoConf); err != nil {
 		return err
+	} else if nxconfHash != "" {
+		util.AnnotateTemplate(expected, common.NuxeoConfHashAnnotation, nxconfHash)
 	}
 	return nil
 }

@@ -1,13 +1,16 @@
 package nuxeo
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/aceeric/nuxeo-operator/api/v1alpha1"
+	"github.com/aceeric/nuxeo-operator/controllers/common"
 	"github.com/aceeric/nuxeo-operator/controllers/nuxeo/preconfigs"
 	"github.com/aceeric/nuxeo-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -46,6 +49,9 @@ func (r *NuxeoReconciler) configureBackingServices(instance *v1alpha1.Nuxeo, dep
 		if err = r.configureBackingService(instance, backingService, dep); err != nil {
 			return "", err
 		}
+		if err = r.annotateDep(backingService, dep); err != nil {
+			return "", err
+		}
 		// accumulate each backing service's nuxeo.conf settings
 		nuxeoConf = joinCompact("\n", nuxeoConf, backingService.NuxeoConf)
 
@@ -65,6 +71,20 @@ func (r *NuxeoReconciler) configureBackingServices(instance *v1alpha1.Nuxeo, dep
 		}
 	}
 	return nuxeoConf, nil
+}
+
+// Calculates a CRC for the value of the entire backing service struct, and annotates the deployment
+// with it. E.g., annotates the deployment with "appzygy.net/backing.crunchy=16b037c6". The result of this is that
+// any change to the configuration of the backing services in the Nuxeo CR will cause a change in the deployment
+// spec template annotations causing a rolling update of the Nuxeo cluster.
+func (r *NuxeoReconciler) annotateDep(backingService v1alpha1.BackingService, dep *appsv1.Deployment) error {
+	buf := &bytes.Buffer{}
+	enc := gob.NewEncoder(buf)
+	if err := enc.Encode(backingService); err != nil {
+		return err
+	}
+	util.AnnotateTemplate(dep, common.BackingSvcAnnotation + "." + backingService.Name, util.CRCBytes(buf.Bytes()))
+	return nil
 }
 
 // Configures one backing service. Iterates all resources and bindings, calls helpers to add environment variables

@@ -54,10 +54,9 @@ This project is under development. The current version is 0.6.3. Testing is perf
 #### Version 0.7.1
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if resources change (doesn't handle password/cert changes) | in-progress |
+| Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if these change (doesn't handle password/cert changes yet) | done |
 | Build out unit tests for more coverage |  |
 | MongoDB built-in backing service |  |
-| Mod OLM channel to beta  |  |
 | Support S3-based binary store |  |
 | Backing Service tests - support AWS EKS |  |
 | Copyrights in source files |  |
@@ -66,7 +65,7 @@ This project is under development. The current version is 0.6.3. Testing is perf
 #### Version 0.7.2
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate |   |
+| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate. Get the operator included in Community Operators GitHub repo |   |
 
 
 #### Not yet prioritized
@@ -76,8 +75,9 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | GitHub build & test automation |   |
 | Assess LOE and potentially support https://github.com/vmware-labs/service-bindings | |
 | Review and augment envtest tests |   |
-| Support day 2 operations: backing service password change, TLS cert expiration/renewal. E.g.: day 365 the Kafka cert is renewed. Nuxeo Operator detects this (has to be watching it) and updates a Deployment hash which cycles the Nuxel cluster via a rolling update |  |
-| Support upate strategy in Nuxeo CR |  |
+| Support day 2 operations: backing service password change, TLS cert expiration/renewal. E.g.: day 365 the Kafka cert is renewed. Nuxeo Operator detects this and updates a Deployment hash which cycles the Nuxeo cluster via a rolling update. Or consider capturing ALL upstream resources into an intermediate secret which supports rolling the Nuxeo cluster when any projected upstream element changes - nuxeo-backing-secret |  |
+| Support update strategy in Nuxeo CR |  |
+| Break nuxeo backing services into its own CRD? 'NuxeoBacking' |  |
 | Consider a validating webhook |  |
 | Ability to customize Nuxeo logging (inline or config map with log4j.xml to replace the file in the container, e.g.: `.spec.log4j`) or perhaps just a log level that the operator patches into the log4j file using a startup shell script injected into the container | |
 | Build on kustomize testing to provide exemplars for bringing up Nuxeo Clusters using kustomize |   |

@@ -3,7 +3,6 @@ package util
 import (
 	"reflect"
 
-	"github.com/aceeric/nuxeo-operator/controllers/common"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -98,7 +97,9 @@ func DeploymentComparer(expected runtime.Object, found runtime.Object) bool {
 
 // syncAnnotations compares expected annotations with found. Expected has the correct values for those annotations
 // originated by the Operator. However, the actual cluster resource might also have some annotations (from
-// Kubernetes or manually) that the Operator doesn't originate. So merge those into expected and return expected.
+// Kubernetes or applied manually) that the Operator doesn't originate. So merge those into expected and
+// return expected. At this point in the call chain, the only annotations in 'exp' are Nuxeo Operator-originated
+// annotations.
 func syncAnnotations(exp map[string]string, fnd map[string]string) (map[string]string, bool) {
 	annotationsChanged := false
 	// detect if any expected annotations don't match found
@@ -119,12 +120,18 @@ func syncAnnotations(exp map[string]string, fnd map[string]string) (map[string]s
 	// shouldn't have that annotation)
 	if fnd != nil {
 		for fk, fv := range fnd {
-			if !InStrArray(common.NuxeoAnnotations, fv) {
+			if !IsNuxeoAnnotation(fk) {
 				if exp == nil {
 					exp = map[string]string{}
 				}
 				if _, ok := exp[fk]; !ok {
 					exp[fk] = fv
+				}
+			} else if exp != nil {
+				// if 'found' has a Nuxeo annotation that is not present in expected, then that means it was
+				// there and was removed this reconciliation cycle
+				if _, ok := exp[fk]; !ok {
+					annotationsChanged = true
 				}
 			}
 		}

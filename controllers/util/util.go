@@ -5,7 +5,9 @@ import (
 	"crypto/md5"
 	"fmt"
 	"hash/crc32"
+	"strings"
 
+	"github.com/aceeric/nuxeo-operator/controllers/common"
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -238,6 +240,11 @@ func CRC(val string) string {
 	return fmt.Sprintf("%x", crc32.Checksum([]byte(val), crc32q))
 }
 
+// Generates a CRC for the passed value
+func CRCBytes(val []byte) string {
+	return fmt.Sprintf("%x", crc32.Checksum(val, crc32q))
+}
+
 // Annotates the passed deployment.spec.template.annotations
 func AnnotateTemplate(dep *appsv1.Deployment, key, val string) {
 	if dep.Spec.Template.Annotations == nil {
@@ -246,10 +253,10 @@ func AnnotateTemplate(dep *appsv1.Deployment, key, val string) {
 	dep.Spec.Template.Annotations[key] = val
 }
 
-// returns true  if 'val' is in 'arr' else returns false
-func InStrArray(arr []string, val string) bool {
-	for _, v := range arr {
-		if v  == val {
+// returns true if the start of passed 'annotationKey' matches any Nuxeo annotation in common.NuxeoAnnotations
+func IsNuxeoAnnotation(annotationKey string) bool {
+	for _, annotation := range common.NuxeoAnnotations {
+		if strings.HasPrefix(annotationKey, annotation) {
 			return true
 		}
 	}

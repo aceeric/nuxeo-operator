@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aceeric/nuxeo-operator/api/v1alpha1"
+	"github.com/aceeric/nuxeo-operator/controllers/common"
 	"github.com/aceeric/nuxeo-operator/controllers/util"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -332,6 +333,30 @@ func (suite *backingServiceSuite) TestEnvVal() {
 		Value: suite.backing,
 	}
 	require.Equal(suite.T(), expectedEnv, dep.Spec.Template.Spec.Containers[0].Env[0])
+}
+
+func (suite *backingServiceSuite) TestDeploymentComparer() {
+	exp := genTestDeploymentForBackingSvc()
+	fnd := genTestDeploymentForBackingSvc()
+	util.AnnotateTemplate(&exp, common.BackingSvcAnnotation + "." + "bar", "frobozz")
+	util.AnnotateTemplate(&fnd, "foo", "bar")
+	// Nuxeo annotation in exp should go into fnd and non-Nuxeo annotation in fnd should remain
+	same := util.DeploymentComparer(&exp, &fnd)
+	require.False(suite.T(), same)
+	v, _ := fnd.Spec.Template.Annotations["foo"]
+	require.Equal(suite.T(), v, "bar")
+	v, _ = fnd.Spec.Template.Annotations[common.BackingSvcAnnotation + "." + "bar"]
+	require.Equal(suite.T(), v, "frobozz")
+	exp.Spec.Template.Annotations = nil
+	fnd.Spec.Template.Annotations = nil
+	util.AnnotateTemplate(&fnd, common.BackingSvcAnnotation + "." + "bar", "frobozz")
+	// expected does not have a Nuxeo annotation that found does. So it was there, does not currently
+	// belong there (because expected is the gold source this reconciliation cycle), but annotations did change.
+	// Found will have that annotation removed since it doesn't belong there. When fnd gets written to the cluster
+	// the change in annotations will cause the deployment to be updated.
+	same = util.DeploymentComparer(&exp, &fnd)
+	require.False(suite.T(), same)
+	require.Equal(suite.T(), 0, len(fnd.Spec.Template.Annotations))
 }
 
 // backingServiceSuite is the BackingService test suite structure

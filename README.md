@@ -55,10 +55,8 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if these change (doesn't handle password/cert changes yet) | done |
+| MongoDB built-in backing service | in-progress |
 | Build out unit tests for more coverage |  |
-| MongoDB built-in backing service |  |
-| Support S3-based binary store |  |
-| Backing Service tests - support AWS EKS |  |
 | Copyrights in source files |  |
 
 
@@ -72,7 +70,9 @@ This project is under development. The current version is 0.6.3. Testing is perf
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
+| Support S3-based binary store |  |
 | GitHub build & test automation |   |
+| Backing Service tests - support AWS EKS |  |
 | Assess LOE and potentially support https://github.com/vmware-labs/service-bindings | |
 | Review and augment envtest tests |   |
 | Support day 2 operations: backing service password change, TLS cert expiration/renewal. E.g.: day 365 the Kafka cert is renewed. Nuxeo Operator detects this and updates a Deployment hash which cycles the Nuxeo cluster via a rolling update. Or consider capturing ALL upstream resources into an intermediate secret which supports rolling the Nuxeo cluster when any projected upstream element changes - nuxeo-backing-secret |  |

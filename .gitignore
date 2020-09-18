@@ -30,3 +30,6 @@ cpu.profile
 testbin/
 # this is the compiled operator
 manager
+# my redhat image pull secret
+pull-secret.yaml
+

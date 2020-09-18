@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-project
+data:
+  baseUrl=GET THIS FROM THE OPS MANAGER
+#  projectName=<myOpsManagerProjectName>" \ #Optional
+#  orgId=<orgID>" #Optional

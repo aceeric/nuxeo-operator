@@ -1,0 +1,8 @@
+namespace: backing
+
+bases:
+- ../../namespace
+
+resources:
+- mongo.yaml
+- nuxeo.yaml

@@ -4,5 +4,6 @@ bases:
 - ../../namespace
 
 resources:
+- mongo-project-configmap.yaml
 - mongo.yaml
 - nuxeo.yaml

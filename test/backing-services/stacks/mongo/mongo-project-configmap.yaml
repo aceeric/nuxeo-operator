@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: mongo-project
 data:
-  baseUrl=GET THIS FROM THE OPS MANAGER
-#  projectName=<myOpsManagerProjectName>" \ #Optional
-#  orgId=<orgID>" #Optional
+  # kubectl get po ops-manager-0 -o jsonpath='{.spec.containers[0].env[?(@.name == "OM_PROP_mms_centralUrl")].value}'
+  baseUrl: http://ops-manager-svc.backing.svc.cluster.local:8080
+#  projectName: <myOpsManagerProjectName>" \ #Optional
+#  orgId: <orgID>" #Optional

@@ -6,7 +6,7 @@ bases:
 resources:
 # git clone https://github.com/mongodb/mongodb-enterprise-kubernetes.git master (7.1)
 - crds.yaml
-- pull-secret.yaml
+#- pull-secret.yaml
 - mongodb-enterprise.yaml
 - ops-manager-admin-secret.yaml
 - ops-manager.yaml
@@ -48,6 +48,11 @@ resources:
 #    value:
 #      name: APPDB_IMAGE_REPOSITORY
 #      value: registry.connect.redhat.com/mongodb/mongodb-enterprise-appdb
+#  - op: remove
+#    path: /spec/applicationDatabase/version
+#  - op: add
+#    path: /spec/applicationDatabase/podSpec/memory
+#    value: 500Mi
 patchesJson6902:
 - target:
     group: apps
@@ -87,19 +92,31 @@ patchesJson6902:
     kind: MongoDBOpsManager
     name: ops-manager
   patch: |-
-    - op: replace
-      path: /spec/replicas
-      value: 1
-    - op: replace
-      path: /spec/applicationDatabase/persistent
-      value: false
+    - op: add
+      path: /spec/configuration
+      value:
+        mms.ignoreInitialUiSetup: "true"
+        automation.versions.source: mongodb
+        mms.adminEmailAddr: foo@bar.com
+        mms.fromEmailAddr: foo@bar.com
+        mms.mail.hostname: foo@bar.com
+        mms.mail.port: "465"
+        mms.mail.ssl: "true"
+        mms.mail.transport: smtp
+        mms.minimumTLSVersion: TLSv1.2
+        mms.replyToEmailAddr: foo@bar.com
     - op: remove
       path: /spec/clusterDomain
     - op: add
-      path: /spec/applicationDatabase/podSpec/memory
-      value: 500Mi
-    - op: remove
-      path: /spec/applicationDatabase/version
+      path: /spec/backup
+      value:
+        enabled: false
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: add
+      path: /spec/applicationDatabase/featureCompatibilityVersion
+      value: "4.2"
     - op: add
       path: /spec/statefulSet
       value:
@@ -110,38 +127,50 @@ patchesJson6902:
                 - name: mongodb-ops-manager
                   readinessProbe:
                     failureThreshold: 100
-                  resources:
-                    limits:
-                      memory: 600Mi
-                    requests:
-                      memory: 400Mi
-- target:
-    version: v1
-    kind: ServiceAccount
-    name: mongodb-enterprise-operator
-    namespace: mongodb
-  patch: |-
-    - op: add
-      path: /imagePullSecrets
-      value:
-        - name: openshift-pull-secret
-- target:
-    version: v1
-    kind: ServiceAccount
-    name: mongodb-enterprise-appdb
-    namespace: mongodb
-  patch: |-
-    - op: add
-      path: /imagePullSecrets
-      value:
-        - name: openshift-pull-secret
-- target:
-    version: v1
-    kind: ServiceAccount
-    name: mongodb-enterprise-database-pods
-    namespace: mongodb
-  patch: |-
-    - op: add
-      path: /imagePullSecrets
-      value:
-        - name: openshift-pull-secret
+#                  resources:
+#                    limits:
+#                      memory: 2Gi
+#                    requests:
+#                      memory: 2Gi
+#    - op: replace
+#      path: /spec/applicationDatabase/persistent
+#      value: false
+#    - op: replace
+#      path: /spec/applicationDatabase/version
+#      value: 4.2.2-ent
+#    - op: replace
+#      path: /spec/version
+#      value: 4.2.6
+#    - op: replace
+#      path: /spec/replicas
+#      value: 1
+#- target:
+#    version: v1
+#    kind: ServiceAccount
+#    name: mongodb-enterprise-operator
+#    namespace: mongodb
+#  patch: |-
+#    - op: add
+#      path: /imagePullSecrets
+#      value:
+#        - name: openshift-pull-secret
+#- target:
+#    version: v1
+#    kind: ServiceAccount
+#    name: mongodb-enterprise-appdb
+#    namespace: mongodb
+#  patch: |-
+#    - op: add
+#      path: /imagePullSecrets
+#      value:
+#        - name: openshift-pull-secret
+#- target:
+#    version: v1
+#    kind: ServiceAccount
+#    name: mongodb-enterprise-database-pods
+#    namespace: mongodb
+#  patch: |-
+#    - op: add
+#      path: /imagePullSecrets
+#      value:
+#        - name: openshift-pull-secret

@@ -1,3 +1,19 @@
+/*
+Copyright 2020 Eric Ace.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
@@ -12,7 +28,7 @@ import (
 
 // These comparers compare expected to found with logic unique to the various resource types. If expected ==
 // found then the functions return true. Otherwise the functions update found from expected again with specific
-// logic by type and return false. False means found must be written back to the cluster.
+// logic by type and return false. False means found must be written back to the cluster (by the caller.)
 
 // Secret comparer (operator may annotate secrets)
 func SecretComparer(expected runtime.Object, found runtime.Object) bool {

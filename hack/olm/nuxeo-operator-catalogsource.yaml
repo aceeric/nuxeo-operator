@@ -8,4 +8,4 @@ spec:
   displayName: Nuxeo Operator
   sourceType: grpc
   publisher: Eric Ace
-  image: docker.io/appzygy/nuxeo-operator-index:0.6.3
+  image: docker.io/appzygy/nuxeo-operator-index:0.7.1

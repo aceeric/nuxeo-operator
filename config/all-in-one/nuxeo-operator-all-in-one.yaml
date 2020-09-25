@@ -6461,7 +6461,7 @@ spec:
         env:
         - name: WATCH_NAMESPACE
           value: ""
-        image: docker.io/appzygy/nuxeo-operator:0.6.3
+        image: docker.io/appzygy/nuxeo-operator:0.7.1
         name: manager
         resources:
           limits:

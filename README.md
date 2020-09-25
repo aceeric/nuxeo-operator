@@ -2,9 +2,9 @@
 
 The Nuxeo operator is a Kubernetes/OpenShift Operator written in Go to manage the state of a *Nuxeo* cluster. Nuxeo is an open source digital asset management system. (See https://www.nuxeo.com/).
 
-This project is under development. The current version is 0.6.3. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc), MicroK8s (https://microk8s.io), and AWS Elastic Kubernetes Service (https://aws.amazon.com/eks/).
+This project is under development. The current version is 0.7.1. Testing is performed with OpenShift Code Ready Containers (https://github.com/code-ready/crc), MicroK8s (https://microk8s.io), and AWS Elastic Kubernetes Service (https://aws.amazon.com/eks/).
 
-### Current Feature Set (as of 0.6.3)
+### Current Feature Set (as of 0.7.1)
 
 | Feature                                                      |
 | ------------------------------------------------------------ |
@@ -48,23 +48,16 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` |
 | Provide a sidecar array, init container array, and volumes array to support flexible configuration |
 | The Operator can watch a single namespace, multiple namespaces, or all namespaces. If subscribing the Operator using OLM, this is specified in the `OperatorGroup`. If manually installing, you can patch the Operator's deployment - specifically the `WATCH_NAMESPACE` environment variable. This can be in the format *""* - meaning watch all, or *"my-namespace"*, meaning one namespace, or *"namespace-1,namespace-2"* meaning the specified namespaces. |
+| Support deployment annotations for nuxeo.conf, CLID, and backing services to roll the Nuxeo deployment if these upstream configurations change (doesn't handle password/cert changes yet) |
 | Integrate with Prometheus in the Kubernetes cluster to expose Nuxeo Operator metrics. |
 
 ### Backlog
 
-#### Version 0.7.1 *(done)*
+
+#### Version 0.7.2 *(in progress)*
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if these change (doesn't handle password/cert changes yet) | done |
-| Test with MongoDB Enterprise backing service and implement a basic Mongo Enterprise pre-configured backing service. | done |
-| Build out unit tests for more coverage. Reach 80% coverage and cover the most important use cases. | done |
-| Copyrights in source files. | done |
-
-
-#### Version 0.7.2
-| Feature                                                      | Status |
-| ------------------------------------------------------------ | ------ |
-| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate. Get the operator included in Community Operators GitHub repo |   |
+| Develop and test the elements needed to qualify the Operator for evaluation as a community Operator. Submit the operator for evaluation. Iterate. Get the operator included in Community Operators GitHub repo | in-progress |
 
 
 #### Not yet prioritized

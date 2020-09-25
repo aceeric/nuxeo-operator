@@ -34,7 +34,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.0.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: nuxeo-operator.v0.6.3
+  name: nuxeo-operator.v0.7.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -181,7 +181,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: docker.io/appzygy/nuxeo-operator:0.6.3
+                image: docker.io/appzygy/nuxeo-operator:0.7.1
                 name: manager
                 resources:
                   limits:
@@ -259,4 +259,4 @@ spec:
   provider:
     name: Eric Ace
     url: https://github.com/aceeric/nuxeo-operator
-  version: 0.6.3
+  version: 0.7.1

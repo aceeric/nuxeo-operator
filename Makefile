@@ -1,4 +1,4 @@
-OPERATOR_VERSION        := 0.6.3
+OPERATOR_VERSION        := 0.7.1
 BUNDLE_CHANNELS         ?= alpha
 BUNDLE_DEFAULT_CHANNEL  ?= alpha
 BUNDLE_METADATA_OPTS    ?= --channels $(BUNDLE_CHANNELS) --default-channel $(BUNDLE_DEFAULT_CHANNEL)

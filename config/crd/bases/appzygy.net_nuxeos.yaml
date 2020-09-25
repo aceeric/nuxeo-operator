@@ -158,7 +158,7 @@ spec:
                         - ECK
                         - Strimzi
                         - Crunchy
-                        - -MongoEnterprise
+                        - MongoEnterprise
                         type: string
                     required:
                     - resource

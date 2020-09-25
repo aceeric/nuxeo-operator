@@ -52,13 +52,13 @@ This project is under development. The current version is 0.6.3. Testing is perf
 
 ### Backlog
 
-#### Version 0.7.1 *(in progress)*
+#### Version 0.7.1 *(done)*
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if these change (doesn't handle password/cert changes yet) | done |
 | Test with MongoDB Enterprise backing service and implement a basic Mongo Enterprise pre-configured backing service. | done |
 | Build out unit tests for more coverage. Reach 80% coverage and cover the most important use cases. | done |
-| Copyrights in source files | in-progress |
+| Copyrights in source files. | done |
 
 
 #### Version 0.7.2

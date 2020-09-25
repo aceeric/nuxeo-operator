@@ -423,7 +423,7 @@ const (
 // a backing service.
 type PreconfiguredBackingService struct {
 	// type identifies the preconfigured backing service
-	// +kubebuilder:validation:Enum=ECK;Strimzi;Crunchy
+	// +kubebuilder:validation:Enum=ECK;Strimzi;Crunchy;MongoEnterprise
 	Type PreconfigType `json:"type"`
 
 	// resource identifies the name of the top-level backing service resource. For example, for Elastic Cloud on

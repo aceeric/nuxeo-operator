@@ -17,8 +17,7 @@ spec:
       kind: Nuxeo
       name: nuxeos.appzygy.net.appzygy.net
       version: v1alpha1
-  description: The Nuxeo Operator manages a Nuxeo cluster and integrates it with backing services like Kafka,
-    Elastic Search, MongoDB, and PostgreSQL.
+  description: The Nuxeo Operator manages a Nuxeo cluster and integrates it with backing services like Kafka, Elastic Search, MongoDB, and PostgreSQL.
   displayName: Nuxeo Operator
   icon:
   - base64data: ""

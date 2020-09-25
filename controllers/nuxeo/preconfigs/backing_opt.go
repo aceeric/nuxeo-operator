@@ -23,6 +23,9 @@ var opts = map[v1alpha1.PreconfigType]map[string][]string{
 		"ca":   {}, // a secret containing key 'ca.crt' for one-way tls
 		"tls":  {}, // a secret containing keys 'tls.crt' and 'tls.key' for mutual tls
 	},
+	v1alpha1.MongoEnterprise: {
+		// no options presently - support mongo topologies, auth, encryption in a future operator release
+	},
 }
 
 // ParsePreconfigOpts parses the options in the passed preconfigured backing service
@@ -72,7 +75,8 @@ func validatePreConfig(typ v1alpha1.PreconfigType, opts map[string]string) (map[
 		} else if (auth != "anonymous" && auth != "") && user == "" {
 			return nil, fmt.Errorf("user required for Strimzi sasl or tls auth")
 		}
-	case v1alpha1.ECK:
+	case v1alpha1.ECK: fallthrough
+	case v1alpha1.MongoEnterprise:
 		// no additional validations
 		return opts, nil
 	case v1alpha1.Crunchy:

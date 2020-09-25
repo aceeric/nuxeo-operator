@@ -6,53 +6,13 @@ bases:
 resources:
 # git clone https://github.com/mongodb/mongodb-enterprise-kubernetes.git master (7.1)
 - crds.yaml
-#- pull-secret.yaml
 - mongodb-enterprise.yaml
 - ops-manager-admin-secret.yaml
 - ops-manager.yaml
 
-# readiness probe was killing pod before it could start in CRC
-# test - these patches were under Deployment...patchesStrategicMerge:
-#  - op: replace
-#    path: /spec/template/spec/containers/0/env/3
-#    value:
-#      name: MONGODB_ENTERPRISE_DATABASE_IMAGE
-#      value: registry.connect.redhat.com/mongodb/mongodb-enterprise-database
-#  - op: replace
-#    path: /spec/template/spec/containers/0/env/0
-#    value:
-#      name: OPERATOR_ENV
-#      value: dev
-#  - op: replace
-#    path: /spec/template/spec/containers/0/env/5
-#    value:
-#      name: OPS_MANAGER_IMAGE_REPOSITORY
-#      value: registry.connect.redhat.com/mongodb/mongodb-enterprise-ops-manager
-#  - op: replace
-#    path: /spec/template/spec/containers/0/env/6
-#    value:
-#      name: INIT_OPS_MANAGER_IMAGE_REPOSITORY
-#      value: registry.connect.redhat.com/mongodb/mongodb-enterprise-init-ops-manager
-#  - op: replace
-#    path: /spec/template/spec/containers/0/env/8
-#    value:
-#      name: INIT_APPDB_IMAGE_REPOSITORY
-#      value: registry.connect.redhat.com/mongodb/mongodb-enterprise-init-appdb
-#  - op: replace
-#    path: /spec/template/spec/containers/0/env/9
-#    value:
-#      name: INIT_APPDB_VERSION
-#      value: latest
-#  - op: replace
-#    path: /spec/template/spec/containers/0/env/11
-#    value:
-#      name: APPDB_IMAGE_REPOSITORY
-#      value: registry.connect.redhat.com/mongodb/mongodb-enterprise-appdb
-#  - op: remove
-#    path: /spec/applicationDatabase/version
-#  - op: add
-#    path: /spec/applicationDatabase/podSpec/memory
-#    value: 500Mi
+# Patches:
+# Deployment patches for OpenShift
+# Ops Manager readiness probe was killing pod before it could start in CRC - took several minutes
 patchesJson6902:
 - target:
     group: apps
@@ -141,36 +101,3 @@ patchesJson6902:
 #    - op: replace
 #      path: /spec/version
 #      value: 4.2.6
-#    - op: replace
-#      path: /spec/replicas
-#      value: 1
-#- target:
-#    version: v1
-#    kind: ServiceAccount
-#    name: mongodb-enterprise-operator
-#    namespace: mongodb
-#  patch: |-
-#    - op: add
-#      path: /imagePullSecrets
-#      value:
-#        - name: openshift-pull-secret
-#- target:
-#    version: v1
-#    kind: ServiceAccount
-#    name: mongodb-enterprise-appdb
-#    namespace: mongodb
-#  patch: |-
-#    - op: add
-#      path: /imagePullSecrets
-#      value:
-#        - name: openshift-pull-secret
-#- target:
-#    version: v1
-#    kind: ServiceAccount
-#    name: mongodb-enterprise-database-pods
-#    namespace: mongodb
-#  patch: |-
-#    - op: add
-#      path: /imagePullSecrets
-#      value:
-#        - name: openshift-pull-secret

@@ -3,7 +3,8 @@ kind: Nuxeo
 metadata:
   name: nuxeo
 spec:
-  nuxeoImage: image-registry.openshift-image-registry.svc.cluster.local:5000/images/nuxeo:LTS-2019-HF29
+  nuxeoImage: nuxeo:LTS-2019
+  version: "10.10"
   access:
     hostname: nuxeo-server.apps-crc.testing
   nodeSets:
@@ -23,5 +24,5 @@ spec:
       - nuxeo-web-ui
   backingServices:
   - preConfigured:
-      type: Strimzi
-      resource: strimzi
+      type: MongoEnterprise
+      resource: my-standalone

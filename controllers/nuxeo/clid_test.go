@@ -1,6 +1,7 @@
 package nuxeo
 
 import (
+	"context"
 	"testing"
 
 	"github.com/aceeric/nuxeo-operator/api/v1alpha1"
@@ -8,7 +9,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // Tests injection of CLID-related mounts into the Nuxeo container
@@ -31,6 +34,24 @@ func (suite *clidSuite) TestClidFormat() {
 	require.NotNil(suite.T(), err)
 	_, err = suite.r.defaultClidCM(nux, "IS--VALID")
 	require.Nil(suite.T(), err)
+}
+
+// TestClidReconcile tests the creation of a CLID ConfigMap and then removal of the ConfigMap based on the
+// Nuxeo spec
+func (suite *clidSuite) TestClidReconcile() {
+	nux := suite.clidSuiteNewNuxeo()
+	// a valid clid as the -- separator which to operator converts to newline
+	nux.Spec.Clid = "test--clid"
+	err := suite.r.reconcileClid(nux)
+	require.Nil(suite.T(), err)
+	cm := &corev1.ConfigMap{}
+	err = suite.r.Client.Get(context.TODO(), types.NamespacedName{Name: nuxeoClidConfigMapName, Namespace: suite.namespace}, cm)
+	require.Nil(suite.T(), err, "Should have created a CLID CM")
+	nux.Spec.Clid = ""
+	err = suite.r.reconcileClid(nux)
+	require.Nil(suite.T(), err)
+	err = suite.r.Client.Get(context.TODO(), types.NamespacedName{Name: nuxeoClidConfigMapName, Namespace: suite.namespace}, cm)
+	require.True(suite.T(), apierrors.IsNotFound(err), "Should have removed the CLID CM")
 }
 
 // clidSuite is the Clid test suite structure

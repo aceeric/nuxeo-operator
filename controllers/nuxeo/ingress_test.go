@@ -80,6 +80,21 @@ func (suite *ingressSuite) TestIngressFromTLS() {
 	require.Nil(suite.T(), foundUpdated.Spec.TLS, "Ingress not updated")
 }
 
+// TestIngressTerminateTLS tests configuring an Ingress to terminate TLS
+func (suite *ingressSuite) TestIngressTerminateTLS() {
+	nux := suite.ingressSuiteNewNuxeo()
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	_ = createTlsIngressSecret(suite)
+	nux.Spec.Access.TLSSecret = suite.tlsSecretName
+	nux.Spec.Access.Termination = routev1.TLSTerminationEdge
+	_ = suite.r.reconcileIngress(nux.Spec.Access, false, nux.Spec.NodeSets[0], nux)
+	expectedIngressName := suite.nuxeoName + "-" + suite.deploymentName + "-" + "ingress"
+	found := &v1beta1.Ingress{}
+	_ = suite.r.Get(context.TODO(), types.NamespacedName{Name: expectedIngressName, Namespace: suite.namespace}, found)
+	require.Equal(suite.T(), suite.ingressHostName, found.Spec.TLS[0].Hosts[0])
+	require.Equal(suite.T(), suite.tlsSecretName, found.Spec.TLS[0].SecretName)
+}
+
 // TestIngressForcePassthrough tests the logic where configuring Nuxeo to terminate TLS causes the Ingress to be
 // configured for TLS Passthrough
 func (suite *ingressSuite) TestIngressForcePassthrough() {
@@ -112,6 +127,7 @@ func (suite *ingressSuite) SetupSuite() {
 	suite.namespace = "testns"
 	suite.ingressHostName = "test-host.corpdomain.io"
 	suite.deploymentName = "testclust"
+	suite.tlsSecretName = "testme"
 	suite.tlsCert = "THECERT"
 	suite.tlsKey = "THEKEY"
 	util.SetIsOpenShift(false)

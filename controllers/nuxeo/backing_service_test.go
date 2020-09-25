@@ -310,6 +310,30 @@ func (suite *backingServiceSuite) TestPreConfig() {
 	require.Equal(suite.T(), suite.nuxeoConf, nuxeoConf.Data["nuxeo.conf"], "nuxeo.conf data incorrect")
 }
 
+// TestPreConfigsBasic does a simple test of all pre-configured backing services to exercise all those code
+// paths
+func (suite *backingServiceSuite) TestPreConfigsBasic() {
+	svcs := []v1alpha1.PreconfiguredBackingService{{
+		Type:     v1alpha1.ECK,
+		Resource: "my-elastic",
+	}, {
+		Type:     v1alpha1.Strimzi,
+		Resource: "my-strimzi",
+	}, {
+		Type:     v1alpha1.Crunchy,
+		Resource: "my-crunchy",
+		Settings: map[string]string{"user": "foo"},
+	}, {
+		Type:     v1alpha1.MongoEnterprise,
+		Resource: "my-mongo",
+	}}
+	for _, svc := range svcs {
+		if _, err := xlatBacking(svc); err != nil {
+			require.Fail(suite.T(), "Unexpected error: %v", err)
+		}
+	}
+}
+
 // TestEnvVal tests the ability to get a value from an upstream resource and project it into the Nuxeo container
 // as an environment variable with a direct value rather than as a ValueFrom. E.g.:
 //  containers:
@@ -335,21 +359,22 @@ func (suite *backingServiceSuite) TestEnvVal() {
 	require.Equal(suite.T(), expectedEnv, dep.Spec.Template.Spec.Containers[0].Env[0])
 }
 
+// TestDeploymentComparer tests the deployment comparer
 func (suite *backingServiceSuite) TestDeploymentComparer() {
 	exp := genTestDeploymentForBackingSvc()
 	fnd := genTestDeploymentForBackingSvc()
-	util.AnnotateTemplate(&exp, common.BackingSvcAnnotation + "." + "bar", "frobozz")
+	util.AnnotateTemplate(&exp, common.BackingSvcAnnotation+"."+"bar", "frobozz")
 	util.AnnotateTemplate(&fnd, "foo", "bar")
 	// Nuxeo annotation in exp should go into fnd and non-Nuxeo annotation in fnd should remain
 	same := util.DeploymentComparer(&exp, &fnd)
 	require.False(suite.T(), same)
 	v, _ := fnd.Spec.Template.Annotations["foo"]
 	require.Equal(suite.T(), v, "bar")
-	v, _ = fnd.Spec.Template.Annotations[common.BackingSvcAnnotation + "." + "bar"]
+	v, _ = fnd.Spec.Template.Annotations[common.BackingSvcAnnotation+"."+"bar"]
 	require.Equal(suite.T(), v, "frobozz")
 	exp.Spec.Template.Annotations = nil
 	fnd.Spec.Template.Annotations = nil
-	util.AnnotateTemplate(&fnd, common.BackingSvcAnnotation + "." + "bar", "frobozz")
+	util.AnnotateTemplate(&fnd, common.BackingSvcAnnotation+"."+"bar", "frobozz")
 	// expected does not have a Nuxeo annotation that found does. So it was there, does not currently
 	// belong there (because expected is the gold source this reconciliation cycle), but annotations did change.
 	// Found will have that annotation removed since it doesn't belong there. When fnd gets written to the cluster
@@ -359,6 +384,185 @@ func (suite *backingServiceSuite) TestDeploymentComparer() {
 	require.Equal(suite.T(), 0, len(fnd.Spec.Template.Annotations))
 }
 
+// TestInvalidBacking tests when an explicit backing service is configured with no resources - which is invalid
+func (suite *backingServiceSuite) TestInvalidBacking() {
+	nux := &v1alpha1.Nuxeo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      suite.nuxeoName,
+			Namespace: suite.namespace,
+		},
+		Spec: v1alpha1.NuxeoSpec{
+			NodeSets: []v1alpha1.NodeSet{{
+				Name:     suite.nodeSetName,
+				Replicas: 1,
+			}},
+			BackingServices: []v1alpha1.BackingService{{
+				Name:      "invalid",
+				Resources: []v1alpha1.BackingServiceResource{},
+			}},
+		},
+	}
+	_, err := suite.r.configureBackingServices(nux, nil)
+	require.NotNil(suite.T(), err, "configureBackingServices should have errored because no resources were configured")
+}
+
+// TestBackingTemplate verifies that a backing service that specifies a template adds the template
+// to the NUXEO_TEMPLATES env var
+func (suite *backingServiceSuite) TestBackingTemplate() {
+	dep := genTestDeploymentForBackingSvc()
+	nux := &v1alpha1.Nuxeo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      suite.nuxeoName,
+			Namespace: suite.namespace,
+		},
+		Spec: v1alpha1.NuxeoSpec{
+			NodeSets: []v1alpha1.NodeSet{{
+				Name:     suite.nodeSetName,
+				Replicas: 1,
+			}},
+			BackingServices: []v1alpha1.BackingService{{
+				Name:     "testme",
+				Template: suite.template,
+				Resources: []v1alpha1.BackingServiceResource{{
+					GroupVersionKind: metav1.GroupVersionKind{
+						Group:   "foo.com",
+						Version: "v1",
+						Kind:    "Bar",
+					},
+					Name: "foobar",
+				}},
+			}},
+		},
+	}
+	_, err := suite.r.configureBackingServices(nux, &dep)
+	require.Nil(suite.T(), err, "configureBackingServices failed")
+	expectedEnv := corev1.EnvVar{
+		Name:  "NUXEO_TEMPLATES",
+		Value: suite.template,
+	}
+	require.Equal(suite.T(), expectedEnv, dep.Spec.Template.Spec.Containers[0].Env[0])
+}
+
+// TestBackingEnvFromCM tests a resource projection from a ConfigMap
+func (suite *backingServiceSuite) TestBackingEnvFromCM() {
+	dep := genTestDeploymentForBackingSvc()
+	nux := &v1alpha1.Nuxeo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      suite.nuxeoName,
+			Namespace: suite.namespace,
+		},
+		Spec: v1alpha1.NuxeoSpec{
+			NodeSets: []v1alpha1.NodeSet{{
+				Name:     suite.nodeSetName,
+				Replicas: 1,
+			}},
+			BackingServices: []v1alpha1.BackingService{{
+				Name: "testme",
+				Resources: []v1alpha1.BackingServiceResource{{
+					GroupVersionKind: metav1.GroupVersionKind{
+						Version: "v1",
+						Kind:    "ConfigMap",
+					},
+					Name: suite.cmName,
+					Projections: []v1alpha1.ResourceProjection{{
+						From: suite.cmKey,
+						Env:  suite.cmEnv,
+					}},
+				}},
+			}},
+		},
+	}
+	_, err := suite.r.configureBackingServices(nux, &dep)
+	require.Nil(suite.T(), err, "configureBackingServices failed")
+	expectedEnv := corev1.EnvVar{
+		Name: suite.cmEnv,
+		ValueFrom: &corev1.EnvVarSource{
+			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: suite.cmName},
+				Key:                  suite.cmKey,
+			},
+		},
+	}
+	require.Equal(suite.T(), expectedEnv, dep.Spec.Template.Spec.Containers[0].Env[0])
+}
+
+// TestLoadSecondary tests the secondary secret loading, annotation, and key merging
+func (suite *backingServiceSuite) TestLoadSecondary() {
+	// simulate a secondary secret already in cluster with one key "foo"
+	secSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        suite.secSecret,
+			Namespace:   suite.namespace,
+			Annotations: map[string]string{},
+		},
+		Data: map[string][]byte{
+			"foo": []byte("bar"),
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+	err := suite.r.Create(context.TODO(), &secSecret)
+	require.Nil(suite.T(), err)
+	// upstream resource
+	resource := v1alpha1.BackingServiceResource{
+		GroupVersionKind: metav1.GroupVersionKind{
+			Group:   "x",
+			Version: "y",
+			Kind:    "z",
+		},
+		Name: "frobozz",
+	}
+	// build 2ndary secret in mem
+	secSecret.Data = map[string][]byte{
+		"one": []byte("fish"),
+		"two": []byte("fish"),
+	}
+	// add key "foo" from in cluster secondary secret into in-mem version
+	err = suite.r.loadSecondary(resource, suite.namespace, &secSecret, "1", "foo")
+	require.Nil(suite.T(), err)
+	keyCnt := 0
+	for k, _ := range secSecret.Data {
+		if k == "one" || k == "two" || k == "foo" {
+			keyCnt += 1
+		}
+	}
+	require.Equal(suite.T(), 3, keyCnt)
+	// verify Operator annotated the secondary secret correctly from the upstream resource
+	_, ok := secSecret.Annotations["nuxeo.operator.x.y.z.frobozz"]
+	require.True(suite.T(), ok)
+
+	// since we never annotated the in-cluster secondary secret, it will not be current with the in-mem that
+	// we *did* annotate above
+	ok = suite.r.secondarySecretIsCurrent(suite.secSecret, suite.namespace, resource, "1")
+	require.False(suite.T(), ok)
+}
+
+// TestValFromCM tests getting a value from a ConfigMap, which is used in projecting values into the
+// Nuxeo Pod from an upstream ConfigMap resource
+func (suite *backingServiceSuite) TestValFromCM() {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      suite.cmName,
+			Namespace: suite.namespace,
+		},
+		Data: map[string]string{
+			"testkey": "testval",
+		},
+	}
+	err := suite.r.Client.Create(context.TODO(), cm)
+	require.Nil(suite.T(), err)
+	resource := v1alpha1.BackingServiceResource{
+		GroupVersionKind: metav1.GroupVersionKind{
+			Group:   "",
+			Version: "v1",
+			Kind:    "ConfigMap",
+		},
+		Name: suite.cmName,
+	}
+	val, _, err := suite.r.getValueFromResource(resource, suite.namespace, "testkey")
+	require.Nil(suite.T(), err)
+	require.Equal(suite.T(), "testval", string(val))
+}
+
 // backingServiceSuite is the BackingService test suite structure
 type backingServiceSuite struct {
 	suite.Suite
@@ -366,9 +570,11 @@ type backingServiceSuite struct {
 	nuxeoName   string
 	namespace   string
 	caSecret    string
-	cmName      string
 	serviceName string
 	passSecret  string
+	cmName      string
+	cmEnv       string
+	cmKey       string
 	password    string
 	caCert      string
 	configVal   string
@@ -376,6 +582,8 @@ type backingServiceSuite struct {
 	backing     string
 	nuxeoConf   string
 	nodeSetName string
+	template    string
+	secSecret   string
 }
 
 // SetupSuite initializes the Fake client, a NuxeoReconciler struct, and various test suite constants
@@ -385,7 +593,9 @@ func (suite *backingServiceSuite) SetupSuite() {
 	suite.namespace = "testns"
 	suite.caSecret = "elastic-es-http-certs-public"
 	suite.passSecret = "elastic-es-elastic-user"
-	suite.cmName = "some-config-map"
+	suite.cmName = "my-configmap"
+	suite.cmEnv = "MYENVVAR"
+	suite.cmKey = "my-cm-key"
 	suite.serviceName = "test-service"
 	suite.password = "testing123"
 	suite.caCert = esCaCert()
@@ -400,6 +610,8 @@ func (suite *backingServiceSuite) SetupSuite() {
 		"elasticsearch.restClient.truststore.type=JKS\n" +
 		"elasticsearch.restClient.username=elastic\n"
 	suite.nodeSetName = "test123"
+	suite.template = "testtemplate"
+	suite.secSecret = "secondary-secret"
 }
 
 // AfterTest removes objects of the type being tested in this suite after each test
@@ -410,6 +622,8 @@ func (suite *backingServiceSuite) AfterTest(_, _ string) {
 	_ = suite.r.DeleteAllOf(context.TODO(), &objSecret)
 	objDep := appsv1.Deployment{}
 	_ = suite.r.DeleteAllOf(context.TODO(), &objDep)
+	objCM := corev1.ConfigMap{}
+	_ = suite.r.DeleteAllOf(context.TODO(), &objCM)
 }
 
 // This function runs the BackingService unit test suite. It is called by 'go test' and will call every

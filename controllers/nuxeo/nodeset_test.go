@@ -2,6 +2,8 @@ package nuxeo
 
 import (
 	"context"
+	"encoding/base64"
+	"strings"
 	"testing"
 
 	"github.com/aceeric/nuxeo-operator/api/v1alpha1"
@@ -135,6 +137,44 @@ func (suite *nodeSetSuite) TestDupVolume() {
 	}}
 	_, err := suite.r.reconcileNodeSet(nux.Spec.NodeSets[0], nux)
 	require.NotNil(suite.T(), err, "reconcileNodeSet should have detected dup volume")
+}
+
+// TestJvmPkiSecret tests that when Nuxeo is configured to terminate TLS, it configures the Nuxeo Pod
+// accordingly
+func (suite *nodeSetSuite) TestJvmPkiSecret() {
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "jvm-pki-secret",
+			Namespace: suite.namespace,
+		},
+		Data: map[string][]byte{},
+	}
+	storeType, storePass := "jks", "frobozz"
+	storeTypeEncoded := base64.StdEncoding.EncodeToString([]byte(storeType))
+	storePassEncoded := base64.StdEncoding.EncodeToString([]byte(storePass))
+	secret.Data["keyStore"] = []byte{}
+	secret.Data["keyStoreType"] = []byte(storeTypeEncoded)
+	secret.Data["keyStorePassword"] = []byte(storePassEncoded)
+	secret.Data["trustStore"] = []byte{}
+	secret.Data["trustStoreType"] = []byte(storeTypeEncoded)
+	secret.Data["trustStorePassword"] = []byte(storePassEncoded)
+	err := suite.r.Client.Create(context.TODO(), &secret)
+	require.Nil(suite.T(), err)
+
+	nux := suite.nodeSetSuiteNewNuxeo()
+	nux.Spec.NodeSets[0].NuxeoConfig.JvmPKISecret = "jvm-pki-secret"
+	_, err = suite.r.reconcileNodeSet(nux.Spec.NodeSets[0], nux)
+	require.Nil(suite.T(), err)
+	dep := appsv1.Deployment{}
+	depName := deploymentName(nux, nux.Spec.NodeSets[0])
+	err = suite.r.Client.Get(context.TODO(), types.NamespacedName{Name: depName, Namespace: suite.namespace}, &dep)
+	require.Nil(suite.T(), err)
+	// the Operator should have defined JAVA_OPTS with system props for SSL, as well as a volume and volume mount
+	// for the JVM properties
+	require.Equal(suite.T(), "JAVA_OPTS", dep.Spec.Template.Spec.Containers[0].Env[0].Name)
+	require.True(suite.T(), strings.Contains(dep.Spec.Template.Spec.Containers[0].Env[0].Value, "-Djavax.net.ssl.keyStoreType"))
+	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Volumes))
+	require.Equal(suite.T(), 1, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts))
 }
 
 // nodeSetSuite is the NodeSet test suite structure

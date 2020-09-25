@@ -20,8 +20,8 @@ func (suite *nuxeoStorageSpecSuite) TestBasicNuxeoStorage() {
 	dep := genTestDeploymentForStorageSuite()
 	err := configureStorage(&dep, nux.Spec.NodeSets[0])
 	require.Nil(suite.T(), err, "configureStorage failed")
-	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Volumes), "Volumes were not created")
-	require.Equal(suite.T(), 3, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
+	require.Equal(suite.T(), 5, len(dep.Spec.Template.Spec.Volumes))
+	require.Equal(suite.T(), 5, len(dep.Spec.Template.Spec.Containers[0].VolumeMounts),
 		"Volume mounts were not created")
 	require.Equal(suite.T(), 2, len(dep.Spec.Template.Spec.Containers[0].Env),
 		"Environment variables were not created")
@@ -74,6 +74,18 @@ func (suite *nuxeoStorageSpecSuite) nuxeoStorageSpecSuiteNewNuxeo() *v1alpha1.Nu
 					Size:        "10M",
 				}, {
 					StorageType: v1alpha1.NuxeoStorageTransientStore,
+					Size:        "1Gi",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				}, {
+					StorageType: v1alpha1.NuxeoStorageNuxeoTmp,
+					Size:        "1Gi",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				}, {
+					StorageType: v1alpha1.NuxeoStorageConnect,
 					Size:        "1Gi",
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},

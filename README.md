@@ -57,8 +57,8 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | ------------------------------------------------------------ | ------ |
 | Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if these change (doesn't handle password/cert changes yet) | done |
 | Test with MongoDB Enterprise backing service and implement a basic Mongo Enterprise pre-configured backing service. | done |
-| Build out unit tests for more coverage |  |
-| Copyrights in source files |  |
+| Build out unit tests for more coverage. Reach 80% coverage and cover the most important use cases. | done |
+| Copyrights in source files | in-progress |
 
 
 #### Version 0.7.2
@@ -71,8 +71,8 @@ This project is under development. The current version is 0.6.3. Testing is perf
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
-| Add pre-configured support for Mongo DB Enterprise with various encryption/authentication options. |  |
-| Support S3-based binary store |  |
+| Add pre-configured support for Mongo DB Enterprise with various topology / encryption / authentication options. |  |
+| Support S3-based binary store for Nuxeo binaries |  |
 | GitHub build & test automation |   |
 | Backing Service tests - support AWS EKS |  |
 | Assess LOE and potentially support https://github.com/vmware-labs/service-bindings | |
@@ -80,7 +80,7 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | Support day 2 operations: backing service password change, TLS cert expiration/renewal. E.g.: day 365 the Kafka cert is renewed. Nuxeo Operator detects this and updates a Deployment hash which cycles the Nuxeo cluster via a rolling update. Or consider capturing ALL upstream resources into an intermediate secret which supports rolling the Nuxeo cluster when any projected upstream element changes - nuxeo-backing-secret |  |
 | Support update strategy in Nuxeo CR |  |
 | Break nuxeo backing services into its own CRD? *NuxeoBacking*? |  |
-| Consider a validating webhook |  |
+| Consider a validating webhook for the Nuxeo CR |  |
 | Ability to customize Nuxeo logging (inline or config map with log4j.xml to replace the file in the container, e.g.: `.spec.log4j`) or perhaps just a log level that the operator patches into the log4j file using a startup shell script injected into the container | |
 | Build on kustomize testing to provide exemplars for bringing up Nuxeo Clusters using kustomize |   |
 | Eval kpt (https://googlecontainertools.github.io/kpt/) + kustomize? | |
@@ -137,7 +137,7 @@ spec:
 EOF
 ```
 
-Note - you will have to pick a host name for `access/hostname` that your DNS resolves to your Kubernetes cluster. The example above is for Code Ready Containers. The quick-start CR above configures the following items in the `spec`:
+Note - you will have to pick a host name for `spec.access.hostname` that your DNS resolves to your Kubernetes cluster. The example above is for Code Ready Containers. The quick-start CR above configures the following items in the `spec`:
 
 1. *nuxeoImage* - the Nuxeo image from Docker Hub (defaults to *nuxeo:latest* if not specified)
 2. *version* - the Nuxeo version - in this case 10.10

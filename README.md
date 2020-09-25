@@ -36,12 +36,13 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | Ability to configure *Interactive* nodes and *Worker* nodes differently by configuring contributions via cluster resources. The objective is to support compute-intensive back-end processing on a set of nodes having a greater resource share in the cluster then the interactive nodes that serve the Nuxeo GUI. |
 | Support clustering - use Pod UID as `nuxeo.cluster.nodeid` via the downward API |
 | Support defining resource request/limit in the Nuxeo CR      |
-| Support Nuxeo CLID. |
+| Support Nuxeo CLID.                                          |
 | Support flexible integration with backing services by virtue of the `backingService` resource in the Nuxeo CR. Validate that with specific integrations (see below) |
 | Integrate with Elastic Cloud on Kubernetes (https://github.com/elastic/cloud-on-k8s) for ElasticSearch support |
 | Integrate with Strimzi (https://strimzi.io/) for Nuxeo Stream support |
 | Integrate with Crunchy PostgreSQL (https://www.crunchydata.com/products/crunchy-postgresql-for-kubernetes/) for database support |
 | Integrate with Percona MongoDB backing service (https://www.percona.com/doc/kubernetes-operator-for-psmongodb/index.html) |
+| Integrate with MongoDB Enterprise (https://docs.mongodb.com/kubernetes-operator/v1.7/) |
 | Integrate with Zalando Postgres (https://github.com/zalando/postgres-operator) as an alternative to Crunchy |
 | The project includes a test/kustomize directory to support automated testing of all backing service integrations |
 | Support rolling deployment updates: `kubectl rollout restart deployment nuxeo-cluster` |
@@ -51,11 +52,11 @@ This project is under development. The current version is 0.6.3. Testing is perf
 
 ### Backlog
 
-#### Version 0.7.1
+#### Version 0.7.1 *(in progress)*
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
 | Implement deployment annotations for nuxeo.conf, CLID, and backing hashes) to roll the Nuxeo deployment if these change (doesn't handle password/cert changes yet) | done |
-| MongoDB built-in backing service | in-progress |
+| Test with MongoDB Enterprise backing service and implement a basic Mongo Enterprise pre-configured backing service. | done |
 | Build out unit tests for more coverage |  |
 | Copyrights in source files |  |
 
@@ -70,6 +71,7 @@ This project is under development. The current version is 0.6.3. Testing is perf
 
 | Feature                                                      | Status |
 | ------------------------------------------------------------ | ------ |
+| Add pre-configured support for Mongo DB Enterprise with various encryption/authentication options. |  |
 | Support S3-based binary store |  |
 | GitHub build & test automation |   |
 | Backing Service tests - support AWS EKS |  |
@@ -77,7 +79,7 @@ This project is under development. The current version is 0.6.3. Testing is perf
 | Review and augment envtest tests |   |
 | Support day 2 operations: backing service password change, TLS cert expiration/renewal. E.g.: day 365 the Kafka cert is renewed. Nuxeo Operator detects this and updates a Deployment hash which cycles the Nuxeo cluster via a rolling update. Or consider capturing ALL upstream resources into an intermediate secret which supports rolling the Nuxeo cluster when any projected upstream element changes - nuxeo-backing-secret |  |
 | Support update strategy in Nuxeo CR |  |
-| Break nuxeo backing services into its own CRD? 'NuxeoBacking' |  |
+| Break nuxeo backing services into its own CRD? *NuxeoBacking*? |  |
 | Consider a validating webhook |  |
 | Ability to customize Nuxeo logging (inline or config map with log4j.xml to replace the file in the container, e.g.: `.spec.log4j`) or perhaps just a log level that the operator patches into the log4j file using a startup shell script injected into the container | |
 | Build on kustomize testing to provide exemplars for bringing up Nuxeo Clusters using kustomize |   |
@@ -556,7 +558,7 @@ The Nuxeo CR supports integrating the Nuxeo cluster with backing services. Two e
 
 #### Pre-configured
 
-The first example shows something called a *pre-configured* backing service. The Nuxeo Operator has pre-configured support for Strimzi Kafka, Elastic Cloud on Kubernetes, and Crunchy Postgres. This means that you can connect Nuxeo to these backing services with minimal YAML. The backing service configuration is in the `backingServices` stanza:
+The first example shows something called a *pre-configured* backing service. The Nuxeo Operator has pre-configured support for Strimzi Kafka, Elastic Cloud on Kubernetes, Crunchy Postgres, and MongoDB Enterprise. This means that you can connect Nuxeo to these backing services with minimal YAML. The backing service configuration is in the `backingServices` stanza:
 
 ```shell
 apiVersion: appzygy.net/v1alpha1
@@ -648,7 +650,7 @@ This example shows how cluster resources (secrets in this case) are projected in
 
 The directory `test/backing-services/stacks` has YAML configuring Nuxeo to integrate with a variety of backing services. There are plenty of examples there to draw on. See [backing services tests](test/backing-services/README.md).
 
-A more in-depth presentation of how the Operator integrates Nuxeo with backing services is documented in [configuring backing services](docs/backing-services.md) in the docs directory.
+A more in-depth presentation of how the Operator integrates Nuxeo with backing services is documented in [configuring backing services](docs/backing-services.md) in the docs directory. See [MongoDB](test/backing-services/stacks/mongodb.com-enterprise-standalone/README.md) for some content on MongoDB Enterprise integration.
 
 ### Prometheus Integration
 

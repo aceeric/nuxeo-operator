@@ -620,7 +620,7 @@ func backingSvcIsValid(backing v1alpha1.BackingService) bool {
 }
 
 // Uses the passed preconfigured backing service to generate a backing service struct that will wire Nuxeo
-// up to a backing service using well-known resources provided by the backing service operator.
+// up to a backing service using well-known resources provisioned by the backing service operator.
 func xlatBacking(preconfigured v1alpha1.PreconfiguredBackingService) (v1alpha1.BackingService, error) {
 	switch preconfigured.Type {
 	case v1alpha1.ECK:
@@ -629,6 +629,8 @@ func xlatBacking(preconfigured v1alpha1.PreconfiguredBackingService) (v1alpha1.B
 		return preconfigs.StrimziBacking(preconfigured, backingMountBase)
 	case v1alpha1.Crunchy:
 		return preconfigs.CrunchyBacking(preconfigured, backingMountBase)
+	case v1alpha1.MongoEnterprise:
+		return preconfigs.MongoEntBacking(preconfigured, backingMountBase)
 	default:
 		// can only happen if someone adds a preconfig and forgets to add a case statement for it
 		return v1alpha1.BackingService{}, fmt.Errorf("unknown pre-config: %v", preconfigured.Type)

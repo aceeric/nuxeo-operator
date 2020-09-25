@@ -1,0 +1,35 @@
+namespace: backing
+
+bases:
+- ../../namespace
+
+# use nuxeo.yaml for explicit configuration and nuxeo-preconfig.yaml for the pre-configured integration
+resources:
+- my-credentials-secret.yaml
+- my-project-configmap.yaml
+- standalone.yaml
+- nuxeo.yaml
+#- nuxeo-preconfig.yaml
+
+# After creating a project-level API key in Ops Manager, edit the key values in below. The Org ID is auto-generated
+# by the Mongo Operator/Ops Manager and is available in the Ops Manager UI. Edit that in as well:
+patchesJson6902:
+  - target:
+      version: v1
+      kind: Secret
+      name:  my-credentials
+    patch: |-
+      - op: replace
+        path: /stringData/user
+        value: eyjdgjbo
+      - op: replace
+        path: /stringData/publicApiKey
+        value: 6c2dfe8f-190b-40c7-b006-aa7184237494
+  - target:
+      version: v1
+      kind: ConfigMap
+      name:  my-project
+    patch: |-
+      - op: replace
+        path: /data/orgId
+        value: 5f6dddeb26e7c940e701a44c

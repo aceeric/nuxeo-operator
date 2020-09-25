@@ -414,6 +414,8 @@ const (
 	Strimzi PreconfigType = "Strimzi"
 	// Crunchy Postgres
 	Crunchy PreconfigType = "Crunchy"
+	// mongo.com Enterprise
+	MongoEnterprise PreconfigType = "MongoEnterprise"
 )
 
 // A PreconfiguredBackingService is a short-hand way to bind Nuxeo to a backing service. It's a preconfigured

@@ -75,7 +75,8 @@ func validatePreConfig(typ v1alpha1.PreconfigType, opts map[string]string) (map[
 		} else if (auth != "anonymous" && auth != "") && user == "" {
 			return nil, fmt.Errorf("user required for Strimzi sasl or tls auth")
 		}
-	case v1alpha1.ECK: fallthrough
+	case v1alpha1.ECK:
+		fallthrough
 	case v1alpha1.MongoEnterprise:
 		// no additional validations
 		return opts, nil

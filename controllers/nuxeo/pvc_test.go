@@ -23,6 +23,9 @@ func (suite *persistentVolumeClaimSuite) TestBasicPVC() {
 	require.Nil(suite.T(), err, "Error creating orphaned")
 	err = suite.r.reconcilePvc(nux)
 	require.Nil(suite.T(), err, "reconcilePvc failed")
+	// perform a NOP reconciliation to exercise that code path
+	err = suite.r.reconcilePvc(nux)
+	require.Nil(suite.T(), err)
 	var pvcsInCluster corev1.PersistentVolumeClaimList
 	opts := []client.ListOption{
 		client.InNamespace(nux.Namespace),

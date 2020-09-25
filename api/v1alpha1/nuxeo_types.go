@@ -572,8 +572,8 @@ type StatusValue string
 
 const (
 	StatusUnavailable StatusValue = "unavailable"
-	StatusHealthy                 = "healthy"
-	StatusDegraded                = "degraded"
+	StatusHealthy     StatusValue = "healthy"
+	StatusDegraded    StatusValue = "degraded"
 )
 
 // NuxeoStatus defines the observed state of a Nuxeo cluster

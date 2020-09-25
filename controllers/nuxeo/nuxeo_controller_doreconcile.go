@@ -14,9 +14,6 @@ func (r *NuxeoReconciler) doReconcile(request reconcile.Request) (reconcile.Resu
 	emptyResult := reconcile.Result{}
 	kv := []interface{}{"nuxeo", request.NamespacedName}
 	r.Log.Info("reconciling Nuxeo", kv...)
-	if request.Namespace == "" { // todo remove this - it can't happen any more
-		return emptyResult, fmt.Errorf("no namespace provided in reconciliation request")
-	}
 	// Get the Nuxeo CR from the request namespace
 	instance := &v1alpha1.Nuxeo{}
 	err := r.Get(context.TODO(), request.NamespacedName, instance)

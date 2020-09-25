@@ -83,7 +83,7 @@ func (r *NuxeoReconciler) annotateDep(backingService v1alpha1.BackingService, de
 	if err := enc.Encode(backingService); err != nil {
 		return err
 	}
-	util.AnnotateTemplate(dep, common.BackingSvcAnnotation + "." + backingService.Name, util.CRCBytes(buf.Bytes()))
+	util.AnnotateTemplate(dep, common.BackingSvcAnnotation+"."+backingService.Name, util.CRCBytes(buf.Bytes()))
 	return nil
 }
 
@@ -615,7 +615,7 @@ func backingSvcIsValid(backing v1alpha1.BackingService) bool {
 	if !reflect.DeepEqual(backing.Preconfigured, v1alpha1.PreconfiguredBackingService{}) {
 		return true
 	} else {
-		return backing.Name != "" && !reflect.DeepEqual(backing.Resources, v1alpha1.BackingServiceResource{})
+		return backing.Name != "" && !reflect.DeepEqual(backing.Resources, []v1alpha1.BackingServiceResource{})
 	}
 }
 

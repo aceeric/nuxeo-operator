@@ -20,7 +20,6 @@ type clusterType int
 const (
 	openShift  clusterType = 1
 	kubernetes clusterType = 2
-
 )
 
 var cluster = kubernetes

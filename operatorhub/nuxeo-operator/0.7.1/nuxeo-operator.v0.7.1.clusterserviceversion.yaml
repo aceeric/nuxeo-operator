@@ -425,7 +425,8 @@ spec:
   - name: Nuxeo Digital Asset Management
     url: https://www.nuxeo.com/
   maturity: alpha
+  maintainers:
+  - name: Eric Ace
   provider:
     name: Eric Ace
-    url: https://github.com/aceeric/nuxeo-operator
   version: 0.7.1

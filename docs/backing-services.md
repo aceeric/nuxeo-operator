@@ -405,5 +405,5 @@ You can see that the `backingServices` stanza simply provides a `preConfigured` 
 
 That's all that's required by the Operator to bind Nuxeo to ECK. Feel free to try it.
 
-The current version of the Nuxeo Operator supports ECK, Strimzi, and Crunchy Postgres.
+The current version of the Nuxeo Operator supports ECK, Strimzi, MongoDB Enterprise, and Crunchy Postgres.
 

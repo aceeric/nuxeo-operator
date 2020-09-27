@@ -36,7 +36,7 @@ After generating the API key, you will have to hand-edit `test/backing-services/
 
 With this manual intervention complete, you can now declaratively deploy the Mongo Database, the Nuxeo cluster, and connect Nuxeo to the Mongo backing service. First, review `test/backing-services/stacks/mongodb.com-enterprise-standalone/nuxeo.yaml` and potentially modify `spec.access.hostname` to generate the Route or Ingress that is suitable for your Kubernetes cluster. The example provided supports CRC. Then:
 
-`kustomize build test/backing-services/stacks/mongodb.com-enterprise-standalone`
+`$ kustomize build test/backing-services/stacks/mongodb.com-enterprise-standalone | kubectl apply -f -`
 
 This is a very simple stack with just Nuxeo and a stand-alone instance of MongoDB configured with no authentication. Verify:
 
@@ -53,7 +53,7 @@ ops-manager-db-2                               1/1       Running   0          13
 
 $ kubectl get nuxeo,mdb
 NAME                      VERSION   HEALTH    AVAILABLE   DESIRED
-nuxeo.appzygy.net/nuxeo   10.0      healthy   1           1
+nuxeo.appzygy.net/nuxeo   10.10     healthy   1           1
 
 NAME                                TYPE         STATE     VERSION     AGE
 mongodb.mongodb.com/my-standalone   Standalone   Running   4.2.1-ent   81m

@@ -583,7 +583,7 @@ type NuxeoStatus struct {
 	Status         StatusValue `json:"status,omitempty"`
 }
 
-// Nuxeo is the Schema for the nuxeos API
+// Represents a Nuxeo Cluster
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=nuxeos,scope=Namespaced
 // +kubebuilder:subresource:status

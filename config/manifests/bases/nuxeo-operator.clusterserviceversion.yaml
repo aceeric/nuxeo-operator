@@ -4,6 +4,15 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
+    categories: Application Runtime
+    certified: "false"
+    containerImage: docker.io/appzygy/nuxeo-operator:0.7.1
+    createdAt: 2020-09-26T00:00:00Z
+    support: https://github.com/aceeric/nuxeo-operator
+    repository: https://github.com/aceeric/nuxeo-operator
+    description: |
+      The Nuxeo Operator manages a Nuxeo cluster, integrating it
+      with backing services like Kafka, Elastic Search, MongoDB, and PostgreSQL
     operators.operatorframework.io/builder: operator-sdk-v1.0.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
   name: nuxeo-operator.vX.Y.Z
@@ -12,12 +21,18 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Nuxeo is the Schema for the nuxeos API
+    - description: Represents a Nuxeo Cluster
       displayName: Nuxeo
       kind: Nuxeo
       name: nuxeos.appzygy.net.appzygy.net
       version: v1alpha1
-  description: The Nuxeo Operator manages a Nuxeo cluster and integrates it with backing services like Kafka, Elastic Search, MongoDB, and PostgreSQL.
+  description: |
+    The Nuxeo Operator manages a Nuxeo cluster and integrates it with backing services like
+    Kafka, Elastic Search, MongoDB, and PostgreSQL. The operator supports the ability to configure many Nuxeo
+    runtime options, like JAVA_OPTS, templates, nuxeo.conf settings, custom contributions, cluster size,
+    and so on. Backing service integration is done declaratively. And some backing services are supported via
+    built-in configurations so that with just a few lines of YAML is is possible to run Nuxeo with those
+    backing services.
   displayName: Nuxeo Operator
   icon:
   - base64data: ""
@@ -51,4 +66,4 @@ spec:
   provider:
     name: Eric Ace
     url: https://github.com/aceeric/nuxeo-operator
-  version: 0.0.0
+  version: 0.7.1
